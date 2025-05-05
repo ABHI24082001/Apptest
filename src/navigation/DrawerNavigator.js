@@ -174,8 +174,8 @@ const styles = StyleSheet.create({
   },
   wave: {
     position: 'absolute',
-    width: 10,
-    height: 10,
+    width: 2,
+    height: 2,
     borderRadius: 8,
     backgroundColor: 'red',
   },

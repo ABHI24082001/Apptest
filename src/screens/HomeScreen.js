@@ -1,65 +1,59 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   useWindowDimensions,
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Button, Avatar } from 'react-native-paper';
+import {Card, Button} from 'react-native-paper';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { format, differenceInSeconds } from 'date-fns';
+import {format, differenceInSeconds} from 'date-fns';
+import AppSafeArea from '../component/AppSafeArea';
 import ShiftCalendar from '../component/ShiftCalendar';
+import WeekCalendarWithAgenda from '../component/WeekCalendarWithAgenda';
 
 const Dashboard = () => {
-  const { width } = useWindowDimensions();
+  const TOTAL_SHIFT_SECONDS = 60;
+  const SHIFT_HOURS = '10:00 AM - 10:01 AM';
 
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [shiftCompleted, setShiftCompleted] = useState(false);
-  const TOTAL_SHIFT_SECONDS = 60;
-  const SHIFT_HOURS = '10:00 AM - 10:01 AM';
-
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
 
-  const leaveData = useMemo(() => ([
-    { label: 'Total', value: 30 },
-    { label: 'CL (Casual)', value: 10 },
-    { label: 'SL (Sick)', value: 8 },
-    { label: 'PL (Paid)', value: 12 },
-    { label: 'Used', value: 5 },
-  ]), []);
+  const leaveData = [
+    {label: 'CL', available: 10, used: 5},
+    {label: 'PL', available: 8, used: 2},
+    {label: 'SL', available: 4, used: 1},
+    {label: 'ML', available: 10, used: 4},
+    {label: 'EL', available: 6, used: 2},
+    {label: 'WFH', available: 3, used: 1},
+  ];
 
   const progress = useSharedValue(0);
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+  const progressPercentage = Math.floor(progress.value * 100);
 
-  const handleCheckIn = () => {
-    const now = new Date();
-    setCheckInTime(now);
-    setCheckedIn(true);
-    setShiftCompleted(false);
-  };
+  const leaveScrollRef = useRef(null);
 
-  const handleCheckOut = () => {
-    setCheckedIn(false);
-    setCheckInTime(null);
-    setElapsedTime('00:00:00');
-    progress.value = 0;
-    setShiftCompleted(false);
-  };
-
-  const formatTime = (seconds) => {
+  const formatTime = seconds => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(
+      2,
+      '0',
+    )}:${String(secs).padStart(2, '0')}`;
   };
 
   useEffect(() => {
@@ -87,6 +81,20 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [checkedIn, checkInTime]);
 
+  const handleCheckIn = () => {
+    setCheckInTime(new Date());
+    setCheckedIn(true);
+    setShiftCompleted(false);
+  };
+
+  const handleCheckOut = () => {
+    setCheckedIn(false);
+    setCheckInTime(null);
+    setElapsedTime('00:00:00');
+    progress.value = 0;
+    setShiftCompleted(false);
+  };
+
   const handleDateSelect = (date, shift) => {
     setSelectedShiftInfo({
       date: format(new Date(date), 'MMM dd, yyyy'),
@@ -94,35 +102,16 @@ const Dashboard = () => {
     });
   };
 
-  const animatedProgressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
-
-  const progressPercentage = Math.floor(progress.value * 100);
-
-  const leaveUsers = [
-    { id: '1', name: 'Anjana Mishra', role: 'HR, Management', image: require('../assets/image/woman.png') },
-    { id: '2', name: 'Jayanta Behera', role: 'Backend Developer, IT', image: require('../assets/image/withh.png') },
-    { id: '3', name: 'Abhispa Pathak', role: 'Android Developer, IT', image: require('../assets/image/withh.png') },
-    { id: '4', name: 'Ansuman Samal', role: '.Net Developer, IT', image: require('../assets/image/withh.png') },
-  ];
-
-  const renderUserItem = ({ item }) => (
-    <View style={styles.userContainer}>
-      {item.image ? (
-        <Avatar.Image source={item.image} size={48} />
-      ) : (
-        <Avatar.Icon icon="account" size={48} />
-      )}
-      <Text style={styles.roleText}>{item.role}</Text>
-      <Text style={styles.nameText}>{item.name}</Text>
-    </View>
-  );
+  const scrollLeaveRight = () => {
+    leaveScrollRef.current?.scrollTo({x: 150, animated: true});
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-
+    <AppSafeArea>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.name}>Welcome, Jayanta Behera</Text>
@@ -130,123 +119,278 @@ const Dashboard = () => {
             <Text style={styles.company}>The Cloudtree</Text>
 
             <View style={styles.statusRow}>
-              <View style={[styles.statusBox, checkedIn ? styles.active : styles.inactive]}>
+              <View
+                style={[
+                  styles.statusBox,
+                  checkedIn ? styles.active : styles.inactive,
+                ]}>
                 <Text style={styles.statusText}>Check In {elapsedTime}</Text>
               </View>
-              <View style={[styles.statusBox, !checkedIn ? styles.active : styles.inactive]}>
+              <View
+                style={[
+                  styles.statusBox,
+                  !checkedIn ? styles.active : styles.inactive,
+                ]}>
                 <Text style={styles.statusText}>Check Out 00:00:00</Text>
               </View>
             </View>
 
             <View style={styles.progressContainer}>
               <View style={styles.progressBarBg}>
-                <Animated.View style={[styles.progressBarFill, animatedProgressStyle]} />
+                <Animated.View
+                  style={[styles.progressBarFill, animatedProgressStyle]}
+                />
               </View>
               <Text style={styles.progressText}>{progressPercentage}%</Text>
             </View>
 
             <Text style={styles.shiftTime}>🕐 Shift: {SHIFT_HOURS}</Text>
-
             {shiftCompleted && (
               <Text style={styles.completedText}>✅ Shift Completed</Text>
             )}
 
             <View style={styles.buttonRow}>
-              <Button mode="contained" icon="login" onPress={handleCheckIn} disabled={checkedIn} style={[styles.button, checkedIn ? styles.disabled : styles.green]} labelStyle={styles.buttonLabel}>Check In</Button>
-              <Button mode="contained" icon="logout" onPress={handleCheckOut} disabled={!checkedIn} style={[styles.button, !checkedIn ? styles.disabled : styles.red]} labelStyle={styles.buttonLabel}>Check Out</Button>
+              <Button
+                mode="contained"
+                icon="login"
+                onPress={handleCheckIn}
+                disabled={checkedIn}
+                style={[
+                  styles.button,
+                  checkedIn ? styles.disabled : styles.green,
+                ]}
+                labelStyle={styles.buttonLabel}>
+                Check In
+              </Button>
+              <Button
+                mode="contained"
+                icon="logout"
+                onPress={handleCheckOut}
+                disabled={!checkedIn}
+                style={[
+                  styles.button,
+                  !checkedIn ? styles.disabled : styles.red,
+                ]}
+                labelStyle={styles.buttonLabel}>
+                Check Out
+              </Button>
             </View>
+          </Card.Content>
+        </Card>
+
+        {/* Leave Status */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.leaveHeaderRow}>
+              <Text style={styles.sectionTitle}>📋 Leave Status</Text>
+              <TouchableOpacity onPress={scrollLeaveRight}>
+                <Text style={styles.scrollHint}>➡️</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.leaveScrollContainer}
+              ref={leaveScrollRef}>
+              {leaveData.map(item => (
+                <View key={item.label} style={styles.leaveCard}>
+                  <Text style={styles.leaveType}>{item.label}</Text>
+                  <Text style={styles.leaveInfo}>
+                    Available: <Text style={styles.leaveBold}>{item.available}</Text>
+                  </Text>
+                  <Text style={styles.leaveInfo}>
+                    Used: <Text style={styles.leaveBold}>{item.used}</Text>
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </Card.Content>
+        </Card>
+
+        {/* Shift Calendar */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.sectionTitle}>Calendar</Text>
+            <ShiftCalendar onSelectDate={handleDateSelect} />
+            {selectedShiftInfo && (
+              <View style={styles.selectedShiftContainer}>
+                <Text style={styles.selectedShiftText}>
+                  {selectedShiftInfo.date} - {selectedShiftInfo.shift}
+                </Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
 
         <Card style={styles.card}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>📄 Leave Status</Text>
-            {leaveData.map(item => (
-              <View style={styles.leaveRow} key={item.label}>
-                <Text style={styles.leaveLabel}>{item.label}</Text>
-                <Text style={styles.leaveValue}>{item.value}</Text>
-              </View>
-            ))}
+            <Text style={styles.sectionTitle}>Calendar</Text>         
+            <WeekCalendarWithAgenda/>
           </Card.Content>
         </Card>
 
-        {/* <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>📅 Shift Calendar</Text>
-            <ShiftCalendar onSelectDate={handleDateSelect} />
-            {selectedShiftInfo && (
-              <View style={styles.selectedShiftContainer}>
-                <Text style={styles.selectedShiftText}>{selectedShiftInfo.date} - {selectedShiftInfo.shift}</Text>
-              </View>
-            )}
-          </Card.Content>
-        </Card> */}
 
-        {/* <Card style={styles.card}>
-          <Card.Title title="Who is on Leave?" titleStyle={styles.title} />
-          <Card.Content>
-            <FlatList
-              data={leaveUsers}
-              renderItem={renderUserItem}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={styles.row}
-            />
-            <Button
-              mode="outlined"
-              style={styles.leaveButton}
-              labelStyle={styles.leaveButtonLabel}
-              icon="chevron-right"
-              onPress={() => console.log('View All Pressed')}
-            >
-              View All
-            </Button>
-          </Card.Content>
-        </Card> */}
-
+        {/* <ShiftAgendaCalendar/> */}
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeArea>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7fafc' },
-  container: { padding: 16 },
-  card: { marginBottom: 16, borderRadius: 12, backgroundColor: '#fff', elevation: 3 },
-  name: { fontSize: 18, fontWeight: '700', color: '#2d3748' },
-  role: { fontSize: 14, color: '#4a5568' },
-  company: { fontSize: 13, color: '#718096', marginBottom: 12 },
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12 },
-  statusBox: { flex: 1, padding: 12, marginHorizontal: 4, borderRadius: 8, alignItems: 'center' },
-  active: { backgroundColor: '#4299e1' },
-  inactive: { backgroundColor: '#e2e8f0' },
-  statusText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  progressContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 10 },
-  progressBarBg: { flex: 1, height: 10, backgroundColor: '#e2e8f0', borderRadius: 5, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#4299e1' },
-  progressText: { marginLeft: 8, fontSize: 14, color: '#4299e1', fontWeight: '600' },
-  shiftTime: { textAlign: 'center', color: '#4a5568', marginTop: 6, fontWeight: '500' },
-  completedText: { textAlign: 'center', marginTop: 8, color: '#38a169', fontWeight: '600' },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
-  button: { flex: 0.48, borderRadius: 8 },
-  green: { backgroundColor: '#38a169' },
-  red: { backgroundColor: '#e53e3e' },
-  disabled: { backgroundColor: '#cbd5e0' },
-  buttonLabel: { color: '#fff', fontWeight: '600' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#2d3748', marginBottom: 10 },
-  leaveRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#edf2f7' },
-  leaveLabel: { fontSize: 14, color: '#4a5568' },
-  leaveValue: { fontSize: 14, fontWeight: '600', color: '#2d3748' },
-  selectedShiftContainer: { marginTop: 12, backgroundColor: '#ebf8ff', padding: 10, borderRadius: 8 },
-  selectedShiftText: { fontSize: 14, color: '#3182ce', fontWeight: '500' },
-  title: { fontWeight: 'bold', fontSize: 16, color: '#2d3748' },
-  row: { justifyContent: 'space-between', marginBottom: 12 },
-  userContainer: { width: '48%', alignItems: 'center', marginBottom: 8 },
-  roleText: { fontSize: 13, fontWeight: '600', color: '#2c5282', textAlign: 'center', marginTop: 6 },
-  nameText: { fontSize: 12, color: '#718096', textAlign: 'center' },
-  leaveButton: { marginTop: 12, borderRadius: 8, borderColor: '#3182ce', alignSelf: 'center', paddingHorizontal: 12 },
-  leaveButtonLabel: { color: '#3182ce', fontWeight: '600' },
+  container: {
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: '#F5F7FA',
+  },
+  card: {
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  name: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  role: {
+    fontSize: 14,
+    color: '#777',
+    marginBottom: 2,
+  },
+  company: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 12,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusBox: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  active: {
+    backgroundColor: '#d2f7dc',
+  },
+  inactive: {
+    backgroundColor: '#F0F0F0',
+  },
+  statusText: {
+    fontSize: 13,
+    color: '#333',
+  },
+  progressContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    height: 10,
+    width: '100%',
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 10,
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#333',
+  },
+  shiftTime: {
+    fontSize: 14,
+    color: '#444',
+    marginTop: 8,
+  },
+  completedText: {
+    color: '#388E3C',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+  },
+  green: {
+    backgroundColor: '#4CAF50',
+  },
+  red: {
+    backgroundColor: '#F44336',
+  },
+  disabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  buttonLabel: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  leaveHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  scrollHint: {
+    fontSize: 20,
+    color: '#1976D2',
+  },
+  leaveScrollContainer: {
+    paddingRight: 8,
+  },
+  leaveCard: {
+    backgroundColor: '#e0f2f1',
+    padding: 12,
+    borderRadius: 8,
+    width: 100,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  leaveType: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#00796B',
+  },
+  leaveInfo: {
+    fontSize: 12,
+    color: '#555',
+  },
+  leaveBold: {
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  selectedShiftContainer: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+  },
+  selectedShiftText: {
+    fontSize: 14,
+    color: '#1976D2',
+    fontWeight: 'bold',
+  },
 });
 
 export default Dashboard;

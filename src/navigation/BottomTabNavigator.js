@@ -78,6 +78,7 @@ export default function BottomTabNavigator({navigation}) {
       <Tab.Navigator
         screenOptions={({route}) => ({
           headerShown: false,
+        
           tabBarIcon: ({color, size, focused}) => {
             const icons = {
               Home: 'home-outline',        // MaterialCommunityIcons

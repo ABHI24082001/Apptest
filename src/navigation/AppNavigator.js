@@ -14,6 +14,7 @@ import NotificationScreen from '../screens/NotificationScreen';
 import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
 import Payslip from '../screens/Payslip';
+import WhoLeave from '../screens/WhoLeave';
 
 //  drawer
 import LogReport from '../screens/LogReport';
@@ -23,6 +24,7 @@ import PaymentRequest from '../screens/PaymentRequest';
 import MyExpenses from '../screens/MyExpenses';
 import AdvanceReport from '../screens/AdvanceReport';
 import Exit from '../screens/Exit';
+import Profile from '../screens/Profile';
 
 
 
@@ -57,6 +59,8 @@ export default function AppNavigator() {
       <Stack.Screen name="MyExpenses" component={MyExpenses} />
       <Stack.Screen name="AdvanceReport" component={AdvanceReport} />
       <Stack.Screen name="Exit" component={Exit} />
+      <Stack.Screen name="WhoLeave" component={WhoLeave} />
+      <Stack.Screen name="Profile"  component={Profile}/>
 
 
       
