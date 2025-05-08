@@ -222,12 +222,12 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
+        {/* <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Calendar</Text>         
             <WeekCalendarWithAgenda/>
           </Card.Content>
-        </Card>
+        </Card> */}
 
 
         {/* <ShiftAgendaCalendar/> */}
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   name: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
@@ -257,11 +257,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#777',
     marginBottom: 2,
+     fontWeight: '700'
   },
   company: {
     fontSize: 14,
-    color: '#999',
+    color: '#777',
     marginBottom: 12,
+     fontWeight: '700'
+   
+
   },
   statusRow: {
     flexDirection: 'row',

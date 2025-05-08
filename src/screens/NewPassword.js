@@ -247,3 +247,25 @@ const styles = StyleSheet.create({
 });
 
 export default NewPassword;
+
+
+
+  {/* <View style={styles.headerBar}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Request Details</Text>
+        {unreadCount > 0 && (
+          <TouchableOpacity 
+            style={styles.markAllButton}
+            onPress={markAllAsRead}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.markAllText}>Mark All Read</Text>
+          </TouchableOpacity>
+        )}
+      </View> */}

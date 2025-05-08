@@ -1,74 +1,67 @@
-import React, {useEffect} from 'react';
-import {View, StyleSheet, StatusBar, Dimensions, Image} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, StatusBar, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   withTiming,
   useAnimatedStyle,
   runOnJS,
+  Easing,
 } from 'react-native-reanimated';
 
-export default function SplashScreen({navigation}) {
-  const opacity = useSharedValue(1);
+export default function SplashScreen({ navigation }) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.8);
 
   useEffect(() => {
+    // Fade in and scale up animation
+    opacity.value = withTiming(1, { duration: 800 });
+    scale.value = withTiming(1, { 
+      duration: 1000,
+      easing: Easing.out(Easing.exp) 
+    });
+
     const timer = setTimeout(() => {
-      opacity.value = withTiming(0, {duration: 2000}, (finished) => {
-        if (finished) {
-          runOnJS(navigation.replace)('Splash1');
-        }
+      // Fade out animation
+      opacity.value = withTiming(0, {
+        duration: 600,
+        easing: Easing.in(Easing.exp)
+      }, (finished) => {
+        if (finished) runOnJS(navigation.replace)('Splash1');
       });
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [navigation, opacity]);
+  }, []);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-    };
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }]
+  }));
 
   return (
-    <LinearGradient
-      colors={['#000000', '#0f0f0f', '#00BFFF']}
-      style={styles.container}>
-      <StatusBar backgroundColor="#000" barStyle="light-content" />
-
-      <Animated.View style={[styles.logoContainer, animatedStyle]}>
+    <View style={styles.container}>
+      <StatusBar hidden />
+      
+      <Animated.View style={animatedStyle}>
         <Image
           source={require('../assets/image/logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
       </Animated.View>
-    </LinearGradient>
+    </View>
   );
 }
-
-const windowWidth = Dimensions.get('window').width;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  logoContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 10,
-    shadowColor: '#00BFFF',
-    shadowOffset: {width: 0, height: 0},
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
+    backgroundColor: '#ffffff', // Pure white background
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 180, // Slightly larger logo
+    height: 180,
   },
 });

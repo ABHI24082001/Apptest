@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
+  StyleSheet,
   Text,
+  Platform,
+  ScrollView,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
-  Platform,
 } from 'react-native';
-import { Appbar, Card } from 'react-native-paper';
+import { Card, Appbar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import RNPickerSelect from 'react-native-picker-select';
-import { useNavigation } from '@react-navigation/native';
+import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
+import { useNavigation } from '@react-navigation/native';
 
-const MyPaySlipScreen = () => {
+const MyPaySlip = () => {
   const navigation = useNavigation();
-  const [selectedFilter, setSelectedFilter] = useState('last_month');
 
-  const payslips = [
-    { id: '1', month: 'April, 2025', salary: '₹45,000' },
-    { id: '2', month: 'March, 2025', salary: '₹44,500' },
-    { id: '3', month: 'February, 2025', salary: '₹44,000' },
+  const allPayslips = [
+    { id: '1', month: 'April, 2025', salary: '₹50,000', date: new Date('2025-04-01') },
+    { id: '2', month: 'March, 2025', salary: '₹50,000', date: new Date('2025-03-01') },
+    { id: '3', month: 'February, 2025', salary: '₹50,000', date: new Date('2025-02-01') },
+    { id: '4', month: 'January, 2025', salary: '₹50,000', date: new Date('2025-01-01') },
+    { id: '5', month: 'December, 2024', salary: '₹50,000', date: new Date('2024-12-01') },
   ];
 
   const filterOptions = [
@@ -30,51 +33,141 @@ const MyPaySlipScreen = () => {
     { label: 'Yearly', value: 'yearly' },
   ];
 
+  const [selectedFilter, setSelectedFilter] = useState(null);
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+  const [filteredPayslips, setFilteredPayslips] = useState(allPayslips);
+
+  const filterPayslips = () => {
+    let filtered = [...allPayslips];
+
+    if (selectedFilter) {
+      const now = new Date();
+      let from = new Date();
+
+      switch (selectedFilter) {
+        case 'last_month':
+          from.setMonth(now.getMonth() - 1);
+          break;
+        case 'last_3_months':
+          from.setMonth(now.getMonth() - 3);
+          break;
+        case 'quarterly':
+          from.setMonth(now.getMonth() - 3);
+          break;
+        case 'yearly':
+          from.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+
+      filtered = filtered.filter(p => p.date >= from && p.date <= now);
+    } else if (fromDate && toDate) {
+      filtered = filtered.filter(p => p.date >= fromDate && p.date <= toDate);
+    }
+
+    setFilteredPayslips(filtered);
+  };
+
+  useEffect(() => {
+    filterPayslips();
+  }, [selectedFilter, fromDate, toDate]);
+
+  const formatDate = (date) => {
+    return date?.toLocaleDateString('en-GB') || '--';
+  };
+
   const renderItem = ({ item }) => (
     <Card style={styles.card}>
       <View style={styles.cardRow}>
         <Icon name="file-document-outline" size={30} color="#6D75FF" />
         <View style={styles.cardText}>
           <Text style={styles.month}>{item.month}</Text>
-          <Text style={styles.salary}>Net Salary: {item.salary}</Text>
+          <Text style={styles.salary}>Disbursed salary: {item.salary}</Text>
         </View>
         <TouchableOpacity style={styles.previewBtn}>
           <Text style={styles.previewText}>Preview</Text>
         </TouchableOpacity>
-        <Icon name="download" size={24} color="#666" style={{ marginLeft: 8 }} />
+        <Icon name="download" size={24} color="#666" />
       </View>
     </Card>
   );
 
   return (
     <AppSafeArea>
-      <Appbar.Header elevated style={styles.header}>
+      <Appbar.Header style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="My PaySlip" titleStyle={styles.headerTitle} />
+        <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
-      <View style={styles.pickerWrapper}>
-        <RNPickerSelect
-          value={selectedFilter}
-          onValueChange={setSelectedFilter}
-          items={filterOptions}
-          style={pickerSelectStyles}
-          useNativeAndroidPickerStyle={false}
-          Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
-        />
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        {/* Filter Section */}
+        <View style={styles.filterContainer}>
+          <View style={styles.dropdownWrapper}>
+            <RNPickerSelect
+              value={selectedFilter}
+              onValueChange={(val) => {
+                setSelectedFilter(val);
+                setFromDate(null);
+                setToDate(null);
+              }}
+              items={filterOptions}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+              Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+              placeholder={{ label: 'Select Filter', value: null }}
+            />
+          </View>
 
-      <FlatList
-        data={payslips}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-      />
+          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowFromPicker(true)}>
+            <Text style={styles.dateBtnText}>From: {formatDate(fromDate)}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowToPicker(true)}>
+            <Text style={styles.dateBtnText}>To: {formatDate(toDate)}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Picker Modals */}
+        <DatePicker
+          modal
+          open={showFromPicker}
+          date={fromDate || new Date()}
+          mode="date"
+          onConfirm={(date) => {
+            setShowFromPicker(false);
+            setFromDate(date);
+            setSelectedFilter(null);
+          }}
+          onCancel={() => setShowFromPicker(false)}
+        />
+        <DatePicker
+          modal
+          open={showToPicker}
+          date={toDate || new Date()}
+          mode="date"
+          onConfirm={(date) => {
+            setShowToPicker(false);
+            setToDate(date);
+            setSelectedFilter(null);
+          }}
+          onCancel={() => setShowToPicker(false)}
+        />
+
+        {/* Payslip List */}
+        <FlatList
+          data={filteredPayslips}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+        />
+      </ScrollView>
     </AppSafeArea>
   );
 };
 
-export default MyPaySlipScreen;
+export default MyPaySlip;
 
 const styles = StyleSheet.create({
   header: {
@@ -86,20 +179,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  pickerWrapper: {
-    margin: 16,
+  container: {
+    flex: 1,
+    backgroundColor: '#f4f6f8',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dropdownWrapper: {
+    flex: 1,
+    minWidth: '100%',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ccc',
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
   },
-  list: { paddingHorizontal: 16 },
+  dateBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    flex: 1,
+    minWidth: '48%',
+  },
+  dateBtnText: {
+    fontSize: 14,
+    color: '#333',
+  },
   card: {
-    borderRadius: 12,
-    padding: 12,
     backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
+    elevation: 2,
   },
   cardRow: {
     flexDirection: 'row',
@@ -107,49 +229,47 @@ const styles = StyleSheet.create({
   },
   cardText: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
   },
   month: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
   salary: {
     fontSize: 13,
-    color: '#777',
+    color: '#666',
     marginTop: 2,
   },
   previewBtn: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 6,
-    paddingHorizontal: 10,
+    backgroundColor: '#6D75FF',
     paddingVertical: 4,
-    marginRight: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    marginRight: 10,
   },
   previewText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '500',
+  },
+  list: {
+    paddingBottom: 30,
   },
 });
 
-const pickerSelectStyles = {
+const pickerSelectStyles = StyleSheet.create({
   inputIOS: {
-    fontSize: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    fontSize: 16,
+    paddingVertical: 12,
     color: '#333',
-    paddingRight: 30,
   },
   inputAndroid: {
-    fontSize: 14,
-    paddingHorizontal: 10,
+    fontSize: 16,
     paddingVertical: 8,
     color: '#333',
-    paddingRight: 30,
   },
   iconContainer: {
-    top: 12,
+    top: 14,
     right: 10,
   },
-};
+});

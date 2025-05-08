@@ -23,11 +23,11 @@ const CustomDrawer = ({navigation}) => {
   const avatarScale = useSharedValue(1);
 
   const menuItems = [
-    {label: 'Home', icon: 'home-outline', activeIcon: 'home', screen: 'Tabs', params: {screen: 'Home'}},
+    {label: 'Dashboard', icon: 'home-outline', activeIcon: 'home', screen: 'Tabs', params: {screen: 'Home'}},
     {label: 'Log Report', icon: 'file-document-outline', activeIcon: 'file-document', screen: 'LogReport'},
     {label: 'Apply Leave', icon: 'calendar-outline', activeIcon: 'calendar', screen: 'ApplyLeave'},
-    {label: 'My Payslip', icon: 'file-certificate-outline', activeIcon: 'file-certificate', screen: 'MyPayslip'},
-    {label: 'Payment Request', icon: 'currency-usd', activeIcon: 'currency-usd-circle', screen: 'PaymentRequest'},
+    // {label: 'My Payslip', icon: 'file-certificate-outline', activeIcon: 'file-certificate', screen: 'MyPayslip'},
+    // {label: 'Payment Request', icon: 'currency-usd', activeIcon: 'currency-usd-circle', screen: 'PaymentRequest'},
     {label: 'My Expenses', icon: 'cash-minus', activeIcon: 'cash', screen: 'MyExpenses'},
   ];
 

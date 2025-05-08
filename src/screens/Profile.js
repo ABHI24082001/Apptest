@@ -3,7 +3,7 @@ import { View, ScrollView, Image, StyleSheet, Text, Platform } from 'react-nativ
 import { Card, Appbar, Divider } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppSafeArea from '../component/AppSafeArea';
-import { useNavigation } from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();

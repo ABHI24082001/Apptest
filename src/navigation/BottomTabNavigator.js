@@ -6,7 +6,8 @@ import {View, StyleSheet, Text, Platform, TouchableOpacity, Dimensions} from 're
 import HomeScreen from '../screens/HomeScreen';
 import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
-import Payslip from '../screens/Payslip';
+
+import MyPaySlip from '../screens/MyPayslip';
 import Animated, {
   Easing,
   withTiming,
@@ -81,10 +82,10 @@ export default function BottomTabNavigator({navigation}) {
         
           tabBarIcon: ({color, size, focused}) => {
             const icons = {
-              Home: 'home-outline',        // MaterialCommunityIcons
+              Dashboard: 'view-dashboard-outline',        // MaterialCommunityIcons
               Approvals: 'clipboard-check-outline',
               Attendance: 'calendar-month-outline',
-              Payslip: 'file-document-outline',
+              Payslip: 'file-document-outline', // ← fixed casing
             };
 
             const animatedIconStyle = useAnimatedStyle(() => {
@@ -125,17 +126,13 @@ export default function BottomTabNavigator({navigation}) {
           tabBarActiveTintColor: '#1E88E5',
           tabBarInactiveTintColor: '#757575',
           tabBarStyle: {
-            height: Platform.OS === 'ios' ? 80 : 60,
+            height: Platform.OS === 'ios' ? 80 : 70,
             paddingTop: Platform.OS === 'ios' ? 10 : 5,
-            position: 'absolute',
+            margin: Platform.OS === 'ios' ? 3: 1,
             backgroundColor: '#fff',
             borderTopWidth: 1,
             borderTopColor: '#e0e0e0',
-            shadowColor: '#000',
-            shadowOffset: {width: 0, height: -4},
-            shadowOpacity: 0.1,
-            shadowRadius: 6,
-            elevation: 8,
+           
           },
           tabBarButton: (props) => {
             if (route.name === 'Action') {
@@ -152,11 +149,11 @@ export default function BottomTabNavigator({navigation}) {
             return <TouchableOpacity {...props} />;
           },
         })}>
-        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Dashboard" component={HomeScreen} />
         <Tab.Screen name="Approvals" component={Approvals} />
         <Tab.Screen name="Action" component={() => null} options={{tabBarLabel: () => null}} />
         <Tab.Screen name="Attendance" component={Attendance} />
-        <Tab.Screen name="Payslip" component={Payslip} />
+        <Tab.Screen name="Payslip" component={MyPaySlip} />
       </Tab.Navigator>
 
       {/* Expandable FAB Component */}

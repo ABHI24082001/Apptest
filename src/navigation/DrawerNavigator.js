@@ -3,11 +3,17 @@ import {createDrawerNavigator} from '@react-navigation/drawer';
 import {TouchableOpacity, View, StyleSheet, Platform} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {Menu, Provider} from 'react-native-paper';
-import Animated, {useSharedValue, useAnimatedStyle, withRepeat, withTiming} from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'; // <- ADD THIS
 import CustomDrawer from '../component/CustomDrawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
+import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 
 const Drawer = createDrawerNavigator();
 
@@ -17,16 +23,8 @@ const NotificationButton = ({navigation}) => {
   const opacity = useSharedValue(1);
 
   useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(2, {duration: 1200}),
-      -1,
-      false
-    );
-    opacity.value = withRepeat(
-      withTiming(0, {duration: 1200}),
-      -1,
-      false
-    );
+    scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
+    opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
   }, []);
 
   const waveStyle = useAnimatedStyle(() => ({
@@ -60,7 +58,11 @@ const ProfileMenu = ({navigation}) => {
         <TouchableOpacity
           onPress={() => setVisible(true)}
           style={{marginRight: 10}}>
-          <MaterialCommunityIcons name="account-circle" size={26} color="#000" />
+          <MaterialCommunityIcons
+            name="account-circle"
+            size={26}
+            color="#000"
+          />
         </TouchableOpacity>
       }>
       <Menu.Item
@@ -76,16 +78,14 @@ const ProfileMenu = ({navigation}) => {
       <Menu.Item
         onPress={() => {
           setVisible(false);
-          navigation.reset({
-            index: 0,
-            routes: [{name: 'Login'}],
-          });
+          navigation.navigate('AdvanceReport');
         }}
         leadingIcon={() => (
           <MaterialIcons name="attach-money" size={20} color="#555" />
         )}
         title="Payment Report"
       />
+
       {/* <Menu.Item
         onPress={() => {
           setVisible(false);
@@ -139,7 +139,12 @@ export default function DrawerNavigator() {
             }),
           },
           headerRight: () => (
-            <View style={{flexDirection: 'row', alignItems: 'center', paddingRight: 10}}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingRight: 10,
+              }}>
               <NotificationButton navigation={navigation} />
               <ProfileMenu navigation={navigation} />
             </View>
@@ -149,8 +154,33 @@ export default function DrawerNavigator() {
         <Drawer.Screen
           name="Tabs"
           component={BottomTabNavigator}
-          options={{title: 'Dashboard'}}
+          options={({route}) => {
+            const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+            let title = 'Dashboard';
+
+            switch (routeName) {
+              case 'Home':
+                title = 'Dashboard';
+                break;
+              case 'Attendance':
+                title = 'Attendance';
+                break;
+              case 'Approvals':
+                title = 'Approvals';
+                break;
+              case 'LogReport':
+                title = 'Log Report';
+                break;
+              default:
+                title = 'Dashboard';
+            }
+
+            return {
+              title,
+            };
+          }}
         />
+
         <Drawer.Screen
           name="Notifications"
           component={NotificationScreen}
