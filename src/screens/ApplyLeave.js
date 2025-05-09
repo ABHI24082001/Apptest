@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 
-import { pick } from '@react-native-documents/picker';
+import {pick} from '@react-native-documents/picker';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import moment from 'moment';
@@ -18,7 +18,8 @@ import RNPickerSelect from 'react-native-picker-select';
 import AppSafeArea from '../component/AppSafeArea';
 import {Card, Appbar} from 'react-native-paper';
 
-const ApplyLeaveScreen = ({ navigation }) => { // Accept navigation prop here
+const ApplyLeaveScreen = ({navigation}) => {
+  // Accept navigation prop here
   const [leaveName, setLeaveName] = useState('');
   const [leaveType, setLeaveType] = useState('');
   const [leaveDate, setLeaveDate] = useState(new Date());
@@ -43,102 +44,100 @@ const ApplyLeaveScreen = ({ navigation }) => { // Accept navigation prop here
 
   return (
     <AppSafeArea>
-
-<Appbar.Header elevated style={styles.header}>
-      <Appbar.BackAction onPress={() => navigation.goBack()} />
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
-          title="Payment Request List"
+          title="Apply Leave"
           titleStyle={styles.headerTitle}
         />
-      </Appbar.Header> 
-      
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          
+      </Appbar.Header>
 
-          {/* Leave Name */}
-          <Text style={styles.label}>Leave Name*</Text>
-          <RNPickerSelect
-            onValueChange={(value) => setLeaveName(value)}
-            value={leaveName}
-            placeholder={{ label: 'Select Leave Name', value: '' }}
-            items={[
-              { label: 'Casual Leave', value: 'casual' },
-              { label: 'Sick Leave', value: 'sick' },
-              { label: 'Paid Leave', value: 'paid' },
-            ]}
-            style={pickerSelectStyles}
-            useNativeAndroidPickerStyle={false}
-          />
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Leave Name */}
+        <Text style={styles.label}>Leave Name*</Text>
+        <RNPickerSelect
+          onValueChange={value => setLeaveName(value)}
+          value={leaveName}
+          placeholder={{label: 'Select Leave Name', value: ''}}
+          items={[
+            {label: 'Casual Leave', value: 'casual'},
+            {label: 'Sick Leave', value: 'sick'},
+            {label: 'Paid Leave', value: 'paid'},
+          ]}
+          style={pickerSelectStyles}
+          useNativeAndroidPickerStyle={false}
+        />
 
-          {/* Leave Type */}
-          <Text style={styles.label}>Leave Type*</Text>
-          <RNPickerSelect
-            onValueChange={(value) => setLeaveType(value)}
-            value={leaveType}
-            placeholder={{ label: 'Select Leave Type', value: '' }}
-            items={[
-              { label: 'Full Day', value: 'full' },
-              { label: 'Half Day', value: 'half' },
-            ]}
-            style={pickerSelectStyles}
-            useNativeAndroidPickerStyle={false}
-          />
+        {/* Leave Type */}
+        <Text style={styles.label}>Leave Type*</Text>
+        <RNPickerSelect
+          onValueChange={value => setLeaveType(value)}
+          value={leaveType}
+          placeholder={{label: 'Select Leave Type', value: ''}}
+          items={[
+            {label: 'Full Day', value: 'full'},
+            {label: 'Half Day', value: 'half'},
+          ]}
+          style={pickerSelectStyles}
+          useNativeAndroidPickerStyle={false}
+        />
 
-          {/* Leave Date */}
-          <Text style={styles.label}>Leave Date*</Text>
-          <TouchableOpacity style={styles.inputWithIcon} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.inputText}>
-              {moment(leaveDate).format('DD-MM-YYYY')}
-            </Text>
-            <Icon name="calendar" size={22} color="#555" />
-          </TouchableOpacity>
+        {/* Leave Date */}
+        <Text style={styles.label}>Leave Date*</Text>
+        <TouchableOpacity
+          style={styles.inputWithIcon}
+          onPress={() => setShowDatePicker(true)}>
+          <Text style={styles.inputText}>
+            {moment(leaveDate).format('DD-MM-YYYY')}
+          </Text>
+          <Icon name="calendar" size={22} color="#555" />
+        </TouchableOpacity>
 
-          <DatePicker
-            modal
-            open={showDatePicker}
-            date={leaveDate}
-            mode="date"
-            onConfirm={(date) => {
-              setShowDatePicker(false);
-              setLeaveDate(date);
-            }}
-            onCancel={() => {
-              setShowDatePicker(false);
-            }}
-          />
+        <DatePicker
+          modal
+          open={showDatePicker}
+          date={leaveDate}
+          mode="date"
+          onConfirm={date => {
+            setShowDatePicker(false);
+            setLeaveDate(date);
+          }}
+          onCancel={() => {
+            setShowDatePicker(false);
+          }}
+        />
 
-          {/* Applied Leave No */}
-          <Text style={styles.label}>Applied Leave No.*</Text>
-          <TextInput
-            style={styles.textInput}
-            value={appliedLeaveNo.toString()}
-            editable={true}
-          />
+        {/* Applied Leave No */}
+        <Text style={styles.label}>Applied Leave No.*</Text>
+        <TextInput
+          style={styles.textInput}
+          value={appliedLeaveNo.toString()}
+          editable={true}
+        />
 
-          {/* Upload PDF */}
-          <Text style={styles.label}>Supporting Document (.pdf)</Text>
-          <TouchableOpacity style={styles.uploadBox} onPress={handleFilePick}>
-            <Icon name="file-upload-outline" size={22} color="#666" />
-            <Text style={styles.uploadText}>Upload PDF</Text>
-          </TouchableOpacity>
+        {/* Upload PDF */}
+        <Text style={styles.label}>Supporting Document (.pdf,jpg)</Text>
+        <TouchableOpacity style={styles.uploadBox} onPress={handleFilePick}>
+          <Icon name="file-upload-outline" size={22} color="#666" />
+          <Text style={styles.uploadText}>Upload PDF</Text>
+        </TouchableOpacity>
 
-          {/* File Preview */}
-          {uploadedFile && (
-            <View style={styles.previewBox}>
-              <Icon name="file-pdf-box" size={24} color="#d32f2f" />
-              <Text style={styles.previewText}>{uploadedFile.name}</Text>
-            </View>
-          )}
+        {/* File Preview */}
+        {uploadedFile && (
+          <View style={styles.previewBox}>
+            <Icon name="file-pdf-box" size={24} color="#d32f2f" />
+            <Text style={styles.previewText}>{uploadedFile.name}</Text>
+          </View>
+        )}
 
-          {/* Submit & Cancel Buttons */}
-          <TouchableOpacity style={styles.submitBtn}>
-            <Text style={styles.submitText}>Submit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </ScrollView>
-     
+        {/* Submit & Cancel Buttons */}
+        <TouchableOpacity style={styles.submitBtn}>
+          <Text style={styles.submitText}>Submit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelBtn}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </AppSafeArea>
   );
 };

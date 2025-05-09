@@ -6,7 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import {Card} from 'react-native-paper';
+import {Card , Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
@@ -162,6 +162,10 @@ const MyPaySlip = () => {
 
   return (
     <AppSafeArea>
+          <Appbar.Header style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
       <FlatList
         data={filteredPayslips}
         keyExtractor={item => item.id}

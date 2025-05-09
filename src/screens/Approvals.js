@@ -6,10 +6,15 @@ import {
   TouchableOpacity,
   Text as RNText,
 } from 'react-native';
-import { Text, Card, Searchbar } from 'react-native-paper';
+import {
+  Text,
+  Card,
+  Searchbar,
+  Appbar,
+} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
-
+import { useNavigation } from '@react-navigation/native';
 
 const MOCK_DATA = [
   {
@@ -83,6 +88,7 @@ const MOCK_DATA = [
     statusDate: '2025-01-21',
   },
 ];
+
 const filterOptions = [
   { label: 'All', value: null },
   { label: 'Leave', value: 'Leave' },
@@ -91,6 +97,7 @@ const filterOptions = [
 ];
 
 const ApprovalsScreen = () => {
+  const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState(null);
   const [fromDate, setFromDate] = useState(null);
@@ -111,9 +118,15 @@ const ApprovalsScreen = () => {
     });
   };
 
+  const renderAppBar = () => (
+    <Appbar.Header mode="center-aligned" >
+      <Appbar.BackAction onPress={() => navigation.goBack()} />
+      <Appbar.Content title="Approvals" titleStyle={{ fontWeight: 'bold' }} />
+    </Appbar.Header>
+  );
+
   const renderHeader = () => (
     <View>
-      {/* Search */}
       <Searchbar
         placeholder="Search by Request ID"
         value={search}
@@ -121,11 +134,10 @@ const ApprovalsScreen = () => {
         style={styles.searchBar}
       />
 
-      {/* Filter Chips */}
       <View style={styles.chipRow}>
         {filterOptions.map(option => (
           <TouchableOpacity
-            key={option.value}
+            key={option.label}
             style={[
               styles.chip,
               selectedFilter === option.value && styles.chipSelected,
@@ -148,7 +160,6 @@ const ApprovalsScreen = () => {
         ))}
       </View>
 
-      {/* Date Filter */}
       <View style={styles.dateRow}>
         <TouchableOpacity style={styles.dateButton} onPress={() => setShowFromPicker(true)}>
           <Text style={styles.dateLabel}>From</Text>
@@ -193,8 +204,8 @@ const ApprovalsScreen = () => {
               item.status === 'Approved'
                 ? '#4caf50'
                 : item.status === 'Rejected'
-                ? '#f44336'
-                : '#f4b400'
+                  ? '#f44336'
+                  : '#f4b400'
             }
             style={{ marginRight: 4 }}
           />
@@ -214,17 +225,19 @@ const ApprovalsScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      {renderAppBar()}
+
       <FlatList
         data={filterData()}
         keyExtractor={item => item.id}
         renderItem={renderCard}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={<RNText style={styles.footer}>Showing {filterData().length} records</RNText>}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
       />
 
-      {/* Date Pickers */}
       <DatePicker
         modal
         open={showFromPicker}
@@ -254,26 +267,46 @@ const ApprovalsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f5f4', padding: 16 },
+  root: { flex: 1, backgroundColor: '#f2f5f4' },
+  listContainer: { padding: 16, paddingBottom: 40 },
   searchBar: { borderRadius: 10, marginBottom: 12, backgroundColor: '#fff' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16, gap: 8 },
-  chip: { backgroundColor: '#e0e0e0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  chip: {
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
   chipSelected: { backgroundColor: '#4caf50' },
   chipText: { fontSize: 14, color: '#333' },
   chipTextSelected: { color: '#fff', fontWeight: '600' },
   dateRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   dateButton: {
-    flex: 1, backgroundColor: '#fff', padding: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: '#ccc',
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
   dateLabel: { fontSize: 12, color: '#999' },
   dateValue: { fontSize: 14, color: '#333', marginTop: 4 },
   dateIconWrapper: { paddingHorizontal: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 10, paddingVertical: 8, marginBottom: 12 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+    elevation: 1,
+  },
   dateText: { fontSize: 13, color: '#666', marginBottom: 8 },
   box: {
-    backgroundColor: '#f0f4f3', borderRadius: 8, padding: 12,
-    flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8,
+    backgroundColor: '#f0f4f3',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   label: { color: '#888', fontSize: 13 },
   value: { fontSize: 15, fontWeight: '600', marginTop: 2 },

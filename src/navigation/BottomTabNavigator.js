@@ -6,6 +6,7 @@ import {View, StyleSheet, Text, Platform, TouchableOpacity, Dimensions} from 're
 import HomeScreen from '../screens/HomeScreen';
 import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
+import Exit from '../screens/Exit';
 
 import MyPaySlip from '../screens/MyPayslip';
 import Animated, {
@@ -83,7 +84,7 @@ export default function BottomTabNavigator({navigation}) {
           tabBarIcon: ({color, size, focused}) => {
             const icons = {
               Dashboard: 'view-dashboard-outline',        // MaterialCommunityIcons
-              Approvals: 'clipboard-check-outline',
+              Exit: 'exit-run',
               Attendance: 'calendar-month-outline',
               Payslip: 'file-document-outline', // ← fixed casing
             };
@@ -150,7 +151,7 @@ export default function BottomTabNavigator({navigation}) {
           },
         })}>
         <Tab.Screen name="Dashboard" component={HomeScreen} />
-        <Tab.Screen name="Approvals" component={Approvals} />
+        <Tab.Screen name="Exit" component={Exit} />
         <Tab.Screen name="Action" component={() => null} options={{tabBarLabel: () => null}} />
         <Tab.Screen name="Attendance" component={Attendance} />
         <Tab.Screen name="Payslip" component={MyPaySlip} />
@@ -174,13 +175,13 @@ export default function BottomTabNavigator({navigation}) {
 
         {/* Advance Button */}
         <Animated.View style={[styles.miniButton, advanceStyle]}>
-          <TouchableOpacity onPress={() => navigation.navigate('AdvanceScreen')}>
-            <MaterialIcons name="trending-up" size={22} color="#fff" />
+          <TouchableOpacity onPress={() => navigation.navigate('Approvals')}>
+            <MaterialIcons name="check" size={22} color="#fff" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Main FAB */}
-        {/* <TouchableOpacity
+        {/* Main FAB
+        <TouchableOpacity
           style={styles.mainFab}
           onPress={toggleMenu}
           activeOpacity={0.7}>
@@ -210,8 +211,6 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 20,
-    
-    
   },
   mainFab: {
     borderRadius: 30,

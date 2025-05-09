@@ -9,14 +9,18 @@ import {
 } from 'react-native';
 import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import RNPickerSelect from 'react-native-picker-select';
-
+import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
-import { useNavigation } from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
+
 const AdvancePaymentReport = () => {
- 
-  const [selectedFilter, setSelectedFilter] = useState('last_month');
+  const navigation = useNavigation();
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('advance');
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
 
   const reports = [
     {
@@ -46,9 +50,10 @@ const AdvancePaymentReport = () => {
   ];
 
   const filterOptions = [
-    {label: 'Last Month', value: 'last_month'},
-    {label: 'Last 3 Months', value: 'last_3_months'},
-    {label: 'This Year', value: 'yearly'},
+    {label: 'All', value: 'all'},
+    {label: 'Approved', value: 'approved'},
+    {label: 'Pending', value: 'pending'},
+    {label: 'Rejected', value: 'rejected'},
   ];
 
   const getStatusIcon = status => {
@@ -64,20 +69,75 @@ const AdvancePaymentReport = () => {
     }
   };
 
-  const formatDate = dateString => {
-    return new Date(dateString).toLocaleDateString('en-GB');
+  const formatDate = date => {
+    return new Date(date).toLocaleDateString('en-GB');
   };
-    const navigation = useNavigation();
-  
+
+  const isWithinDateRange = (dateStr) => {
+    if (!fromDate || !toDate) return true;
+    const d = new Date(dateStr);
+    return d >= fromDate && d <= toDate;
+  };
+
+  const filteredReports = reports.filter(report => {
+    const matchesFilter =
+      selectedFilter === 'all' || report.status === selectedFilter;
+    const matchesDate = isWithinDateRange(report.requestDate);
+    return matchesFilter && matchesDate;
+  });
+
+  const ListHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* Filter Chips */}
+      <View style={styles.chipRow}>
+        {filterOptions.map(option => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.chip,
+              selectedFilter === option.value && styles.chipSelected,
+            ]}
+            onPress={() => {
+              setSelectedFilter(option.value);
+              setFromDate(null);
+              setToDate(null);
+            }}>
+            <Text
+              style={[
+                styles.chipText,
+                selectedFilter === option.value && styles.chipTextSelected,
+              ]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Date Range Filter */}
+      <View style={styles.dateRow}>
+        <TouchableOpacity
+          style={styles.dateBox}
+          onPress={() => setShowFromPicker(true)}>
+          <Text style={styles.dateText}>
+            {fromDate ? formatDate(fromDate) : 'From Date'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dateBox}
+          onPress={() => setShowToPicker(true)}>
+          <Text style={styles.dateText}>
+            {toDate ? formatDate(toDate) : 'To Date'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <AppSafeArea>
       <Appbar.Header elevated style={styles.header}>
-      <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content
-          title="Payment Request List"
-          titleStyle={styles.headerTitle}
-        />
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Payment Request List" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
       <ScrollView style={styles.container}>
@@ -113,32 +173,46 @@ const AdvancePaymentReport = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Filter Dropdown */}
-        <View style={styles.filterRow}>
-          <RNPickerSelect
-            value={selectedFilter}
-            onValueChange={value => setSelectedFilter(value)}
-            items={filterOptions}
-            style={pickerSelectStyles}
-            useNativeAndroidPickerStyle={false}
-            Icon={() => <Icon name="chevron-down" size={20} color="#6D75FF" />}
-          />
-        </View>
+        <ListHeader />
+
+        {/* Date Pickers */}
+        <DatePicker
+          modal
+          open={showFromPicker}
+          date={fromDate || new Date()}
+          mode="date"
+          onConfirm={date => {
+            setShowFromPicker(false);
+            setFromDate(date);
+            setSelectedFilter('all');
+          }}
+          onCancel={() => setShowFromPicker(false)}
+        />
+        <DatePicker
+          modal
+          open={showToPicker}
+          date={toDate || new Date()}
+          mode="date"
+          onConfirm={date => {
+            setShowToPicker(false);
+            setToDate(date);
+            setSelectedFilter('all');
+          }}
+          onCancel={() => setShowToPicker(false)}
+        />
 
         {/* Report Cards */}
         {activeTab === 'advance' ? (
-          reports.length > 0 ? (
-            reports.map(report => {
+          filteredReports.length > 0 ? (
+            filteredReports.map(report => {
               const statusIcon = getStatusIcon(report.status);
               return (
                 <Card key={report.id} style={styles.card}>
                   <View style={styles.cardContent}>
                     <View style={styles.row}>
                       <Icon name="calendar-check" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Request Date:</Text>
-                      <Text style={styles.value}>
-                        {formatDate(report.requestDate)}
-                      </Text>
+                      <Text style={styles.label}>Date:</Text>
+                      <Text style={styles.value}>{formatDate(report.requestDate)}</Text>
                     </View>
                     <View style={styles.row}>
                       <Icon name="cash" size={20} color="#6D75FF" />
@@ -151,19 +225,11 @@ const AdvancePaymentReport = () => {
                       <Text style={styles.value}>₹{report.approvedAmount}</Text>
                     </View>
                     <View style={styles.statusRow}>
-                      <Icon
-                        name={statusIcon.icon}
-                        size={20}
-                        color={statusIcon.color}
-                      />
-                      <Text
-                        style={[styles.statusText, {color: statusIcon.color}]}>
-                        {report.status.charAt(0).toUpperCase() +
-                          report.status.slice(1)}
+                      <Icon name={statusIcon.icon} size={20} color={statusIcon.color} />
+                      <Text style={[styles.statusText, {color: statusIcon.color}]}>
+                        {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
                       </Text>
-                      <Text style={styles.statusDate}>
-                        {formatDate(report.statusDate)}
-                      </Text>
+                      <Text style={styles.statusDate}>{formatDate(report.statusDate)}</Text>
                     </View>
                   </View>
                 </Card>
@@ -179,12 +245,12 @@ const AdvancePaymentReport = () => {
             <View style={styles.cardContent}>
               <View style={styles.row}>
                 <Icon name="calendar" size={20} color="#6D75FF" />
-                <Text style={styles.label}>Expense Date:</Text>
+                <Text style={styles.label}>Transaction Date:</Text>
                 <Text style={styles.value}>01/04/2025</Text>
               </View>
               <View style={styles.row}>
                 <Icon name="file-document" size={20} color="#6D75FF" />
-                <Text style={styles.label}>Category:</Text>
+                <Text style={styles.label}>Expense:</Text>
                 <Text style={styles.value}>Travel</Text>
               </View>
               <View style={styles.row}>
@@ -194,9 +260,7 @@ const AdvancePaymentReport = () => {
               </View>
               <View style={styles.statusRow}>
                 <Icon name="check-circle" size={20} color="#4CAF50" />
-                <Text style={[styles.statusText, {color: '#4CAF50'}]}>
-                  Approved
-                </Text>
+                <Text style={[styles.statusText, {color: '#4CAF50'}]}>Approved</Text>
                 <Text style={styles.statusDate}>05/04/2025</Text>
               </View>
             </View>
@@ -208,24 +272,13 @@ const AdvancePaymentReport = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FC',
-    paddingHorizontal: 16,
-  },
+  container: {flex: 1, backgroundColor: '#F8F9FC', paddingHorizontal: 16},
   header: {
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center'
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    
-  },
+  headerTitle: {fontSize: 20, fontWeight: '700', color: '#333'},
   tabContainer: {
     flexDirection: 'row',
     marginTop: 16,
@@ -240,25 +293,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
   },
-  activeTabButton: {
-    backgroundColor: '#6D75FF',
+  activeTabButton: {backgroundColor: '#6D75FF'},
+  tabButtonText: {fontSize: 14, fontWeight: '500', color: '#666'},
+  activeTabButtonText: {color: '#FFF'},
+  headerContainer: {marginBottom: 16},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12},
+  chip: {
+    backgroundColor: '#E0E0E0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  tabButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-  },
-  activeTabButtonText: {
-    color: '#FFF',
-  },
-  filterRow: {
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
+  chipSelected: {backgroundColor: '#6D75FF'},
+  chipText: {fontSize: 14, color: '#333'},
+  chipTextSelected: {color: '#FFF'},
+  dateRow: {flexDirection: 'row', justifyContent: 'space-between', gap: 8},
+  dateBox: {
+    flex: 1,
     backgroundColor: '#FFF',
-    overflow: 'hidden',
+    padding: 12,
+    borderRadius: 8,
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
   },
+  dateText: {color: '#333'},
   card: {
     backgroundColor: '#FFF',
     borderRadius: 12,
@@ -269,27 +327,10 @@ const styles = StyleSheet.create({
     shadowOpacity: Platform.OS === 'ios' ? 0.1 : undefined,
     shadowRadius: Platform.OS === 'ios' ? 4 : undefined,
   },
-  cardContent: {
-    padding: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 12,
-    marginRight: 8,
-    width: 120,
-  },
-  value: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    flex: 1,
-  },
+  cardContent: {padding: 16},
+  row: {flexDirection: 'row', alignItems: 'center', marginBottom: 12},
+  label: {fontSize: 14, color: '#666', marginLeft: 12, marginRight: 8, width: 120},
+  value: {fontSize: 14, fontWeight: '500', color: '#333', flex: 1},
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,38 +339,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  statusDate: {
-    fontSize: 12,
-    color: '#999',
-    marginLeft: 'auto',
-  },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: {
-    fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    color: '#333',
-  },
-  inputAndroid: {
-    fontSize: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    color: '#333',
-  },
-  iconContainer: {
-    top: 12,
-    right: 12,
-  },
-  placeholder: {
-    color: '#999',
-  },
+  statusText: {fontSize: 14, fontWeight: '600', marginLeft: 12},
+  statusDate: {fontSize: 12, color: '#999', marginLeft: 'auto'},
 });
 
 export default AdvancePaymentReport;
