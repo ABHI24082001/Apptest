@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
-
 import {pick} from '@react-native-documents/picker';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,23 +17,29 @@ import RNPickerSelect from 'react-native-picker-select';
 import AppSafeArea from '../component/AppSafeArea';
 import {Card, Appbar} from 'react-native-paper';
 
+const leaveData = [
+  {label: 'CL', available: 10, used: 5},
+  {label: 'PL', available: 8, used: 2},
+  {label: 'SL', available: 4, used: 1},
+  {label: 'ML', available: 10, used: 4},
+  {label: 'EL', available: 6, used: 2},
+  {label: 'WFH', available: 3, used: 1},
+];
+
 const ApplyLeaveScreen = ({navigation}) => {
-  // Accept navigation prop here
   const [leaveName, setLeaveName] = useState('');
   const [leaveType, setLeaveType] = useState('');
   const [leaveDate, setLeaveDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [appliedLeaveNo, setAppliedLeaveNo] = useState(1);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const leaveScrollRef = useRef(null);
+  const [remark, setRemark] = useState('');
 
   const handleFilePick = async () => {
     try {
-      const [file] = await pick({
-        type: ['application/pdf'],
-      });
-      if (file) {
-        setUploadedFile(file);
-      }
+      const [file] = await pick({type: ['application/pdf']});
+      if (file) setUploadedFile(file);
     } catch (err) {
       if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
         console.error('File pick error:', err);
@@ -46,15 +51,32 @@ const ApplyLeaveScreen = ({navigation}) => {
     <AppSafeArea>
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content
-          title="Apply Leave"
-          titleStyle={styles.headerTitle}
-        />
+        <Appbar.Content title="Apply Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Horizontal Leave Balance UI */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.leaveScrollContainer}
+          ref={leaveScrollRef}>
+          {leaveData.map(item => (
+            <View key={item.label} style={styles.leaveCard}>
+              <Text style={styles.leaveType}>{item.label}</Text>
+              <Text style={styles.leaveInfo}>
+                Available:{' '}
+                <Text style={styles.leaveBold}>{item.available}</Text>
+              </Text>
+              <Text style={styles.leaveInfo}>
+                Used: <Text style={styles.leaveBold}>{item.used}</Text>
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+
         {/* Leave Name */}
-        <Text style={styles.label}>Leave Name*</Text>
+        <Text style={styles.label}>Leave</Text>
         <RNPickerSelect
           onValueChange={value => setLeaveName(value)}
           value={leaveName}
@@ -66,6 +88,7 @@ const ApplyLeaveScreen = ({navigation}) => {
           ]}
           style={pickerSelectStyles}
           useNativeAndroidPickerStyle={false}
+          Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
         />
 
         {/* Leave Type */}
@@ -80,6 +103,7 @@ const ApplyLeaveScreen = ({navigation}) => {
           ]}
           style={pickerSelectStyles}
           useNativeAndroidPickerStyle={false}
+          Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
         />
 
         {/* Leave Date */}
@@ -92,7 +116,6 @@ const ApplyLeaveScreen = ({navigation}) => {
           </Text>
           <Icon name="calendar" size={22} color="#555" />
         </TouchableOpacity>
-
         <DatePicker
           modal
           open={showDatePicker}
@@ -102,9 +125,7 @@ const ApplyLeaveScreen = ({navigation}) => {
             setShowDatePicker(false);
             setLeaveDate(date);
           }}
-          onCancel={() => {
-            setShowDatePicker(false);
-          }}
+          onCancel={() => setShowDatePicker(false)}
         />
 
         {/* Applied Leave No */}
@@ -121,6 +142,16 @@ const ApplyLeaveScreen = ({navigation}) => {
           <Icon name="file-upload-outline" size={22} color="#666" />
           <Text style={styles.uploadText}>Upload PDF</Text>
         </TouchableOpacity>
+
+        {/* Remark */}
+        <Text style={styles.label}>Remark</Text>
+        <TextInput
+          style={[styles.textInput, {height: 100, textAlignVertical: 'top'}]}
+          value={remark}
+          onChangeText={setRemark}
+          placeholder="Enter any remarks (optional)"
+          multiline={true}
+        />
 
         {/* File Preview */}
         {uploadedFile && (
@@ -238,6 +269,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  leaveScrollContainer: {
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  leaveCard: {
+    backgroundColor: '#f2f4f7',
+    borderRadius: 10,
+    padding: 14,
+    marginRight: 10,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  leaveType: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 6,
+    color: '#444',
+  },
+  leaveInfo: {
+    fontSize: 13,
+    color: '#555',
+  },
+  leaveBold: {
+    fontWeight: 'bold',
+    color: '#000',
+  },
 });
 
 const pickerSelectStyles = StyleSheet.create({
@@ -249,6 +306,7 @@ const pickerSelectStyles = StyleSheet.create({
     borderRadius: 8,
     color: '#000',
     marginBottom: 16,
+    paddingRight: 30, // space for icon
   },
   inputAndroid: {
     fontSize: 14,
@@ -258,6 +316,11 @@ const pickerSelectStyles = StyleSheet.create({
     borderRadius: 8,
     color: '#000',
     marginBottom: 16,
+    paddingRight: 30, // space for icon
+  },
+  iconContainer: {
+    top: Platform.OS === 'android' ? 20 : 16,
+    right: 12,
   },
 });
 

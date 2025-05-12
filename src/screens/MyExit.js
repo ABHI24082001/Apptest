@@ -40,13 +40,7 @@ const ExitApplyScreen = ({navigation}) => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={{backgroundColor: '#fff'}}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content
-          title="Exit Apply"
-          titleStyle={{color: '#000', fontWeight: 'bold'}}
-        />
-      </Appbar.Header>
+   
 
       <ScrollView
         contentContainerStyle={styles.container}

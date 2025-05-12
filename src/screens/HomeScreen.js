@@ -4,7 +4,8 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  useWindowDimensions,
+  FlatList,
+  Image,
   TouchableOpacity,
 } from 'react-native';
 import {Card, Button} from 'react-native-paper';
@@ -17,7 +18,9 @@ import Animated, {
 import {format, differenceInSeconds} from 'date-fns';
 import AppSafeArea from '../component/AppSafeArea';
 import ShiftCalendar from '../component/ShiftCalendar';
-import WeekCalendarWithAgenda from '../component/WeekCalendarWithAgenda';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+
 
 const Dashboard = () => {
   const TOTAL_SHIFT_SECONDS = 60;
@@ -36,6 +39,33 @@ const Dashboard = () => {
     {label: 'ML', available: 10, used: 4},
     {label: 'EL', available: 6, used: 2},
     {label: 'WFH', available: 3, used: 1},
+  ];
+
+  const leaveUsers = [
+    {
+      id: '1',
+      name: 'Anjana Mishra',
+      role: 'HR, Management',
+      image: require('../assets/image/woman.png'),
+    },
+    {
+      id: '2',
+      name: 'Jayanta Behera',
+      role: 'Backend Developer, IT',
+      image: require('../assets/image/withh.png'),
+    },
+    {
+      id: '3',
+      name: 'Abhispa Pathak',
+      role: 'Android Developer, IT',
+      image: require('../assets/image/withh.png'),
+    },
+    {
+      id: '4',
+      name: 'Ansuman Samal',
+      role: '.Net Developer, IT',
+      image: require('../assets/image/withh.png'),
+    },
   ];
 
   const progress = useSharedValue(0);
@@ -102,16 +132,25 @@ const Dashboard = () => {
     });
   };
 
-  const scrollLeaveRight = () => {
-    leaveScrollRef.current?.scrollTo({x: 150, animated: true});
-  };
+  const navigation = useNavigation();
+
+  const renderUserItem = ({item}) => (
+    <Card style={styles.userCard}>
+      <Card.Content style={styles.userContent}>
+        {/* <Image source={item.image} style={styles.avatar} /> */}
+        <View style={styles.textWrapper}>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.role}>{item.role}</Text>
+        </View>
+      </Card.Content>
+    </Card>
+  );
 
   return (
     <AppSafeArea>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.name}>Welcome, Jayanta Behera</Text>
@@ -178,14 +217,12 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        {/* Leave Status */}
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.leaveHeaderRow}>
-              <Text style={styles.sectionTitle}>📋 Leave Status</Text>
-              <TouchableOpacity onPress={scrollLeaveRight}>
-                <Text style={styles.scrollHint}>➡️</Text>
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Leave Status</Text>
+              {/* <Text style={styles.viewAllText}>View All</Text>
+              <Icon name="chevron-right" size={18} color="#007bff" /> */}
             </View>
             <ScrollView
               horizontal
@@ -196,7 +233,8 @@ const Dashboard = () => {
                 <View key={item.label} style={styles.leaveCard}>
                   <Text style={styles.leaveType}>{item.label}</Text>
                   <Text style={styles.leaveInfo}>
-                    Available: <Text style={styles.leaveBold}>{item.available}</Text>
+                    Available:{' '}
+                    <Text style={styles.leaveBold}>{item.available}</Text>
                   </Text>
                   <Text style={styles.leaveInfo}>
                     Used: <Text style={styles.leaveBold}>{item.used}</Text>
@@ -207,7 +245,6 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        {/* Shift Calendar */}
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Calendar</Text>
@@ -222,51 +259,58 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        {/* <Card style={styles.card}>
+        <Card style={styles.card}>
+          <View style={styles.leaveHeaderRow}>
+            <Text style={styles.sectionTitle}>Who is on Leave</Text>
+            <TouchableOpacity  onPress={() => navigation.navigate('WhoLeave')}>
+              <View style={styles.leaveHeaderRow}>
+                <Text style={styles.viewAllText}>View All</Text>
+                <Icon name="chevron-right" size={18} color="#007bff" />
+              </View>
+            </TouchableOpacity>
+          </View>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Calendar</Text>         
-            <WeekCalendarWithAgenda/>
+            <FlatList
+              data={leaveUsers}
+              renderItem={renderUserItem}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContainer}
+            />
+            {/* <Button
+              mode="outlined"
+              icon="chevron-right"
+              onPress={() => console.log('View All Pressed')}
+              style={styles.button}
+              labelStyle={styles.buttonLabel}>
+              View All
+            </Button> */}
           </Card.Content>
-        </Card> */}
-
-
-        {/* <ShiftAgendaCalendar/> */}
+        </Card>
       </ScrollView>
     </AppSafeArea>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: '#F5F7FA',
+  container: {padding: 16, paddingBottom: 32, backgroundColor: '#F5F7FA'},
+  card: {borderRadius: 12, marginBottom: 16, elevation: 2},
+  title: {fontWeight: 'bold', fontSize: 18},
+  listContainer: {paddingVertical: 8},
+  userCard: {marginRight: 12, width: 190, borderRadius: 10, elevation: 2},
+  userContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    height: 70,
   },
-  card: {
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  name: {
-    fontSize: 23,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  role: {
-    fontSize: 14,
-    color: '#777',
-    marginBottom: 2,
-     fontWeight: '700'
-  },
-  company: {
-    fontSize: 14,
-    color: '#777',
-    marginBottom: 12,
-     fontWeight: '700'
-   
-
-  },
+  avatar: {width: 44, height: 44, borderRadius: 22, marginRight: 10},
+  textWrapper: {flexShrink: 1},
+  name: {fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 4},
+  role: {fontSize: 12, color: '#777', marginBottom: 2, fontWeight: '700'},
+  company: {fontSize: 14, color: '#777', marginBottom: 12, fontWeight: '700'},
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -279,20 +323,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     alignItems: 'center',
   },
-  active: {
-    backgroundColor: '#d2f7dc',
-  },
-  inactive: {
-    backgroundColor: '#F0F0F0',
-  },
-  statusText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  progressContainer: {
-    marginVertical: 12,
-    alignItems: 'center',
-  },
+  active: {backgroundColor: '#d2f7dc'},
+  inactive: {backgroundColor: '#F0F0F0'},
+  statusText: {fontSize: 13, color: '#333'},
+  progressContainer: {marginVertical: 12, alignItems: 'center'},
   progressBarBg: {
     height: 10,
     width: '100%',
@@ -300,101 +334,41 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  progressBarFill: {
-    height: 10,
-    backgroundColor: '#4CAF50',
-  },
-  progressText: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#333',
-  },
-  shiftTime: {
-    fontSize: 14,
-    color: '#444',
-    marginTop: 8,
-  },
-  completedText: {
-    color: '#388E3C',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
+  progressBarFill: {height: 10, backgroundColor: '#4CAF50'},
+  progressText: {marginTop: 6, fontSize: 12, color: '#333'},
+  shiftTime: {fontSize: 14, color: '#444', marginTop: 8},
+  completedText: {color: '#388E3C', fontSize: 13, marginTop: 4},
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 12,
   },
-  button: {
-    flex: 1,
-    marginHorizontal: 4,
-    borderRadius: 8,
-  },
-  green: {
-    backgroundColor: '#4CAF50',
-  },
-  red: {
-    backgroundColor: '#F44336',
-  },
-  disabled: {
-    backgroundColor: '#BDBDBD',
-  },
-  buttonLabel: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#333',
-  },
+  button: {flex: 1, marginHorizontal: 4, borderRadius: 8},
+  buttonLabel: {fontWeight: 'bold', color: '#fff'},
+  green: {backgroundColor: '#4CAF50'},
+  red: {backgroundColor: '#F44336'},
+  disabled: {backgroundColor: '#BDBDBD'},
   leaveHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    margin: 5,
   },
-  scrollHint: {
-    fontSize: 20,
-    color: '#1976D2',
-  },
-  leaveScrollContainer: {
-    paddingRight: 8,
-  },
+  sectionTitle: {fontSize: 16, fontWeight: 'bold', color: '#333'},
+  leaveScrollContainer: {paddingVertical: 8},
   leaveCard: {
-    backgroundColor: '#e0f2f1',
+    backgroundColor: '#fff',
     padding: 12,
-    borderRadius: 8,
-    width: 100,
-    alignItems: 'center',
+    borderRadius: 10,
     marginRight: 12,
+    elevation: 1,
   },
-  leaveType: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#00796B',
-  },
-  leaveInfo: {
-    fontSize: 12,
-    color: '#555',
-  },
-  leaveBold: {
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  selectedShiftContainer: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-  },
-  selectedShiftText: {
-    fontSize: 14,
-    color: '#1976D2',
-    fontWeight: 'bold',
-  },
+  leaveType: {fontSize: 16, fontWeight: 'bold', marginBottom: 4},
+  leaveInfo: {fontSize: 13, color: '#555'},
+  leaveBold: {fontWeight: 'bold'},
+  selectedShiftContainer: {marginTop: 8},
+  selectedShiftText: {fontSize: 14, fontWeight: '500', color: '#333'},
 });
 
 export default Dashboard;

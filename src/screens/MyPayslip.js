@@ -219,6 +219,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
+   header: {
+      backgroundColor: '#fff',
+      elevation: Platform.OS === 'android' ? 3 : 0,
+     
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#333',
+    },
+
+  
+  
   headerContainer: {
     paddingTop: 10,
     paddingBottom: 20,

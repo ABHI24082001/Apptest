@@ -165,11 +165,11 @@ export default function DrawerNavigator() {
               case 'Attendance':
                 title = 'Attendance';
                 break;
-              case 'Approvals':
-                title = 'Approvals';
+              case 'Exit':
+                title = 'Exit Apply';
                 break;
-              case 'LogReport':
-                title = 'Log Report';
+              case 'Payslip':
+                title = 'Payslip';
                 break;
               default:
                 title = 'Dashboard';

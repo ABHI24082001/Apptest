@@ -7,8 +7,10 @@ import HomeScreen from '../screens/HomeScreen';
 import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
 import Exit from '../screens/Exit';
+import MyExit from '../screens/MyExit'
+import ApplyLeaveScreen from '../screens/ApplyLeave';
 
-import MyPaySlip from '../screens/MyPayslip';
+import MyPaySlip from '../screens/Payslip';
 import Animated, {
   Easing,
   withTiming,
@@ -151,7 +153,7 @@ export default function BottomTabNavigator({navigation}) {
           },
         })}>
         <Tab.Screen name="Dashboard" component={HomeScreen} />
-        <Tab.Screen name="Exit" component={Exit} />
+        <Tab.Screen name="Exit" component={MyExit} />
         <Tab.Screen name="Action" component={() => null} options={{tabBarLabel: () => null}} />
         <Tab.Screen name="Attendance" component={Attendance} />
         <Tab.Screen name="Payslip" component={MyPaySlip} />
@@ -161,14 +163,14 @@ export default function BottomTabNavigator({navigation}) {
       <View style={[styles.fabContainer, {left: width / 2 - 27.5}]}>
         {/* Leave Button */}
         <Animated.View style={[styles.miniButton, leaveStyle]}>
-          <TouchableOpacity onPress={() => navigation.navigate('LeaveScreen')}>
+          <TouchableOpacity onPress={() => navigation.navigate('ApplyLeave')}>
             <MaterialIcons name="event" size={22} color="#fff" />
           </TouchableOpacity>
         </Animated.View>
 
         {/* Expense Button */}
         <Animated.View style={[styles.miniButton, expenseStyle]}>
-          <TouchableOpacity onPress={() => navigation.navigate('ExpenseScreen')}>
+          <TouchableOpacity onPress={() => navigation.navigate('MyExpenses')}>
             <MaterialIcons name="money-off" size={22} color="#fff" />
           </TouchableOpacity>
         </Animated.View>

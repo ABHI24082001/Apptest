@@ -15,7 +15,13 @@ import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
 import Payslip from '../screens/Payslip';
 import WhoLeave from '../screens/WhoLeave';
-
+import MyExit from '../screens/MyExit'
+import LeaveRequstStatus from '../screens/LeaveRequstStatus';
+import LeaveRequestDetails from '../screens/LeaveRequestDetails';
+import ExitRequestStatus from '../screens/ExitRequestStatus';
+import ExitRequestDetails from '../screens/ExitRequestDetails';
+import ExpenseRequestDetails from '../screens/ExpenseRequestDetails';
+import ExpenseRequestStatus from '../screens/ExpenseRequestStatus';
 //  drawer
 import LogReport from '../screens/LogReport';
 import ApplyLeave from '../screens/ApplyLeave';
@@ -25,6 +31,7 @@ import MyExpenses from '../screens/MyExpenses';
 import AdvanceReport from '../screens/AdvanceReport';
 import Exit from '../screens/Exit';
 import Profile from '../screens/Profile';
+import LeaveReport from '../screens/LeaveReport';
 
 
 
@@ -61,6 +68,25 @@ export default function AppNavigator() {
       <Stack.Screen name="Exit" component={Exit} />
       <Stack.Screen name="WhoLeave" component={WhoLeave} />
       <Stack.Screen name="Profile"  component={Profile}/>
+      <Stack.Screen name="MyExit"  component={MyExit}/>
+      <Stack.Screen name="LeaveReport"  component={LeaveReport}/>
+      <Stack.Screen name="LeaveRequstStatus"  component={LeaveRequstStatus}/>
+      <Stack.Screen name="LeaveRequestDetails"  component={LeaveRequestDetails}/>
+
+
+      <Stack.Screen name="ExitRequestDetails"  component={ExitRequestDetails}/>
+      <Stack.Screen name="ExitRequestStatus"  component={ExitRequestStatus}/>
+      <Stack.Screen name="ExpenseRequestStatus"  component={ExpenseRequestStatus}/>
+      <Stack.Screen name="ExpenseRequestDetails"  component={ExpenseRequestDetails}/>
+
+
+
+
+
+      
+      
+      
+      
 
 
       
