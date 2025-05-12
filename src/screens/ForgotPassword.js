@@ -118,6 +118,7 @@ const LoginScreen = () => {
                 keyboardType="default"
                 style={styles.input}
                 autoCapitalize="none"
+                placeholderTextColor={'#000'}
               />
             ) : (
               <View style={styles.otpWrapper}>

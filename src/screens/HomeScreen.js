@@ -31,6 +31,7 @@ const Dashboard = () => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [shiftCompleted, setShiftCompleted] = useState(false);
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
+  
 
   const leaveData = [
     {label: 'CL', available: 10, used: 5},
@@ -135,7 +136,7 @@ const Dashboard = () => {
   const navigation = useNavigation();
 
   const renderUserItem = ({item}) => (
-    <Card style={styles.userCard}>
+    <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
       <Card.Content style={styles.userContent}>
         {/* <Image source={item.image} style={styles.avatar} /> */}
         <View style={styles.textWrapper}>
@@ -151,7 +152,7 @@ const Dashboard = () => {
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
-        <Card style={styles.card}>
+        <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
           <Card.Content>
             <Text style={styles.name}>Welcome, Jayanta Behera</Text>
             <Text style={styles.role}>.Net Developer, IT</Text>
@@ -217,7 +218,7 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
+        <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
           <Card.Content>
             <View style={styles.leaveHeaderRow}>
               <Text style={styles.sectionTitle}>Leave Status</Text>
@@ -245,7 +246,7 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
+        <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Calendar</Text>
             <ShiftCalendar onSelectDate={handleDateSelect} />
@@ -259,7 +260,7 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
+        <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]} >
           <View style={styles.leaveHeaderRow}>
             <Text style={styles.sectionTitle}>Who is on Leave</Text>
             <TouchableOpacity  onPress={() => navigation.navigate('WhoLeave')}>
@@ -295,9 +296,9 @@ const Dashboard = () => {
 
 const styles = StyleSheet.create({
   container: {padding: 16, paddingBottom: 32, backgroundColor: '#F5F7FA'},
-  card: {borderRadius: 12, marginBottom: 16, elevation: 2},
+  card: {borderRadius: 12, marginBottom: 16, elevation: 2, margin: 5},
   title: {fontWeight: 'bold', fontSize: 18},
-  listContainer: {paddingVertical: 8},
+  listContainer: {paddingVertical: 8 , marginLeft: 10},
   userCard: {marginRight: 12, width: 190, borderRadius: 10, elevation: 2},
   userContent: {
     flexDirection: 'row',
@@ -305,6 +306,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     height: 70,
+    
   },
   avatar: {width: 44, height: 44, borderRadius: 22, marginRight: 10},
   textWrapper: {flexShrink: 1},
@@ -367,7 +369,7 @@ const styles = StyleSheet.create({
   leaveType: {fontSize: 16, fontWeight: 'bold', marginBottom: 4},
   leaveInfo: {fontSize: 13, color: '#555'},
   leaveBold: {fontWeight: 'bold'},
-  selectedShiftContainer: {marginTop: 8},
+  selectedShiftContainer: {marginTop: 8 , },
   selectedShiftText: {fontSize: 14, fontWeight: '500', color: '#333'},
 });
 

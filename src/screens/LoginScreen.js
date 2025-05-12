@@ -48,10 +48,11 @@ const SignInScreen = () => {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
+        
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
-
+          
           {/* Top Banner Image */}
           <Image
             source={require('../assets/image/withh.png')}
@@ -137,18 +138,18 @@ const SignInScreen = () => {
               Privacy Policy and Terms of Service
             </CoreText>
           </View>
+
+          {/* Footer inside ScrollView, will scroll or move when keyboard opens */}
+          <View style={styles.footerContainer}>
+            <CoreText style={styles.footerText}>Powered By</CoreText>
+            <Image
+              source={require('../assets/image/logo.png')}
+              style={styles.footerLogo}
+              resizeMode="contain"
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Footer */}
-      <View style={styles.footerContainer}>
-        <CoreText style={styles.footerText}>Powered By</CoreText>
-        <Image
-          source={require('../assets/image/logo.png')}
-          style={styles.footerLogo}
-          resizeMode="contain"
-        />
-      </View>
     </SafeAreaView>
   );
 };
@@ -165,6 +166,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 20,
   },
   bannerImage: {
     width: '100%',
@@ -186,6 +188,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginHorizontal: 25,
     padding: 20,
+    borderRadius: 12,
+    
   },
   welcomeTitle: {
     textAlign: 'center',
@@ -208,14 +212,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   footerContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 30 : 30,
-    left: 0,
-    right: 0,
+    marginTop: 30,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
   },
   footerText: {
     fontSize: 13,

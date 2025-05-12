@@ -66,7 +66,7 @@ const Attandance = () => {
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
-        <Card style={styles.card}>
+        <Card  style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Attandance</Text>
             <Attendancecalender/>

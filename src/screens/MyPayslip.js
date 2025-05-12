@@ -1,16 +1,21 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   StyleSheet,
   Text,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Platform,
 } from 'react-native';
-import {Card , Appbar} from 'react-native-paper';
+import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
+import LoadingComponent from '../component/LoadingComponent';
+import DownloadSuccessModal from '../component/DownloadSuccessModal';
 
 const MyPaySlip = () => {
   const navigation = useNavigation();
@@ -60,9 +65,12 @@ const MyPaySlip = () => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [filteredPayslips, setFilteredPayslips] = useState(allPayslips);
+  const [filteredPayslips, setFilteredPayslips] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const filterPayslips = () => {
+  const filterPayslips = useCallback(() => {
     let filtered = [...allPayslips];
 
     if (selectedFilter) {
@@ -88,11 +96,23 @@ const MyPaySlip = () => {
     }
 
     setFilteredPayslips(filtered);
-  };
+  }, [selectedFilter, fromDate, toDate]);
 
   useEffect(() => {
-    filterPayslips();
-  }, [selectedFilter, fromDate, toDate]);
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      filterPayslips();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [filterPayslips]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      filterPayslips();
+      setRefreshing(false);
+    }, 1000);
+  };
 
   const formatDate = date => date?.toLocaleDateString('en-GB') || '--';
 
@@ -107,7 +127,9 @@ const MyPaySlip = () => {
         <TouchableOpacity style={styles.previewBtn}>
           <Text style={styles.previewText}>Preview</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
         <Icon name="download" size={24} color="#666" />
+        </TouchableOpacity>
       </View>
     </Card>
   );
@@ -162,25 +184,34 @@ const MyPaySlip = () => {
 
   return (
     <AppSafeArea>
-          <Appbar.Header style={styles.header}>
+      <Appbar.Header style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
       </Appbar.Header>
-      <FlatList
-        data={filteredPayslips}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Icon name="file-remove-outline" size={48} color="#999" />
-            <Text style={styles.emptyText}>
-              No payslips found for selected filters.
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.scrollContent}
-      />
+
+      {/* Loading Animation */}
+      <LoadingComponent visible={isLoading} />
+
+      {!isLoading && (
+        <FlatList
+          data={filteredPayslips}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Icon name="file-remove-outline" size={48} color="#999" />
+              <Text style={styles.emptyText}>
+                No payslips found for selected filters.
+              </Text>
+            </View>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.scrollContent}
+        />
+      )}
 
       {/* Date Pickers */}
       <DatePicker
@@ -208,6 +239,13 @@ const MyPaySlip = () => {
         }}
         onCancel={() => setShowToPicker(false)}
       />
+
+
+<DownloadSuccessModal
+  visible={modalVisible}
+  fileName="MyPayslip_April.pdf"
+  onClose={() => setModalVisible(false)}
+/>
     </AppSafeArea>
   );
 };

@@ -59,6 +59,7 @@ const ExitApplyScreen = ({navigation}) => {
           <View style={styles.inputWrapper}>
             <TextInput
               placeholder="MM/DD/YYYY"
+              placeholderTextColor="black"
               value={
                 form.applyDate
                   ? moment(form.applyDate).format('MM/DD/YYYY')
@@ -76,6 +77,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Employee Code</Text>
         <TextInput
           placeholder="Code"
+          placeholderTextColor="black"
           value={form.employeeCode}
           onChangeText={text => handleChange('employeeCode', text)}
           style={styles.input}
@@ -85,6 +87,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Bio-Matric Id</Text>
         <TextInput
           placeholder="Id"
+          placeholderTextColor="black"
           value={form.bioMetricId}
           onChangeText={text => handleChange('bioMetricId', text)}
           style={styles.input}
@@ -94,6 +97,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Employee Name</Text>
         <TextInput
           placeholder="Name"
+          placeholderTextColor="black"
           value={form.name}
           onChangeText={text => handleChange('name', text)}
           style={styles.input}
@@ -103,6 +107,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Designation</Text>
         <TextInput
           placeholder="Designation"
+          placeholderTextColor="black"
           value={form.designation}
           onChangeText={text => handleChange('designation', text)}
           style={styles.input}
@@ -112,6 +117,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Department</Text>
         <TextInput
           placeholder="Department"
+          placeholderTextColor="black"
           value={form.department}
           onChangeText={text => handleChange('department', text)}
           style={styles.input}
@@ -125,6 +131,7 @@ const ExitApplyScreen = ({navigation}) => {
           <View style={styles.inputWrapper}>
             <TextInput
               placeholder="MM/DD/YYYY"
+              placeholderTextColor="black"
               value={
                 form.exitDate
                   ? moment(form.exitDate).format('MM/DD/YYYY')
@@ -142,6 +149,7 @@ const ExitApplyScreen = ({navigation}) => {
         <Text style={styles.label}>Reason</Text>
         <TextInput
           placeholder="Remarks.."
+          placeholderTextColor="black"
           multiline
           numberOfLines={4}
           value={form.reason}
@@ -204,6 +212,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     backgroundColor: '#fff',
+    color: '#000',
   },
   inputWrapper: {
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import moment from 'moment';
 import RNPickerSelect from 'react-native-picker-select';
 import AppSafeArea from '../component/AppSafeArea';
 import {Card, Appbar} from 'react-native-paper';
+import FeedbackModal from '../component/FeedbackModal';
 
 const leaveData = [
   {label: 'CL', available: 10, used: 5},
@@ -35,6 +36,9 @@ const ApplyLeaveScreen = ({navigation}) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const leaveScrollRef = useRef(null);
   const [remark, setRemark] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState('success');
+  const [modalMessage, setModalMessage] = useState('');
 
   const handleFilePick = async () => {
     try {
@@ -45,6 +49,29 @@ const ApplyLeaveScreen = ({navigation}) => {
         console.error('File pick error:', err);
       }
     }
+  };
+
+  const handleSubmit = () => {
+    if (!leaveName) {
+      setModalType('fail');
+      setModalMessage('Please select a leave name.');
+      setModalVisible(true);
+      return;
+    }
+
+    if (!leaveType) {
+      setModalType('fail');
+      setModalMessage('Please select a leave type.');
+      setModalVisible(true);
+      return;
+    }
+
+    // All good - show success
+    setModalType('success');
+    setModalMessage('Leave applied successfully!');
+    setModalVisible(true);
+
+    // You can also perform API call here
   };
 
   return (
@@ -150,6 +177,7 @@ const ApplyLeaveScreen = ({navigation}) => {
           value={remark}
           onChangeText={setRemark}
           placeholder="Enter any remarks (optional)"
+          placeholderTextColor={'#000'}
           multiline={true}
         />
 
@@ -162,13 +190,20 @@ const ApplyLeaveScreen = ({navigation}) => {
         )}
 
         {/* Submit & Cancel Buttons */}
-        <TouchableOpacity style={styles.submitBtn}>
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
           <Text style={styles.submitText}>Submit</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <FeedbackModal
+        visible={modalVisible}
+        type={modalType}
+        message={modalMessage}
+        onClose={() => setModalVisible(false)}
+      />
     </AppSafeArea>
   );
 };
