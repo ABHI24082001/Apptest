@@ -9,7 +9,8 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { Appbar } from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
 const statusTabs = [
   { label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline' },
   { label: 'Approved', color: '#00C851', icon: 'check-circle-outline' },
@@ -65,14 +66,13 @@ const ExitRequestStatusScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color="#2F3846" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Exit Request Status</Text>
-      </View>
+    <AppSafeArea>
+         {/* Header */}
+     <Appbar.Header elevated style={styles.header}>
+             <Appbar.BackAction onPress={() => navigation.goBack()} />
+             <Appbar.Content title="Exit Request" titleStyle={styles.headerTitle} />
+           </Appbar.Header>
+       
 
       {/* Status Tabs */}
       <View style={styles.tabContainer}>
@@ -107,7 +107,7 @@ const ExitRequestStatusScreen = () => {
           </View>
         ) : (
           filteredData.map((item, index) => (
-           <TouchableOpacity key={index} activeOpacity={0.9} onPress={() => navigation.navigate('ExitRequestDetails', {item})}>
+           <TouchableOpacity key={index} activeOpacity={0.9}>
              <View key={index} style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.name}>{item.name}</Text>
@@ -142,7 +142,7 @@ const ExitRequestStatusScreen = () => {
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeArea>
   );
 };
 
@@ -165,16 +165,14 @@ const getStatusColor = (status: string) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: { padding: 4, marginRight: 8 },
-  title: { fontSize: 20, fontWeight: '600', color: '#111827' },
+      backgroundColor: '#fff',
+      elevation: Platform.OS === 'android' ? 4 : 0,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#333',
+    },
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -211,8 +209,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  name: { fontWeight: '600', fontSize: 16, color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 12 },
+  name: { fontWeight: '800', fontSize: 16, color: '#111827' },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 12  ,fontWeight: '700', },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -222,6 +220,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4B5563',
     marginLeft: 8,
+    fontWeight: '700',
   },
   statusBadge: {
     paddingVertical: 4,

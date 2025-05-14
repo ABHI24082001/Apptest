@@ -14,6 +14,7 @@ import CustomDrawer from '../component/CustomDrawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import AntDesign from 'react-native-vector-icons/AntDesign'
 
 const Drawer = createDrawerNavigator();
 
@@ -78,12 +79,12 @@ const ProfileMenu = ({navigation}) => {
       <Menu.Item
         onPress={() => {
           setVisible(false);
-          navigation.navigate('AdvanceReport');
+          navigation.navigate('Setting');
         }}
         leadingIcon={() => (
-          <MaterialIcons name="attach-money" size={20} color="#555" />
+          <MaterialIcons name="settings-suggest" size={20} color="#555" />
         )}
-        title="Payment Report"
+        title="Setting"
       />
 
       {/* <Menu.Item

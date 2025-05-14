@@ -1,5 +1,5 @@
-import React from 'react';
-import {Modal, View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import React, {useEffect} from 'react';
+import {Modal, View, Text, StyleSheet} from 'react-native';
 import LottieView from 'lottie-react-native';
 
 const FeedbackModal = ({
@@ -8,6 +8,16 @@ const FeedbackModal = ({
   type = 'success', // 'success' or 'fail'
   message = '',
 }) => {
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 2000);
+
+      return () => clearTimeout(timer); // Cleanup on unmount or visibility change
+    }
+  }, [visible, onClose]);
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
@@ -23,9 +33,6 @@ const FeedbackModal = ({
             style={styles.lottie}
           />
           <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeText}>OK</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -57,16 +64,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
-    marginVertical: 16,
-  },
-  closeBtn: {
-    backgroundColor: '#2962ff',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-  },
-  closeText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    marginTop: 16,
   },
 });

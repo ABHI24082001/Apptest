@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
     color: '#333',
   },
   sectionContent: {
@@ -257,20 +257,21 @@ const styles = StyleSheet.create({
   },
   label: {
     width: 120,
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '800',
+    fontSize: 16,
     color: '#333',  
   },
   colon: {
     marginRight: 4,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
     color: '#333',
   },
   value: {
     flexShrink: 1,
-    fontSize: 13,
+    fontSize: 16,
     color: '#555',
+    fontWeight: '600'
   },
 });
 

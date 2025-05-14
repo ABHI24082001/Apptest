@@ -202,16 +202,17 @@ const WeekCalendarWithAgenda = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f2' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
     paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingHorizontal: 25,
     borderBottomColor: '#eee',
-    borderBottomWidth: 1,
+    borderBottomWidth: 1,  
   },
   headerText: { fontSize: 16, fontWeight: 'bold' },
   navText: { fontSize: 18, fontWeight: 'bold' },
@@ -220,6 +221,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
+    
+    
   },
   dayBox: {
     width: 52,
@@ -228,6 +231,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
+   
   },
   daySelected: {
     backgroundColor: '#2196f3',
@@ -255,18 +259,22 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     backgroundColor: '#fff',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10
   },
   agendaTitle: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 10,
     color: '#333',
+    
   },
   eventCard: {
     padding: 10,
     marginBottom: 10,
     borderLeftWidth: 4,
     borderRadius: 6,
+    
   },
   eventTitle: {
     fontSize: 14,

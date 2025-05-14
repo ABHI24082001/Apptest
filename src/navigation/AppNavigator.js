@@ -34,6 +34,14 @@ import Profile from '../screens/Profile';
 import LeaveReport from '../screens/LeaveReport';
 
 
+//   request 
+
+import LeaveRequestedit from '../screens/LeaveRequestedit';
+import ExpenseRequestedit from '../screens/ExpenseRequestedit';
+import ExitRequestedit from '../screens/ExitRequestedit';
+import Setting from '../screens/Setting';
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -78,6 +86,17 @@ export default function AppNavigator() {
       <Stack.Screen name="ExitRequestStatus"  component={ExitRequestStatus}/>
       <Stack.Screen name="ExpenseRequestStatus"  component={ExpenseRequestStatus}/>
       <Stack.Screen name="ExpenseRequestDetails"  component={ExpenseRequestDetails}/>
+
+
+      <Stack.Screen name="LeaveRequestedit"  component={LeaveRequestedit}/>
+      <Stack.Screen name="ExpenseRequestedit"  component={ExpenseRequestedit}/>
+      <Stack.Screen name="ExitRequestedit"  component={ExitRequestedit}/>
+      <Stack.Screen name="Setting"  component={Setting}/>
+
+
+
+
+      
 
 
 

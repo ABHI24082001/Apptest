@@ -1,5 +1,3 @@
-// ExpenseRequestStatusScreen.tsx
-
 import React, { useState } from 'react';
 import {
   View,
@@ -11,6 +9,8 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Appbar } from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
 
 const statusTabs = [
   { label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline' },
@@ -64,35 +64,39 @@ const ExpenseRequestStatusScreen = () => {
   const filteredData = expenseData.filter(item => item.status === selectedStatus);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color="#2F3846" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Expense Request Status</Text>
-      </View>
+    <AppSafeArea>
+        <Appbar.Header elevated style={styles.header}>
+              <Appbar.BackAction onPress={() => navigation.goBack()} />
+              <Appbar.Content title="ExpenseRequest" titleStyle={styles.headerTitle} />
+            </Appbar.Header>
 
-      <View style={styles.tabContainer}>
-        {statusTabs.map((tab, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.tab,
-              selectedStatus === tab.label && {
-                backgroundColor: `${tab.color}15`,
-                borderColor: tab.color,
-              },
-            ]}
-            onPress={() => setSelectedStatus(tab.label)}
-          >
-            <Icon name={tab.icon} size={18} color={tab.color} style={styles.tabIcon} />
-            <Text style={[styles.tabText, { color: tab.color }]}>
-              {tab.label} (
-              {expenseData.filter(item => item.status === tab.label).length}
-              )
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.tabWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+          {statusTabs.map((tab, index) => {
+            const isActive = selectedStatus === tab.label;
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.tab,
+                  isActive && {
+                    backgroundColor: `${tab.color}15`,
+                    borderColor: tab.color,
+                  },
+                ]}
+                onPress={() => setSelectedStatus(tab.label)}
+              >
+                <Icon name={tab.icon} size={18} color={tab.color} style={styles.tabIcon} />
+                <Text style={[
+                  styles.tabText,
+                  { color: tab.color, fontWeight: isActive ? 'bold' : '600' },
+                ]}>
+                  {tab.label} ({expenseData.filter(item => item.status === tab.label).length})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -103,7 +107,7 @@ const ExpenseRequestStatusScreen = () => {
           </View>
         ) : (
           filteredData.map((item, index) => (
-            <TouchableOpacity key={index} activeOpacity={0.9} onPress={() => navigation.navigate('ExpenseRequestDetails', {item})}>
+            <TouchableOpacity key={index} activeOpacity={0.9}>
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.name}>{item.name}</Text>
@@ -121,16 +125,6 @@ const ExpenseRequestStatusScreen = () => {
                 </View>
 
                 <Text style={styles.subtitle}>{item.designation}, {item.dept}</Text>
-
-                <View style={styles.detailRow}>
-                  <Icon name="identifier" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Employee ID: {item.empId}</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Icon name="briefcase-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Project: {item.project}</Text>
-                </View>
 
                 <View style={styles.detailRow}>
                   <Icon name="calendar-blank-outline" size={16} color="#6B7280" />
@@ -156,7 +150,7 @@ const ExpenseRequestStatusScreen = () => {
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeArea>
   );
 };
 
@@ -172,36 +166,38 @@ const getStatusColor = (status: string) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+      backgroundColor: '#fff',
+      elevation: Platform.OS === 'android' ? 4 : 0,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#333',
+    },
+  title: { fontSize: 20, fontWeight: '800', color: '#111827' },
+
+  tabWrapper: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  backButton: { padding: 4, marginRight: 8 },
-  title: { fontSize: 20, fontWeight: '600', color: '#111827' },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+  tabScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
+    marginRight: 10,
   },
   tabIcon: { marginRight: 6 },
-  tabText: { fontWeight: '600', fontSize: 14 },
+  tabText: { fontSize: 14  , },
+
   scrollContainer: { padding: 16, paddingBottom: 24 },
   card: {
     backgroundColor: '#FFFFFF',
@@ -222,10 +218,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  name: { fontWeight: '600', fontSize: 16, color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 12 },
+  name: { fontWeight: '800', fontSize: 16, color: '#111827' },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 12  , fontWeight: '700'},
   detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  detailText: { fontSize: 14, color: '#4B5563', marginLeft: 8 },
+  detailText: { fontSize: 16, color: '#4B5563', marginLeft: 8, fontWeight: '600' },
   statusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 10,

@@ -1,9 +1,20 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {View, Text, StyleSheet, Modal, TouchableOpacity, Platform} from 'react-native';
 import LottieView from 'lottie-react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const DownloadSuccessModal = ({visible, onClose, fileName}) => {
+
+  useEffect(() => {
+    let timer;
+    if (visible) {
+      timer = setTimeout(() => {
+        onClose();
+      }, 2000); // 1000 milliseconds = 1 second
+    }
+
+    return () => clearTimeout(timer); // Cleanup timer on unmount or visibility change
+  }, [visible, onClose]);
   return (
     <Modal
       visible={visible}
@@ -21,9 +32,7 @@ const DownloadSuccessModal = ({visible, onClose, fileName}) => {
           <Text style={styles.title}>Download Successful!</Text>
           <Text style={styles.subtitle}>{fileName} has been saved.</Text>
 
-          <TouchableOpacity onPress={onClose} style={styles.button}>
-            <Text style={styles.buttonText}>Okay</Text>
-          </TouchableOpacity>
+         
         </View>
       </View>
     </Modal>

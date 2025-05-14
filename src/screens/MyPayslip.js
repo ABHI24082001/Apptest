@@ -190,9 +190,9 @@ const MyPaySlip = () => {
       </Appbar.Header>
 
       {/* Loading Animation */}
-      <LoadingComponent visible={isLoading} />
+      {/* <LoadingComponent visible={isLoading} /> */}
 
-      {!isLoading && (
+    
         <FlatList
           data={filteredPayslips}
           keyExtractor={item => item.id}
@@ -211,7 +211,7 @@ const MyPaySlip = () => {
           }
           contentContainerStyle={styles.scrollContent}
         />
-      )}
+      
 
       {/* Date Pickers */}
       <DatePicker

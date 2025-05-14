@@ -135,6 +135,7 @@ export default function BottomTabNavigator({navigation}) {
             backgroundColor: '#fff',
             borderTopWidth: 1,
             borderTopColor: '#e0e0e0',
+
            
           },
           tabBarButton: (props) => {
@@ -144,7 +145,7 @@ export default function BottomTabNavigator({navigation}) {
                   {...props}
                   style={styles.actionButton}
                   onPress={toggleMenu}>
-                  <MaterialIcons name="add" size={32} color="#1E88E5" />
+                  <MaterialCommunityIcons name="arrow-decision-outline" size={32} color="#1E88E5" />
                   <Text style={styles.actionButtonText}>Action</Text>
                 </TouchableOpacity>
               );

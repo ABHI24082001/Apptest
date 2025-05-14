@@ -22,14 +22,16 @@ const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
   const [isRequestExpanded, setIsRequestExpanded] = React.useState(false);
+  const [isRequestExpandedDetails, setIsRequestExpandedDetails] =
+    React.useState(false);
 
   const avatarScale = useSharedValue(1);
 
   const menuItems = [
     {
       label: 'Dashboard',
-      icon: 'home-outline',
-      activeIcon: 'home',
+      icon: 'view-dashboard-outline',
+      activeIcon: 'view-dashboard-outline',
       screen: 'Tabs',
       params: {screen: 'Home'},
     },
@@ -50,7 +52,7 @@ const CustomDrawer = ({navigation}) => {
       label: 'Payment Request',
       icon: 'cash-plus',
       activeIcon: 'cash-plus',
-      screen: 'AdvanceReport',
+      screen: 'PaymentRequest',
     },
     {
       label: 'Exit Apply',
@@ -60,22 +62,22 @@ const CustomDrawer = ({navigation}) => {
     },
     // {label: 'LeaveReport', icon: 'calendar-outline' , activeIcon: 'calendar',  screen: 'LeaveReport'},
     // {
-    //   label: 'LeaveRequest',
+    //   label: 'LeaveDetails',
     //   icon: 'calendar-outline',
     //   activeIcon: 'calendar',
-    //   screen: 'LeaveRequstStatus',
+    //   screen: 'LeaveRequestDetails',
     // },
     // {
-    //   label: 'ExpenseRequest',
+    //   label: 'ExpenseDetails',
     //   icon: 'calendar-outline',
     //   activeIcon: 'calendar',
-    //   screen: 'ExpenseRequestStatus',
+    //   screen: 'ExpenseRequestDetails',
     // },
     // {
-    //   label: 'ExitRequest',
+    //   label: 'ExitRequest Details',
     //   icon: 'calendar-outline',
     //   activeIcon: 'calendar',
-    //   screen: 'ExitRequestStatus',
+    //   screen: 'ExitRequestDetails',
     // },
   ];
 
@@ -268,7 +270,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}>Requests</Text>
+              <Text style={styles.menuLabel}>Employees Requests</Text>
             </View>
             <MaterialCommunityIcons
               name={isRequestExpanded ? 'chevron-down' : 'chevron-right'}
@@ -358,6 +360,108 @@ const CustomDrawer = ({navigation}) => {
               </TouchableOpacity>
             </>
           )}
+
+          {/* Collapsible Requests  Details Section */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() =>
+              setIsRequestExpandedDetails(!isRequestExpandedDetails)
+            }
+            style={[styles.menuItem, {justifyContent: 'space-between'}]}>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <MaterialCommunityIcons
+                name="file-eye-outline"
+                size={26}
+                color="#5D6D7E"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuLabel}>Requests Details</Text>
+            </View>
+            <MaterialCommunityIcons
+              name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
+              size={24}
+              color="#5D6D7E"
+            />
+          </TouchableOpacity>
+
+          {isRequestExpandedDetails && (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedScreen('LeaveRequestDetails');
+                  navigation.navigate('LeaveRequestDetails');
+                }}
+                style={[
+                  styles.menuItem,
+                  {
+                    marginLeft: 40,
+                    backgroundColor: '#E3EBF6',
+                    borderRadius: 10,
+                  },
+                ]}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={24}
+                  color="#3A5BA0"
+                  style={styles.menuIcon}
+                />
+                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  Leave Details
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedScreen('ExpenseRequestDetails');
+                  navigation.navigate('ExpenseRequestDetails');
+                }}
+                style={[
+                  styles.menuItem,
+                  {
+                    marginLeft: 40,
+                    backgroundColor: '#E3EBF6',
+                    borderRadius: 10,
+                  },
+                ]}>
+                <MaterialCommunityIcons
+                  name="cash"
+                  size={24}
+                  color="#3A5BA0"
+                  style={styles.menuIcon}
+                />
+                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  Expense Details
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedScreen('ExitRequestDetails');
+                  navigation.navigate('ExitRequestDetails');
+                }}
+                style={[
+                  styles.menuItem,
+                  {
+                    marginLeft: 40,
+                    backgroundColor: '#E3EBF6',
+                    borderRadius: 10,
+                  },
+                ]}>
+                <MaterialCommunityIcons
+                  name="exit-to-app"
+                  size={24}
+                  color="#3A5BA0"
+                  style={styles.menuIcon}
+                />
+                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  Exit Details
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -391,7 +495,7 @@ const styles = StyleSheet.create({
   },
   profile: {
     alignItems: 'center',
-    paddingVertical: 55,
+    paddingVertical: 30,
     backgroundColor: '#fff',
     marginBottom: 10,
     ...Platform.select({

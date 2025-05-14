@@ -1,186 +1,265 @@
 import React from 'react';
 import {
-  StyleSheet,
-  Text,
   View,
-  ScrollView,
+  FlatList,
+  Text,
   TouchableOpacity,
+  StyleSheet,
+  StatusBar,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const ExitRequestDetailsScreen = () => {
-  const route = useRoute();
-  const { item } = route.params;
+const updatedExitData = [
+  {
+    name: 'Ansuman Samal',
+    role: '.Net Developer',
+    dept: 'IT Dept',
+    empId: '784512',
+    recordId: 'ID5690',
+    exitDate: '12/06/2025',
+    reasons: 'Testing Exit Flow',
+    contingentCode: 'AA_28',
+    contingentName: 'Abhishek',
+    contingentDesignation: 'Accounts Executive',
+    contingentDept: 'Accounts',
+    contingentBranch: 'Mumbai',
+    reportingStatus: 'Pending',
+    reportingRemarks: '—',
+    accountStatus: 'Pending',
+    accountRemarks: 'Account’s Remarks',
+    authorizedStatus: 'Reject',
+    applicationStatus: 'In Progress',
+    remarks: '100 characters remaining',
+    managerApprovalStatus: 'Pending',
+    hrRemarks: 'Awaiting final review',
+    exitApprovalStatus: 'Pending',
+    finalRemarks: 'Awaiting exit clearance from HR'
+  },
+  {
+    name: 'Priya Sharma',
+    role: 'UI Designer',
+    dept: 'Design',
+    empId: '145236',
+    recordId: 'ID5691',
+    exitDate: '12/06/2025',
+    reasons: 'Testing Exit Flow',
+    contingentCode: 'AA_28',
+    contingentName: 'Abhishek',
+    contingentDesignation: 'Accounts Executive',
+    contingentDept: 'Accounts',
+    contingentBranch: 'Mumbai',
+    reportingStatus: 'Pending',
+    reportingRemarks: '—',
+    accountStatus: 'Pending',
+    accountRemarks: 'Account’s Remarks',
+    authorizedStatus: 'Reject',
+    applicationStatus: 'In Progress',
+    remarks: '100 characters remaining',
+    managerApprovalStatus: 'Pending',
+    hrRemarks: 'Awaiting final review',
+    exitApprovalStatus: 'Pending',
+    finalRemarks: 'Awaiting exit clearance from HR'
+  },
+  {
+    name: 'Ravi Kumar',
+    role: 'HR Executive',
+    dept: 'HR',
+    empId: '784999',
+    recordId: 'ID5692',
+    exitDate: '12/06/2025',
+    reasons: 'Testing Exit Flow',
+    contingentCode: 'AA_28',
+    contingentName: 'Abhishek',
+    contingentDesignation: 'Accounts Executive',
+    contingentDept: 'Accounts',
+    contingentBranch: 'Mumbai',
+    reportingStatus: 'Pending',
+    reportingRemarks: '—',
+    accountStatus: 'Pending',
+    accountRemarks: 'Account’s Remarks',
+    authorizedStatus: 'Reject',
+    applicationStatus: 'In Progress',
+    remarks: '100 characters remaining',
+    managerApprovalStatus: 'Pending',
+    hrRemarks: 'Awaiting final review',
+    exitApprovalStatus: 'Pending',
+    finalRemarks: 'Awaiting exit clearance from HR'
+  }
+];
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'Pending':
+      return '#FFA500';
+    case 'Approved':
+      return '#00C851';
+    case 'Rejected':
+      return '#ff4444';
+    default:
+      return '#6B7280';
+  }
+};
+
+const EditRequestDetails = () => {
   const navigation = useNavigation();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return '#FFA500';
-      case 'Approved':
-        return '#00C851';
-      case 'Rejected':
-        return '#ff4444';
-      default:
-        return '#6B7280';
-    }
-  };
+  const renderItem = ({item}) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => navigation.navigate('LeaveRequestDetails', {item})}>
+      
+      {/* Header */}
+      <View style={styles.cardHeader}>
+        <Text style={styles.name}>{item.name}</Text>
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: `${getStatusColor(item.reportingStatus)}15`,
+              borderColor: getStatusColor(item.reportingStatus),
+            },
+          ]}>
+          <Text style={[styles.statusText, {color: getStatusColor(item.reportingStatus)}]}>
+            {item.reportingStatus}
+          </Text>
+        </View>
+        
+        {/* Edit Button */}
+        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('ExitRequestedit')}>
+          <Text style={styles.editText}>Edit</Text>
+        </TouchableOpacity>
+      </View>
+  
+      {/* Role & Department */}
+      <Text style={styles.subtext}>{item.role} • {item.dept}</Text>
+  
+      {/* Leave Dates */}
+      <View style={styles.dateRow}>
+        <Icon name="calendar" size={16} color="#6B7280" />
+        <Text style={styles.dateText}>{item.exitDate}</Text>
+      </View>
+  
+      {/* Additional Details */}
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>Emp ID: {item.empId}</Text>
+        <Text style={styles.metaText}>Record ID: {item.recordId}</Text>
+        <Text style={styles.metaText}>Exit Date: {item.exitDate}</Text>
+        <Text style={styles.metaText}>Reason: {item.reasons}</Text>
+        <Text style={styles.metaText}>Manager Approval: {item.managerApprovalStatus}</Text>
+        <Text style={styles.metaText}>HR Remarks: {item.hrRemarks}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Icon name="arrow-left" size={24} color="#2F3846" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Exit Request Details</Text>
+    <View style={{flex: 1, backgroundColor: '#F9FAFB'}}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Exit Request Status</Text>
+        <View style={{width: 24}} /> {/* Placeholder to center title */}
+      </View>
 
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor: `${getStatusColor(item.status)}15`,
-                borderColor: getStatusColor(item.status),
-              },
-            ]}>
-            <Text
-              style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {item.status}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Employee Information</Text>
-            <DetailRow icon="account" label="Name" value={item.name} />
-            <DetailRow icon="briefcase" label="Role" value={item.role} />
-            <DetailRow icon="office-building" label="Department" value={item.dept} />
-            <DetailRow icon="identifier" label="Employee ID" value={item.empId} />
-            <DetailRow icon="calendar-edit" label="Applied Date" value={item.appliedDate} />
-            <DetailRow icon="calendar-remove-outline" label="Exit Date" value={item.exitDate} />
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Exit Details</Text>
-            <DetailRow icon="information-outline" label="Reason" value={item.reason} />
-            <DetailRow icon="shield-check-outline" label="Account Status" value={item.accountStatus} />
-            <DetailRow icon="account-check-outline" label="Authorized Status" value={item.authorizedStatus} />
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      {/* List */}
+      <FlatList
+        contentContainerStyle={styles.list}
+        data={updatedExitData}
+        keyExtractor={(item, index) => item.recordId + index}
+        renderItem={renderItem}
+      />
+    </View>
   );
 };
 
-const DetailRow = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) => (
-  <View style={styles.detailRow}>
-    <Icon name={icon} size={18} color="#6B7280" style={styles.rowIcon} />
-    <View style={styles.detailTextContainer}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  </View>
-);
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 8,
-  },
   header: {
+    backgroundColor: '#FFFFFF',
+    paddingTop: 14,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  list: {
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
-  title: {
-    fontSize: 20,
+  metaRow: {
+    marginTop: 10,
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  name: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    flex: 1,
-    textAlign: 'center',
+  },
+  subtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#374151',
+    marginLeft: 6,
   },
   statusBadge: {
     paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 1,
   },
   statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  editButton: {
+    backgroundColor: '#1D4ED8',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  editText: {
+    color: '#FFF',
     fontSize: 14,
     fontWeight: '600',
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    margin: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  rowIcon: {
-    marginRight: 12,
-  },
-  detailTextContainer: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '500',
-  },
 });
 
-export default ExitRequestDetailsScreen;
+export default EditRequestDetails;
