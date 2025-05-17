@@ -212,25 +212,24 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#999',
+    paddingBottom: 6,
   },
   input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingRight: 45,
-    backgroundColor: '#fff',
+    fontSize: 16,
+    color: '#1A2138',
+    paddingHorizontal: 0,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
   },
   inputError: {
-    borderColor: 'red',
+    borderBottomColor: 'red',
   },
   eyeButton: {
     position: 'absolute',
-    right: 10,
-    top: 12,
-    padding: 4,
+    right: 0,
+    bottom: 10,
   },
   errorText: {
     color: 'red',
@@ -239,21 +238,24 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#3366FF',
-    borderRadius: 12,
-    height: 56,
+    borderRadius: 6,             // smaller radius
+    height: 36,                  // reduced height
+    alignSelf: 'center',     // align left if needed
+    paddingHorizontal: 16,       // less horizontal padding
+    paddingVertical: 6,          // optional, adds vertical spacing inside button
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 8,                // reduce space from inputs
     shadowColor: '#3366FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 5,
-  },
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  }, 
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 13,                // smaller text
+    fontWeight: '500',
   },
   modalContainer: {
     flex: 1,

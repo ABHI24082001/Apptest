@@ -3,172 +3,125 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  TextInput,
   Text,
   TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import {Button} from 'react-native-paper';
+import {Appbar, Button} from 'react-native-paper';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
-import AppSafeArea from '../component/AppSafeArea';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AppSafeArea from '../component/AppSafeArea';
 
 const ExitApplyScreen = ({navigation}) => {
   const [form, setForm] = useState({
-    applyDate: null,
-    exitDate: null,
-    employeeCode: '',
-    bioMetricId: '',
-    name: '',
-    designation: '',
-    department: '',
+    exitDate: new Date(),
     reason: '',
   });
-
-  const [showDatePicker, setShowDatePicker] = useState({
-    type: '',
-    visible: false,
-  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleChange = (key, value) => {
-    setForm({...form, [key]: value});
+    setForm(prev => ({...prev, [key]: value}));
   };
 
   const handleSubmit = () => {
-    console.log('Form Submitted:', form);
+    console.log('Exit Apply Form:', form);
+    // Submit logic here
   };
 
   return (
     <AppSafeArea>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
+      
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
 
-        <Text style={styles.label}>Apply Date</Text>
-        <TouchableOpacity
-          onPress={() => setShowDatePicker({type: 'applyDate', visible: true})}
-          activeOpacity={0.8}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor="black"
-              value={
-                form.applyDate
-                  ? moment(form.applyDate).format('MM/DD/YYYY')
-                  : ''
-              }
-              editable={false}
-              style={styles.inputWithIcon}
-              pointerEvents="none"
-            />
-            <Icon name="calendar" size={20} color="#666" />
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <Icon name="exit-run" size={40} color="#3B82F6" />
+            <Text style={styles.headerText}>Request Exit</Text>
+            <Text style={styles.subHeaderText}>
+              Please fill in the details below to submit your exit request
+            </Text>
           </View>
-        </TouchableOpacity>
 
-        <Text style={styles.label}>Employee Code</Text>
-        <TextInput
-          placeholder="Code"
-          placeholderTextColor="black"
-          value={form.employeeCode}
-          onChangeText={text => handleChange('employeeCode', text)}
-          style={styles.input}
-        />
+          {/* Form Section */}
+          <View style={styles.formContainer}>
+            {/* Exit Date */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Exit Date</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}>
+                <View style={styles.dateInputWrapper}>
+                  <Icon 
+                    name="calendar" 
+                    size={20} 
+                    color="#3B82F6" 
+                    style={styles.dateIcon}
+                  />
+                  <Text style={styles.dateText}>
+                    {form.exitDate ? moment(form.exitDate).format('MMMM D, YYYY') : 'Select date'}
+                  </Text>
+                  <Icon 
+                    name="chevron-down" 
+                    size={20} 
+                    color="#9CA3AF" 
+                  />
+                </View>
+              </TouchableOpacity>
+            </View>
 
-        <Text style={styles.label}>Bio-Matric Id</Text>
-        <TextInput
-          placeholder="Id"
-          placeholderTextColor="black"
-          value={form.bioMetricId}
-          onChangeText={text => handleChange('bioMetricId', text)}
-          style={styles.input}
-        />
+            {/* Reason / Remarks */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Reason for Exit</Text>
+              <TextInput
+                placeholder="Explain your reason for leaving..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={5}
+                value={form.reason}
+                onChangeText={text => handleChange('reason', text)}
+                style={styles.textArea}
+              />
+              <Text style={styles.charCount}>
+                {form.reason.length}/500 characters
+              </Text>
+            </View>
 
-        <Text style={styles.label}>Employee Name</Text>
-        <TextInput
-          placeholder="Name"
-          placeholderTextColor="black"
-          value={form.name}
-          onChangeText={text => handleChange('name', text)}
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Designation</Text>
-        <TextInput
-          placeholder="Designation"
-          placeholderTextColor="black"
-          value={form.designation}
-          onChangeText={text => handleChange('designation', text)}
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Department</Text>
-        <TextInput
-          placeholder="Department"
-          placeholderTextColor="black"
-          value={form.department}
-          onChangeText={text => handleChange('department', text)}
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Exit Date</Text>
-        <TouchableOpacity
-          onPress={() => setShowDatePicker({type: 'exitDate', visible: true})}
-          activeOpacity={0.8}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor="black"
-              value={
-                form.exitDate
-                  ? moment(form.exitDate).format('MM/DD/YYYY')
-                  : ''
-              }
-              editable={false}
-              style={styles.inputWithIcon}
-              pointerEvents="none"
-            />
-            <Icon name="calendar" size={20} color="#666" />
+            {/* Submit Button */}
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={styles.submitButton}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              icon="send-check">
+              Submit Request
+            </Button>
           </View>
-        </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-        <Text style={styles.label}>Reason</Text>
-        <TextInput
-          placeholder="Remarks.."
-          placeholderTextColor="black"
-          multiline
-          numberOfLines={4}
-          value={form.reason}
-          onChangeText={text => handleChange('reason', text)}
-          style={[styles.input, {height: 100, textAlignVertical: 'top'}]}
-        />
-
-        <Button
-          mode="contained"
-          onPress={handleSubmit}
-          style={styles.submitButton}
-          contentStyle={{paddingVertical: 8}}>
-          Submit
-        </Button>
-
-        <Button
-          mode="outlined"
-          onPress={() => navigation.goBack()}
-          style={styles.cancelButton}
-          contentStyle={{paddingVertical: 8}}>
-          Cancel
-        </Button>
-      </ScrollView>
-
+      {/* Date Picker Modal */}
       <DatePicker
         modal
-        open={showDatePicker.visible}
-        date={form[showDatePicker.type] || new Date()}
+        open={showDatePicker}
+        date={form.exitDate || new Date()}
         mode="date"
+        minimumDate={new Date()}
         onConfirm={date => {
-          setShowDatePicker({type: '', visible: false});
-          handleChange(showDatePicker.type, date);
+          setShowDatePicker(false);
+          handleChange('exitDate', date);
         }}
-        onCancel={() => setShowDatePicker({type: '', visible: false})}
+        onCancel={() => setShowDatePicker(false)}
+        theme="light"
       />
     </AppSafeArea>
   );
@@ -177,51 +130,112 @@ const ExitApplyScreen = ({navigation}) => {
 export default ExitApplyScreen;
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    color: '#111827',
+    fontWeight: '600',
+    fontSize: 18,
+    fontFamily: Platform.OS === 'android' ? 'sans-serif-medium' : undefined,
+  },
   container: {
-    padding: 16,
+    flexGrow: 1,
     paddingBottom: 40,
+    backgroundColor: '#FFFFFF',
+  },
+  headerSection: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  headerText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  subHeaderText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  formContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
+  inputContainer: {
+    marginBottom: 24,
   },
   label: {
-    marginTop: 12,
-    marginBottom: 4,
     fontSize: 14,
     fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    backgroundColor: '#fff',
-    color: '#000',
-  },
-  inputWrapper: {
+  dateInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  inputWithIcon: {
+  dateIcon: {
+    marginRight: 12,
+  },
+  dateText: {
     flex: 1,
-    fontSize: 14,
-    color: '#000',
-    paddingRight: 10,
+    fontSize: 16,
+    color: '#111827',
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#111827',
+    textAlignVertical: 'top',
+    height: 140,
+    lineHeight: 22,
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'right',
+    marginTop: 4,
   },
   submitButton: {
-    marginTop: 24,
-    borderRadius: 8,
-    backgroundColor: '#1D61E7',
+    marginTop: 16,
+    borderRadius: 12,
+    backgroundColor: '#3B82F6',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cancelButton: {
-    marginTop: 12,
-    borderRadius: 8,
-    backgroundColor: '#E3EAF3',
+  buttonContent: {
+    height: 48,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -557,3 +557,878 @@ export default Dashboard;
 // });
 
 // export default Dashboard;
+
+
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+} from 'react-native';
+import {Card, Appbar} from 'react-native-paper';
+import moment from 'moment';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import AppSafeArea from '../component/AppSafeArea';
+import EmployeeInfoCard from '../component/EmployeeInfoCard';
+import MonthNavigation from '../component/MonthNavigation';
+import DayDetails from '../component/DayDetails';
+
+const LogReport = ({navigation}) => {
+  const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
+  const [selectedDate, setSelectedDate] = useState(moment());
+
+  const attendanceData = {
+    AA_16: {
+      employee: {
+        code: 'AA_16',
+        name: 'Lane Mcintyre',
+        type: 'Apprentice',
+        department: 'HR',
+        designation: 'HR Executive',
+      },
+      attendance: {
+        '2025-04': {
+          '01': {login: '10:00:00', logout: '19:30:00'},
+          '02': {login: '10:00:00', logout: '19:30:00'},
+          '06': 'Week-Off',
+          13: 'Week-Off',
+          22: 'Week-Off',
+        },
+      },
+    },
+  };
+
+  const employee = attendanceData['AA_16'];
+  const monthKey = currentMonth.format('YYYY-MM');
+  const monthAttendance = employee.attendance[monthKey] || {};
+
+  const handleDateChange = date => setSelectedDate(date);
+
+  const changeMonth = direction => {
+    const newMonth =
+      direction === 'prev'
+        ? currentMonth.clone().subtract(1, 'month')
+        : currentMonth.clone().add(1, 'month');
+
+    setCurrentMonth(newMonth);
+    setSelectedDate(newMonth.clone().startOf('month'));
+  };
+
+  const selectedDayData = monthAttendance[selectedDate.format('DD')];
+
+  const HorizontalCalendar = ({selectedDate, onDateChange, currentMonth}) => {
+    const daysInMonth = Array.from(
+      {length: currentMonth.daysInMonth()},
+      (_, i) => currentMonth.clone().startOf('month').add(i, 'days'),
+    );
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.calendarContainer}>
+        {daysInMonth.map(date => {
+          const isSelected = date.isSame(selectedDate, 'day');
+          const isToday = date.isSame(moment(), 'day');
+          const isWeekend = date.day() === 0 || date.day() === 6;
+
+          const scale = useSharedValue(isSelected ? 1.1 : 1);
+          const animatedStyle = useAnimatedStyle(() => ({
+            transform: [{scale: scale.value}],
+          }));
+
+          const handlePress = () => {
+            scale.value = withSpring(1.1, {damping: 12});
+            onDateChange(date);
+          };
+
+          return (
+            <TouchableOpacity
+              key={date.format('DD-MM-YYYY')}
+              onPress={handlePress}
+              activeOpacity={0.8}>
+              <Animated.View
+                style={[
+                  styles.dayContainer,
+                  isSelected && styles.selectedDay,
+                  isToday && !isSelected && styles.todayDay,
+                  isWeekend && styles.weekendDay,
+                  animatedStyle,
+                ]}>
+                <Text
+                  style={[
+                    styles.dayText,
+                    isSelected && styles.selectedDayText,
+                    isToday && styles.todayText,
+                    isWeekend && styles.weekendText,
+                  ]}>
+                  {date.format('D')}
+                </Text>
+                <Text
+                  style={[
+                    styles.weekDayText,
+                    isSelected && styles.selectedDayText,
+                    isWeekend && styles.weekendText,
+                  ]}>
+                  {date.format('ddd')}
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Log Report" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Card style={styles.card}>
+          <Card.Content>
+            {/* <EmployeeInfoCard employee={employee.employee} /> */}
+            <MonthNavigation
+              currentMonth={currentMonth}
+              onChange={changeMonth}
+            />
+            <HorizontalCalendar
+              selectedDate={selectedDate}
+              onDateChange={handleDateChange}
+              currentMonth={currentMonth}
+            />
+            <View style={styles.divider} />
+            <DayDetails date={selectedDate} data={selectedDayData} />
+          </Card.Content>
+        </Card>
+      </ScrollView>
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  screenContainer: {flex: 1, backgroundColor: '#F5F5F5'},
+  scrollContent: {padding: 16},
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 50,
+    backgroundColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    elevation: 4,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  calendarContainer: {
+    marginVertical: 16,
+    paddingBottom: 10,
+  },
+  dayContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 10,
+    padding: 10,
+    borderRadius: 50,
+  },
+  dayText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  weekDayText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  selectedDay: {
+    backgroundColor: '#3F51B5',
+  },
+  selectedDayText: {
+    color: '#fff',
+  },
+  todayDay: {
+    borderWidth: 2,
+    borderColor: '#FF6347',
+  },
+  todayText: {
+    color: '#FF6347',
+  },
+  weekendDay: {
+    opacity: 0.6,
+  },
+  weekendText: {
+    color: '#FF6347',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 12,
+  },
+});
+
+export default LogReport;
+
+
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Modal,
+  FlatList,
+} from 'react-native';
+import DatePicker from 'react-native-date-picker';
+import { Appbar } from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
+import RNPickerSelect from 'react-native-picker-select';
+import DocumentPicker from '@react-native-documents/picker';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useForm, Controller } from 'react-hook-form';
+
+const PaymentRequest = ({ navigation }) => {
+  // Form handling with react-hook-form
+  const { control, handleSubmit, formState: { errors }, reset } = useForm({
+    defaultValues: {
+      requestType: '',
+      projectName: '',
+      expenseHead: '',
+      amount: '',
+      paymentTitle: '',
+      remarks: '',
+    }
+  });
+
+  // State management
+  const [date, setDate] = useState(new Date());
+  const [openDatePicker, setOpenDatePicker] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [expenseItems, setExpenseItems] = useState([]);
+
+  // Document picker handler
+  const handleDocumentPick = async () => {
+    try {
+      const res = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
+      });
+      setUploadedFile(res);
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        console.log('User cancelled the picker');
+      } else {
+        console.error('DocumentPicker Error:', err);
+      }
+    }
+  };
+
+  // Add expense item handler
+  const handleAddExpense = (data) => {
+    setExpenseItems([...expenseItems, {
+      id: Date.now().toString(),
+      head: data.expenseHead,
+      title: data.paymentTitle,
+      amount: data.amount,
+    }]);
+    setIsModalVisible(false);
+    reset();
+  };
+
+  // Delete expense item handler
+  const handleDeleteExpense = (id) => {
+    setExpenseItems(expenseItems.filter(item => item.id !== id));
+  };
+
+  // Submit form handler
+  const onSubmit = (data) => {
+    console.log('Form submitted:', data);
+    // Handle form submission logic here
+  };
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content
+          title="Payment Request"
+          titleStyle={styles.headerTitle}
+        />
+      </Appbar.Header>
+
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Header Section */}
+        <View style={styles.headerSection}>
+          <Icon name="credit-card-outline" size={40} color="#10B981" />
+          <Text style={styles.headerText}>Payment Request</Text>
+          <Text style={styles.subHeaderText}>
+            Please fill in the details below to submit your payment request
+          </Text>
+        </View>
+
+        {/* Request Type */}
+        <Text style={styles.label}>Request Type</Text>
+        <Controller
+          control={control}
+          name="requestType"
+          render={({ field: { onChange, value } }) => (
+            <RNPickerSelect
+              onValueChange={onChange}
+              value={value}
+              placeholder={{ label: 'Select Request Type', value: null }}
+              items={[
+                { label: 'Expense', value: 'expense' },
+                { label: 'Advance', value: 'advance' },
+              ]}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+              Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+            />
+          )}
+        />
+
+        {/* Project Name */}
+        <Text style={styles.label}>Project Name</Text>
+        <Controller
+          control={control}
+          name="projectName"
+          render={({ field: { onChange, value } }) => (
+            <RNPickerSelect
+              onValueChange={onChange}
+              value={value}
+              placeholder={{ label: 'Select Project Name', value: null }}
+              items={[
+                { label: '1HCM', value: '1hcm' },
+                { label: 'HR App', value: 'hrapp' },
+              ]}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+              Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+            />
+          )}
+        />
+
+        {/* Expense Head - Required field with asterisk */}
+        <Text style={styles.label}>
+          Expense Head <Text style={styles.required}>*</Text>
+          {errors.expenseHead && <Text style={styles.errorText}> {errors.expenseHead.message}</Text>}
+        </Text>
+        <Controller
+          control={control}
+          name="expenseHead"
+          rules={{ required: 'Expense head is required' }}
+          render={({ field: { onChange, value } }) => (
+            <RNPickerSelect
+              onValueChange={onChange}
+              value={value}
+              placeholder={{ label: 'Select Expense Head', value: null }}
+              items={[
+                { label: 'Travel', value: 'travel' },
+                { label: 'Marketing', value: 'marketing' },
+                { label: 'IT Service', value: 'it' },
+              ]}
+              style={pickerSelectStyles}
+              useNativeAndroidPickerStyle={false}
+              Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+            />
+          )}
+        />
+
+        {/* Payment Title */}
+        <Text style={styles.label}>Payment Title</Text>
+        <Controller
+          control={control}
+          name="paymentTitle"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Enter Payment Title"
+              style={styles.input}
+            />
+          )}
+        />
+
+        {/* Amount - Required field with asterisk */}
+        <Text style={styles.label}>
+          Amount <Text style={styles.required}>*</Text>
+          {errors.amount && <Text style={styles.errorText}> {errors.amount.message}</Text>}
+        </Text>
+        <Controller
+          control={control}
+          name="amount"
+          rules={{ 
+            required: 'Amount is required',
+            pattern: {
+              value: /^[0-9]*(\.[0-9]{0,2})?$/,
+              message: 'Please enter a valid amount'
+            }
+          }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Enter Amount"
+              keyboardType="numeric"
+              style={[styles.input, errors.amount && styles.errorInput]}
+            />
+          )}
+        />
+
+        {/* Date */}
+        <Text style={styles.label}>Date</Text>
+        <TouchableOpacity
+          style={styles.inputWithIcon}
+          onPress={() => setOpenDatePicker(true)}>
+          <Text style={styles.dateText}>{date.toDateString()}</Text>
+          <Icon name="calendar-month-outline" size={22} color="#555" />
+        </TouchableOpacity>
+
+        <DatePicker
+          modal
+          open={openDatePicker}
+          date={date}
+          mode="date"
+          onConfirm={selectedDate => {
+            setOpenDatePicker(false);
+            setDate(selectedDate);
+          }}
+          onCancel={() => setOpenDatePicker(false)}
+        />
+
+        {/* Remarks - Required field with asterisk */}
+        <Text style={styles.label}>
+          Remarks <Text style={styles.required}>*</Text>
+          {errors.remarks && <Text style={styles.errorText}> {errors.remarks.message}</Text>}
+        </Text>
+        <Controller
+          control={control}
+          name="remarks"
+          rules={{ required: 'Remarks are required' }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Add Remarks"
+              multiline
+              style={[
+                styles.input, 
+                { height: 100, textAlignVertical: 'top' },
+                errors.remarks && styles.errorInput
+              ]}
+            />
+          )}
+        />
+
+        {/* Upload File */}
+        <Text style={styles.label}>Upload Document</Text>
+        <TouchableOpacity style={styles.uploadBox} onPress={handleDocumentPick}>
+          {uploadedFile ? (
+            <Text style={{ textAlign: 'center' }}>{uploadedFile.name}</Text>
+          ) : (
+            <Text style={{ color: '#999', textAlign: 'center' }}>
+              Choose PDF or JPG
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Add Expense Button */}
+      
+
+        {/* Expense Items Table */}
+       
+
+        {/* Submit Button */}
+        <TouchableOpacity 
+          style={styles.submitBtn}
+          onPress={handleSubmit(onSubmit)}
+        >
+          <Text style={styles.submitText}>Submit</Text>
+        </TouchableOpacity>
+
+        {/* Cancel Button */}
+        <TouchableOpacity style={styles.cancelBtn}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.addBtn}
+          onPress={() => setIsModalVisible(true)}
+        >
+          <Icon name="plus" size={20} color="#fff" />
+          <Text style={styles.addBtnText}>Add Expense</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Add Expense Modal */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add New Expense</Text>
+              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                <Icon name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalBody}>
+              {/* Expense Head */}
+              <Text style={styles.label}>
+                Expense Head <Text style={styles.required}>*</Text>
+              </Text>
+              <RNPickerSelect
+                onValueChange={(value) => reset({ ...control._formValues, expenseHead: value })}
+                value={control._formValues.expenseHead}
+                placeholder={{ label: 'Select Expense Head', value: null }}
+                items={[
+                  { label: 'Travel', value: 'travel' },
+                  { label: 'Marketing', value: 'marketing' },
+                  { label: 'IT Service', value: 'it' },
+                ]}
+                style={pickerSelectStyles}
+                useNativeAndroidPickerStyle={false}
+                Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+              />
+
+              {/* Payment Title */}
+              <Text style={styles.label}>Title</Text>
+              <TextInput
+                value={control._formValues.paymentTitle}
+                onChangeText={(text) => reset({ ...control._formValues, paymentTitle: text })}
+                placeholder="Enter Title"
+                style={styles.input}
+              />
+
+              {/* Amount */}
+              <Text style={styles.label}>
+                Amount <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                value={control._formValues.amount}
+                onChangeText={(text) => reset({ ...control._formValues, amount: text })}
+                placeholder="Enter Amount"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={styles.modalAddBtn}
+                onPress={handleSubmit(handleAddExpense)}
+              >
+                <Text style={styles.modalAddBtnText}>Add Expense</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+       {expenseItems.length > 0 && (
+          <View style={styles.tableContainer}>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderText, { flex: 2 }]}>Head</Text>
+              <Text style={[styles.tableHeaderText, { flex: 2 }]}>Title</Text>
+              <Text style={[styles.tableHeaderText, { flex: 1 }]}>Amount</Text>
+              
+              <Text style={[styles.tableHeaderText, { flex: 1 }]}>Actions</Text>
+            </View>
+            <FlatList
+              data={expenseItems}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.tableRow}>
+                  <Text style={[styles.tableCell, { flex: 2 }]}>{item.head}</Text>
+                  <Text style={[styles.tableCell, { flex: 2 }]}>{item.title}</Text>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{item.amount}</Text>
+                  <View style={[styles.tableCell, { flex: 1, flexDirection: 'row' }]}>
+                    <TouchableOpacity style={styles.actionBtn}>
+                      <Icon name="pencil" size={18} color="#3B82F6" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.actionBtn}
+                      onPress={() => handleDeleteExpense(item.id)}
+                    >
+                      <Icon name="trash-can" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+        )}
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  container: {
+    padding: 16,
+    paddingBottom: 40,
+    backgroundColor: '#fff'
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  required: {
+    color: '#EF4444',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: 'normal',
+  },
+  errorInput: {
+    borderColor: '#EF4444',
+  },
+  headerSection: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  headerText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  subHeaderText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+  },
+  uploadBox: {
+    height: 100,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  submitBtn: {
+    backgroundColor: '#2962ff',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  submitText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  inputWithIcon: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateText: {
+    fontSize: 15,
+    color: '#333',
+  },
+  cancelBtn: {
+    backgroundColor: '#e0e0e0',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: '#555',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  addBtn: {
+    backgroundColor: '#10B981',
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  addBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginLeft: 8,
+  },
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  tableHeaderText: {
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tableCell: {
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  actionBtn: {
+    paddingHorizontal: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalBody: {
+    padding: 16,
+  },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  modalAddBtn: {
+    backgroundColor: '#10B981',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalAddBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+});
+
+const pickerSelectStyles = {
+  inputIOS: {
+    fontSize: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    color: '#000',
+    marginBottom: 8,
+  },
+  inputAndroid: {
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    color: '#000',
+    marginBottom: 8,
+  },
+  iconContainer: {
+    top: 18,
+    right: 10,
+  },
+};
+
+export default PaymentRequest;

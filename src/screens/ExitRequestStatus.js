@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   ScrollView,
@@ -7,14 +7,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Appbar } from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 const statusTabs = [
-  { label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline' },
-  { label: 'Approved', color: '#00C851', icon: 'check-circle-outline' },
-  { label: 'Rejected', color: '#ff4444', icon: 'close-circle-outline' },
+  {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
+  {label: 'Approved', color: '#00C851', icon: 'check-circle-outline'},
+  {label: 'Rejected', color: '#ff4444', icon: 'close-circle-outline'},
 ];
 
 const exitRequestData = [
@@ -30,49 +30,27 @@ const exitRequestData = [
     authorizedStatus: 'Pending',
     status: 'Pending',
   },
-  {
-    empId: 'AA_14',
-    name: 'Sarah Williams',
-    role: 'HR Specialist',
-    dept: 'Human Resources',
-    appliedDate: '15-04-2025',
-    exitDate: '30-04-2025',
-    reason: 'Relocation',
-    accountStatus: 'Approved',
-    authorizedStatus: 'Pending',
-    status: 'Pending',
-  },
-  {
-    empId: 'AA_15',
-    name: 'James Smith',
-    role: 'Software Engineer',
-    dept: 'Technology',
-    appliedDate: '20-04-2025',
-    exitDate: '20-05-2025',
-    reason: 'Personal',
-    accountStatus: 'Pending',
-    authorizedStatus: 'Approved',
-    status: 'Approved',
-  },
+ 
 ];
-
 
 const ExitRequestStatusScreen = () => {
   const navigation = useNavigation();
   const [selectedStatus, setSelectedStatus] = useState('Pending');
 
   const filteredData = exitRequestData.filter(
-    item => item.status === selectedStatus
+    item => item.status === selectedStatus,
   );
 
   return (
     <AppSafeArea>
-         {/* Header */}
-     <Appbar.Header elevated style={styles.header}>
-             <Appbar.BackAction onPress={() => navigation.goBack()} />
-             <Appbar.Content title="Exit Request" titleStyle={styles.headerTitle} />
-           </Appbar.Header>
-       
+      {/* Header */}
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content
+          title="  My Exit Request"
+          titleStyle={styles.headerTitle}
+        />
+      </Appbar.Header>
 
       {/* Status Tabs */}
       <View style={styles.tabContainer}>
@@ -86,10 +64,14 @@ const ExitRequestStatusScreen = () => {
                 borderColor: tab.color,
               },
             ]}
-            onPress={() => setSelectedStatus(tab.label)}
-          >
-            <Icon name={tab.icon} size={18} color={tab.color} style={styles.tabIcon} />
-            <Text style={[styles.tabText, { color: tab.color }]}>
+            onPress={() => setSelectedStatus(tab.label)}>
+            <Icon
+              name={tab.icon}
+              size={18}
+              color={tab.color}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.tabText, {color: tab.color}]}>
               {tab.label} (
               {exitRequestData.filter(item => item.status === tab.label).length}
               )
@@ -107,38 +89,45 @@ const ExitRequestStatusScreen = () => {
           </View>
         ) : (
           filteredData.map((item, index) => (
-           <TouchableOpacity key={index} activeOpacity={0.9}>
-             <View key={index} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.name}>{item.name}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor: `${getStatusColor(item.status)}15`,
-                    borderColor: getStatusColor(item.status),
-                  },
-                ]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                    {item.status}
-                  </Text>
-                </View>
-              </View>
+            <TouchableOpacity key={index} activeOpacity={0.9}>
+              <View key={index} style={styles.card}>
+                <InfoRow
+                  icon="calendar-edit"
+                  label={`Applied: ${item.appliedDate}`}
+                />
+                <InfoRow
+                  icon="calendar-remove-outline"
+                  label={`Exit: ${item.exitDate}`}
+                />
+                <InfoRow
+                  icon="information-outline"
+                  label={`Reason: ${item.reason}`}
+                />
 
-              <Text style={styles.subtitle}>{item.role}, {item.dept}</Text>
-
-              <InfoRow icon="identifier" label={`ID: ${item.empId}`} />
-              <InfoRow icon="calendar-edit" label={`Applied: ${item.appliedDate}`} />
-              <InfoRow icon="calendar-remove-outline" label={`Exit: ${item.exitDate}`} />
-              <InfoRow icon="information-outline" label={`Reason: ${item.reason}`} />
-              <InfoRow icon="shield-check-outline" label={`Account Status: ${item.accountStatus}`} />
-              <InfoRow icon="account-check-outline" label={`Authorized Status: ${item.authorizedStatus}`} />
-
-              {/* <View style={styles.manageRow}>
+                {/* <View style={styles.manageRow}>
                 <Icon name="tools" size={20} color="#6B7280" />
                 <Text style={styles.manageText}>Manage</Text>
               </View> */}
-            </View>
-           </TouchableOpacity>
+                <View style={styles.cardHeader}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor: `${getStatusColor(item.status)}15`,
+                        borderColor: getStatusColor(item.status),
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {color: getStatusColor(item.status)},
+                      ]}>
+                      {item.status}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
@@ -146,33 +135,37 @@ const ExitRequestStatusScreen = () => {
   );
 };
 
-const InfoRow = ({ icon, label }: { icon: string; label: string }) => (
+const InfoRow = ({icon, label}: {icon: string, label: string}) => (
   <View style={styles.detailRow}>
-    <Icon name={icon} size={16} color="#6B7280" />
+    <Icon name={icon} size={26} color="#6B7280" />
     <Text style={styles.detailText}>{label}</Text>
   </View>
 );
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Pending': return '#FFA500';
-    case 'Approved': return '#00C851';
-    case 'Rejected': return '#ff4444';
-    default: return '#6B7280';
+    case 'Pending':
+      return '#FFA500';
+    case 'Approved':
+      return '#00C851';
+    case 'Rejected':
+      return '#ff4444';
+    default:
+      return '#6B7280';
   }
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: {flex: 1, backgroundColor: '#F9FAFB'},
   header: {
-      backgroundColor: '#fff',
-      elevation: Platform.OS === 'android' ? 4 : 0,
-    },
-    headerTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: '#333',
-    },
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -191,9 +184,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tabIcon: { marginRight: 6 },
-  tabText: { fontWeight: '600', fontSize: 14 },
-  scrollContainer: { padding: 16, paddingBottom: 24 },
+  tabIcon: {marginRight: 6},
+  tabText: {fontWeight: '600', fontSize: 14},
+  scrollContainer: {padding: 16, paddingBottom: 24},
   card: {
     backgroundColor: '#FFFFFF',
     padding: 16,
@@ -209,27 +202,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  name: { fontWeight: '800', fontSize: 16, color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 12  ,fontWeight: '700', },
+  name: {fontWeight: '800', fontSize: 16, color: '#111827'},
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+    fontWeight: '700',
+  },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 17,
     color: '#4B5563',
     marginLeft: 8,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   statusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 15,
     borderRadius: 12,
     borderWidth: 1,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
   },
   emptyState: {

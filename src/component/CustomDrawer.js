@@ -167,7 +167,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}>Report</Text>
+              <Text style={styles.menuLabel}> My Reports</Text>
             </View>
             <MaterialCommunityIcons
               name={isLogExpanded ? 'chevron-down' : 'chevron-right'}
@@ -270,7 +270,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}>Employees Requests</Text>
+              <Text style={styles.menuLabel}>My Requests </Text>
             </View>
             <MaterialCommunityIcons
               name={isRequestExpanded ? 'chevron-down' : 'chevron-right'}
@@ -375,7 +375,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}>Requests Details</Text>
+              <Text style={styles.menuLabel}>Employees Requests</Text>
             </View>
             <MaterialCommunityIcons
               name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
@@ -407,7 +407,7 @@ const CustomDrawer = ({navigation}) => {
                   style={styles.menuIcon}
                 />
                 <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Leave Details
+                  Leave Request
                 </Text>
               </TouchableOpacity>
 
@@ -432,7 +432,7 @@ const CustomDrawer = ({navigation}) => {
                   style={styles.menuIcon}
                 />
                 <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Expense Details
+                  Expense Request
                 </Text>
               </TouchableOpacity>
 
@@ -457,7 +457,7 @@ const CustomDrawer = ({navigation}) => {
                   style={styles.menuIcon}
                 />
                 <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Exit Details
+                  Exit Request
                 </Text>
               </TouchableOpacity>
             </>
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 20,
   },
   profile: {
     alignItems: 'center',

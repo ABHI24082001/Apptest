@@ -30,6 +30,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '1000',
       status: 'approved',
       statusDate: '2025-04-30',
+      Remark: 'use it',
     },
     {
       id: '2',
@@ -38,6 +39,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '1500',
       status: 'pending',
       statusDate: '2025-04-10',
+      Remark: '',
     },
     {
       id: '3',
@@ -46,6 +48,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '5000',
       status: 'rejected',
       statusDate: '2025-02-01',
+      Remark: '',
     },
   ];
 
@@ -73,7 +76,7 @@ const AdvancePaymentReport = () => {
     return new Date(date).toLocaleDateString('en-GB');
   };
 
-  const isWithinDateRange = (dateStr) => {
+  const isWithinDateRange = dateStr => {
     if (!fromDate || !toDate) return true;
     const d = new Date(dateStr);
     return d >= fromDate && d <= toDate;
@@ -137,7 +140,10 @@ const AdvancePaymentReport = () => {
     <AppSafeArea>
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Payment Request List" titleStyle={styles.headerTitle} />
+        <Appbar.Content
+          title="Payment Request List"
+          titleStyle={styles.headerTitle}
+        />
       </Appbar.Header>
 
       <ScrollView style={styles.container}>
@@ -212,7 +218,9 @@ const AdvancePaymentReport = () => {
                     <View style={styles.row}>
                       <Icon name="calendar-check" size={20} color="#6D75FF" />
                       <Text style={styles.label}>Date:</Text>
-                      <Text style={styles.value}>{formatDate(report.requestDate)}</Text>
+                      <Text style={styles.value}>
+                        {formatDate(report.requestDate)}
+                      </Text>
                     </View>
                     <View style={styles.row}>
                       <Icon name="cash" size={20} color="#6D75FF" />
@@ -224,12 +232,28 @@ const AdvancePaymentReport = () => {
                       <Text style={styles.label}>Approved Amount:</Text>
                       <Text style={styles.value}>₹{report.approvedAmount}</Text>
                     </View>
-                    <View style={styles.statusRow}>
-                      <Icon name={statusIcon.icon} size={20} color={statusIcon.color} />
-                      <Text style={[styles.statusText, {color: statusIcon.color}]}>
-                        {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                    <View style={styles.row}>
+                      <Icon name="check" size={20} color="#6D75FF" />
+                      <Text style={styles.label}>Remarks</Text>
+                      <Text style={styles.value}>
+                        {report.Remark ? report.Remark : 'No Remark'}
                       </Text>
-                      <Text style={styles.statusDate}>{formatDate(report.statusDate)}</Text>
+                    </View>
+
+                    <View style={styles.statusRow}>
+                      <Icon
+                        name={statusIcon.icon}
+                        size={20}
+                        color={statusIcon.color}
+                      />
+                      <Text
+                        style={[styles.statusText, {color: statusIcon.color}]}>
+                        {report.status.charAt(0).toUpperCase() +
+                          report.status.slice(1)}
+                      </Text>
+                      <Text style={styles.statusDate}>
+                        {formatDate(report.statusDate)}
+                      </Text>
                     </View>
                   </View>
                 </Card>
@@ -260,7 +284,9 @@ const AdvancePaymentReport = () => {
               </View>
               <View style={styles.statusRow}>
                 <Icon name="check-circle" size={20} color="#4CAF50" />
-                <Text style={[styles.statusText, {color: '#4CAF50'}]}>Approved</Text>
+                <Text style={[styles.statusText, {color: '#4CAF50'}]}>
+                  Approved
+                </Text>
                 <Text style={styles.statusDate}>05/04/2025</Text>
               </View>
             </View>
@@ -329,7 +355,13 @@ const styles = StyleSheet.create({
   },
   cardContent: {padding: 16},
   row: {flexDirection: 'row', alignItems: 'center', marginBottom: 12},
-  label: {fontSize: 14, color: '#666', marginLeft: 12, marginRight: 8, width: 120},
+  label: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 12,
+    marginRight: 8,
+    width: 120,
+  },
   value: {fontSize: 14, fontWeight: '500', color: '#333', flex: 1},
   statusRow: {
     flexDirection: 'row',

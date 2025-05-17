@@ -12,13 +12,7 @@ const UploadFile = ({ handleFilePick, uploadedFile }) => {
         <Text style={styles.uploadText}>Upload PDF</Text>
       </TouchableOpacity>
 
-      {/* File Preview */}
-      {uploadedFile && (
-        <View style={styles.previewBox}>
-          <Icon name="file-pdf-box" size={24} color="#d32f2f" />
-          <Text style={styles.previewText}>{uploadedFile.name}</Text>
-        </View>
-      )}
+   
     </>
   );
 };

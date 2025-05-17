@@ -30,6 +30,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '1000',
       status: 'approved',
       statusDate: '2025-04-30',
+      
     },
     {
       id: '2',
@@ -38,6 +39,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '1500',
       status: 'pending',
       statusDate: '2025-04-10',
+        remark: 'use it '
     },
     {
       id: '3',
@@ -46,6 +48,7 @@ const AdvancePaymentReport = () => {
       approvedAmount: '5000',
       status: 'rejected',
       statusDate: '2025-02-01',
+      remark: 'use it '
     },
   ];
 

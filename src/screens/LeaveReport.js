@@ -3,7 +3,6 @@ import {
   View,
   FlatList,
   StyleSheet,
-  Text as RNText,
   TouchableOpacity,
   Platform,
 } from 'react-native';
@@ -15,12 +14,14 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
+import moment from 'moment';
 
 const MOCK_LEAVE_DATA = [
   {
     id: '101',
     applyDate: '2025-04-01',
-    leaveType: 'Sick Leave',
+    leave: 'Sick Leave',
+    leaveType: 'Half day',
     noOfLeave: 2,
     status: 'Approved',
     statusDate: '2025-04-03',
@@ -28,7 +29,8 @@ const MOCK_LEAVE_DATA = [
   {
     id: '102',
     applyDate: '2025-03-18',
-    leaveType: 'Casual Leave',
+    leave: 'Casual Leave',
+    leaveType: 'Full day',
     noOfLeave: 1,
     status: 'Pending',
     statusDate: '2025-03-20',
@@ -36,7 +38,8 @@ const MOCK_LEAVE_DATA = [
   {
     id: '103',
     applyDate: '2025-02-10',
-    leaveType: 'Sick Leave',
+    leave: 'Casual Leave',
+    leaveType: 'Full day',
     noOfLeave: 3,
     status: 'Rejected',
     statusDate: '2025-02-12',
@@ -56,14 +59,20 @@ const LeaveReportScreen = ({ navigation }) => {
   const [showToPicker, setShowToPicker] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('');
 
-  const formatDate = date => (date ? new Date(date).toLocaleDateString() : 'Select');
+  const formatDate = (dateString) => {
+    return dateString ? moment(dateString).format('DD/MM/YY') : 'Select';
+  };
+
+  const calculateEndDate = (startDate, days) => {
+    return moment(startDate).add(days - 1, 'days').format('DD/MM/YY');
+  };
 
   const filterData = () => {
     return MOCK_LEAVE_DATA.filter(item => {
       const itemDate = new Date(item.applyDate);
       const fromMatch = fromDate ? itemDate >= new Date(fromDate) : true;
       const toMatch = toDate ? itemDate <= new Date(toDate) : true;
-      const leaveTypeMatch = selectedFilter ? item.leaveType === selectedFilter : true;
+      const leaveTypeMatch = selectedFilter ? item.leave === selectedFilter : true;
       return fromMatch && toMatch && leaveTypeMatch;
     });
   };
@@ -76,99 +85,135 @@ const LeaveReportScreen = ({ navigation }) => {
   );
 
   const renderHeader = () => (
-    <View>
-      <View style={styles.chipRow}>
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.label}
-            style={[
-              styles.chip,
-              selectedFilter === option.value && styles.chipSelected,
-            ]}
-            onPress={() => {
-              setSelectedFilter(option.value);
-              setFromDate(null);
-              setToDate(null);
-            }}
-          >
-            <Text
+    <View style={styles.headerContainer}>
+      <View style={styles.filterContainer}>
+        <Text style={styles.sectionTitle}>Filter By Leave Type</Text>
+        <View style={styles.chipRow}>
+          {filterOptions.map(option => (
+            <TouchableOpacity
+              key={option.label}
               style={[
+                styles.chip,
+                selectedFilter === option.value && styles.chipSelected,
+              ]}
+              onPress={() => {
+                setSelectedFilter(option.value);
+                setFromDate(null);
+                setToDate(null);
+              }}
+            >
+              <Text style={[
                 styles.chipText,
                 selectedFilter === option.value && styles.chipTextSelected,
-              ]}
-            >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              ]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.dateRow}>
-        <TouchableOpacity style={styles.dateButton} onPress={() => setShowFromPicker(true)}>
-          <Text style={styles.dateLabel}>From</Text>
-          <Text style={styles.dateValue}>{formatDate(fromDate)}</Text>
-        </TouchableOpacity>
+      <View style={styles.filterContainer}>
+        <Text style={styles.sectionTitle}>Filter By Date Range</Text>
+        <View style={styles.dateRow}>
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => setShowFromPicker(true)}
+          >
+            <View style={styles.dateButtonContent}>
+              <Icon name="calendar" size={16} color="#1976d2" />
+              <View style={styles.dateTextContainer}>
+                <Text style={styles.dateLabel}>From</Text>
+                <Text style={styles.dateValue}>{formatDate(fromDate)}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
-        <View style={styles.dateIconWrapper}>
-          <Icon name="arrow-forward" size={20} color="#666" />
+          <View style={styles.dateIconWrapper}>
+            <Icon name="arrow-forward" size={20} color="#666" />
+          </View>
+
+          <TouchableOpacity 
+            style={styles.dateButton} 
+            onPress={() => setShowToPicker(true)}
+          >
+            <View style={styles.dateButtonContent}>
+              <Icon name="calendar" size={16} color="#1976d2" />
+              <View style={styles.dateTextContainer}>
+                <Text style={styles.dateLabel}>To</Text>
+                <Text style={styles.dateValue}>{formatDate(toDate)}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.dateButton} onPress={() => setShowToPicker(true)}>
-          <Text style={styles.dateLabel}>To</Text>
-          <Text style={styles.dateValue}>{formatDate(toDate)}</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 
-  const renderCard = ({ item }) => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Text style={styles.dateText}>
-          <Icon name="calendar-outline" size={14} color="#999" /> Apply Date: {item.applyDate}
-        </Text>
-
-        <View style={styles.box}>
-          <View>
-            <Text style={styles.label}>No. of Leave</Text>
-            <Text style={styles.value}>{item.noOfLeave}</Text>
+  const renderCard = ({ item }) => {
+    const statusColor = item.status === 'Approved' 
+      ? '#4caf50' 
+      : item.status === 'Rejected' 
+        ? '#f44336' 
+        : '#f4b400';
+        
+    return (
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <View style={styles.statusBadge}>
+              <Icon
+                name="ellipse"
+                size={10}
+                color={statusColor}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {item.status}
+              </Text>
+            </View>
+            <Text style={styles.statusDate}>
+              {formatDate(item.statusDate)}
+            </Text>
           </View>
-          <View>
-            <Text style={styles.label}>Leave Type</Text>
-            <Text style={styles.value}>{item.leaveType}</Text>
-          </View>
-        </View>
 
-        <View style={styles.statusRow}>
-          <Icon
-            name="ellipse"
-            size={10}
-            color={
-              item.status === 'Approved'
-                ? '#4caf50'
-                : item.status === 'Rejected'
-                  ? '#f44336'
-                  : '#f4b400'
-            }
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[
-            styles.statusText,
-            {
-              color:
-                item.status === 'Approved'
-                  ? '#4caf50'
-                  : item.status === 'Rejected'
-                    ? '#f44336'
-                    : '#f4b400',
-            },
-          ]}>
-            {item.status} - {item.statusDate}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  );
+          <View style={styles.datesContainer}>
+            <View style={styles.dateItem}>
+              <Text style={styles.dateLabel}>Apply Date</Text>
+              <Text style={styles.dateValue}>
+                {formatDate(item.applyDate)}
+              </Text>
+            </View>
+            <View style={styles.dateItem}>
+              <Text style={styles.dateLabel}>Leave Days</Text>
+              <Text style={styles.dateValue}>
+                {item.noOfLeave} {item.noOfLeave > 1 ? 'days' : 'day'}
+              </Text>
+            </View>
+            {item.leaveType === 'Full day' && (
+              <View style={styles.dateItem}>
+                <Text style={styles.dateLabel}>End Date</Text>
+                <Text style={styles.dateValue}>
+                  {calculateEndDate(item.applyDate, item.noOfLeave)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.detailsContainer}>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Leave</Text>
+              <Text style={styles.detailValue}>{item.leave}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Leave Type</Text>
+              <Text style={styles.detailValue}>{item.leaveType}</Text>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
 
   return (
     <AppSafeArea>
@@ -207,8 +252,6 @@ const LeaveReportScreen = ({ navigation }) => {
   );
 };
 
-export default LeaveReportScreen;
-
 const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
@@ -219,17 +262,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#222',
   },
-  listContainer: { padding: 16, paddingBottom: 40 },
+  listContainer: { 
+    padding: 16, 
+    paddingBottom: 40,
+  },
+  headerContainer: {
+    marginBottom: 16,
+  },
+  filterContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#444',
+    marginBottom: 12,
+  },
   chipRow: {
     flexDirection: 'row',
-    marginBottom: 16,
     flexWrap: 'wrap',
     gap: 10,
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    paddingVertical: 6,
+    borderColor: '#ddd',
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#fff',
@@ -240,50 +297,124 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
-    color: '#333',
+    color: '#555',
     fontWeight: '500',
   },
   chipTextSelected: {
     color: '#fff',
     fontWeight: '600',
+    
   },
-  dateRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  dateRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
   dateButton: {
     flex: 1,
     backgroundColor: '#fff',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
-  dateLabel: { fontSize: 12, color: '#999', fontWeight: '500' },
-  dateValue: { fontSize: 15, color: '#333', marginTop: 4, fontWeight: '600' },
-  dateIconWrapper: { paddingHorizontal: 10 },
-
+  dateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    
+  },
+  dateTextContainer: {
+    marginLeft: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  dateLabel: { 
+    fontSize: 16, 
+    color: '#666', 
+    fontWeight: '500' ,
+  },
+  dateValue: { 
+    fontSize: 15, 
+    color: '#333', 
+ 
+    fontWeight: '600' ,
+    margin: 2
+  },
+  dateIconWrapper: { 
+    paddingHorizontal: 10 
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 16,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    elevation: 2,
     borderWidth: 0.5,
     borderColor: '#e0e0e0',
   },
-  dateText: { fontSize: 13, color: '#666', marginBottom: 10, fontWeight: '500' },
-  box: {
-    backgroundColor: '#f5f8f7',
-    borderRadius: 10,
-    padding: 14,
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  label: { color: '#666', fontSize: 14, fontWeight: '500' },
-  value: { fontSize: 16, fontWeight: '700', marginTop: 4, color: '#222' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  statusText: { fontSize: 14, fontWeight: '600' },
-  footer: { textAlign: 'center', marginTop: 12, color: '#666' },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: { 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
+  statusDate: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  datesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  dateItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  detailsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  detailItem: {
+    flex: 1,
+    padding: 8,
+  },
+  detailLabel: { 
+    color: '#666', 
+    fontSize: 13, 
+    fontWeight: '500' 
+  },
+  detailValue: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    marginTop: 4, 
+    color: '#222' 
+  },
 });
+
+export default LeaveReportScreen;
