@@ -176,7 +176,7 @@ const SignInScreen = () => {
               error={errors.password}
             />
 
-            {errors.username && (
+            {/* {errors.username && (
               <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
                 {errors.username.message}
               </CoreText>
@@ -186,7 +186,7 @@ const SignInScreen = () => {
               <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
                 {errors.password.message}
               </CoreText>
-            )}
+            )} */}
 
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword')}

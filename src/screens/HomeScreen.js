@@ -128,7 +128,7 @@ const Dashboard = () => {
 
   const {user} = useAuth();
 
-  console.log(user, 'User======= Data');
+  console.log(user, 'User============ Data');
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {

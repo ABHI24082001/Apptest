@@ -57,18 +57,20 @@ const NotificationButton = ({navigation}) => {
 
 // ---------------- Profile Menu ----------------
 const ProfileMenu = ({navigation}) => {
+
+
+  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
   const [visible, setVisible] = useState(false);
   const {user} = useAuth();
-  // empImage
-  // : 
-  // "23042025150637.jpeg"
-  console.log('User==============================:', user);
-  const imageUrl = user?.empImage
-    ? `${BASE_URL}Uploads/Employee/${user.empImage}`
-    : null;
 
 
 
+    const imageUrl =
+  user?.empImage            // make sure we actually have a filename
+    ? `${IMG_BASE_URL}${user.empImage}`   // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
+    : null;  
+
+    console.log('employee avatar ➜', imageUrl); 
     
   return (
     <Menu
@@ -88,6 +90,10 @@ const ProfileMenu = ({navigation}) => {
               borderWidth: 1,
               borderColor: '#ccc',
             }}
+            resizeMode="cover"
+          onError={e =>
+            console.log('⚠️ avatar load failed:', e.nativeEvent.error)
+          }
           />
         ) : (
           <MaterialCommunityIcons
