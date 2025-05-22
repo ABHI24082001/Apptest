@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {Controller} from 'react-hook-form';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
+const ERROR_COLOR = '#f44336';
 
 const HookFormInput = ({
   control,
@@ -33,7 +34,7 @@ const HookFormInput = ({
           <View
             style={[
               styles.inputContainer,
-              !!error && {borderColor: '#f44336'},
+              !!error && {borderColor: ERROR_COLOR},
             ]}>
             {/* Left Icon */}
             {leftIcon && (
@@ -45,7 +46,7 @@ const HookFormInput = ({
                   <MaterialCommunityIcons
                     name={leftIcon}
                     size={22}
-                    color={error ? '#f44336' : '#666'}
+                    color={error ? ERROR_COLOR : '#666'}
                   />
                 ) : (
                   leftIcon
@@ -78,7 +79,7 @@ const HookFormInput = ({
                   <MaterialCommunityIcons
                     name={rightIcon}
                     size={22}
-                    color={error ? '#f44336' : '#666'}
+                    color={error ? ERROR_COLOR : '#666'}
                   />
                 ) : (
                   rightIcon
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#f44336',
+    color: ERROR_COLOR,
     fontSize: 13,
     marginTop: -10,
     marginBottom: 10,

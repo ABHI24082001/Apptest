@@ -17,6 +17,8 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../constants/AuthContext';
 
 const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
@@ -26,6 +28,19 @@ const CustomDrawer = ({navigation}) => {
     React.useState(false);
 
   const avatarScale = useSharedValue(1);
+
+  const { logout } = useAuth(); 
+  const handleLogout = async () => {
+    try {
+      await logout(); // ✅ Clear user and AsyncStorage
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }], // ✅ Navigate to Login
+      });
+    } catch (error) {
+      console.error('Logout Error:', error);
+    }
+  };
 
   const menuItems = [
     {
@@ -375,7 +390,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}>Employees Requests</Text>
+             <Text style={styles.menuLabel}>Employees' Requests</Text>
             </View>
             <MaterialCommunityIcons
               name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
@@ -468,9 +483,13 @@ const CustomDrawer = ({navigation}) => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.logout}
-          onPress={() =>
-            navigation.reset({index: 0, routes: [{name: 'Login'}]})
-          }>
+          // onPress={() =>
+          //   navigation.reset({index: 0, routes: [{name: 'Login'}]})
+          // }
+          onPress={handleLogout}
+
+          
+          >
           <MaterialCommunityIcons
             name="logout-variant"
             size={24}

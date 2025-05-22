@@ -5,6 +5,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Text
 } from 'react-native';
 import {Card} from 'react-native-paper';
 import Animated, {useSharedValue} from 'react-native-reanimated';
@@ -15,6 +16,10 @@ import AttendanceTracker from '../component/AttendanceTracker';
 import LeaveStatus from '../component/LeaveStatus';
 import ShiftCalendarSection from '../component/ShiftCalendarSection';
 import OnLeaveUsers from '../component/OnLeaveUsers';
+import BASE_URL from '../constants/apiConfig';
+import axios from 'axios';
+import {useAuth} from '../constants/AuthContext';
+
 
 const Dashboard = () => {
   const TOTAL_SHIFT_SECONDS = 60;
@@ -25,15 +30,18 @@ const Dashboard = () => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [shiftCompleted, setShiftCompleted] = useState(false);
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
+  const [employeeData, setEmployeeData] = useState(null);
+  const [leaveData, setLeaveData] = useState([]);
 
-  const leaveData = [
-    {label: 'CL', available: 10, used: 5},
-    {label: 'PL', available: 8, used: 2},
-    {label: 'SL', available: 4, used: 1},
-    {label: 'ML', available: 10, used: 4},
-    {label: 'EL', available: 6, used: 2},
-    {label: 'WFH', available: 3, used: 1},
-  ];
+
+  // const leaveData = [
+  //   {label: 'CL', available: 10, used: 5},
+  //   {label: 'PL', available: 8, used: 2},
+  //   {label: 'SL', available: 4, used: 1},
+  //   {label: 'ML', available: 10, used: 4},
+  //   {label: 'EL', available: 6, used: 2},
+  //   {label: 'WFH', available: 3, used: 1},
+  // ];
 
   const leaveUsers = [
     {
@@ -117,6 +125,59 @@ const Dashboard = () => {
     });
   };
 
+
+  const {user} = useAuth();
+
+  console.log(user, 'User======= Data');
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axios.get(
+            `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`,
+            
+          );
+          setEmployeeData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+  
+    fetchEmployeeData();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      try {
+        const employeeId = user?.id;
+        const companyId = user?.childCompanyId;
+  
+        if (!employeeId || !companyId) return;
+  
+        const response = await axios.get(
+          `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`
+        );
+  
+        const transformed = response.data.leaveBalances.map(item => ({
+          label: item.leavename,
+          used: item.usedLeaveNo,
+          available: item.availbleLeaveNo,
+        }));
+  
+        setLeaveData(transformed);
+      } catch (error) {
+        console.error('Error fetching leave data:', error.message);
+      }
+    };
+  
+    fetchLeaveData();
+  }, []);
+  
+  
+
+
+
   return (
     <AppSafeArea>
       <KeyboardAvoidingView
@@ -127,11 +188,13 @@ const Dashboard = () => {
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          <UserProfileCard
-            name="Jayanta Behera"
-            role=".Net Developer, IT"
-            company="The Cloudtree"
-          />
+          {employeeData && (
+            <UserProfileCard
+              name={employeeData.employeeName}
+              role={`${employeeData.designationName}, ${employeeData.departmentName}`}
+              // company="The Cloudtree"
+            />
+          )}
 
           <AttendanceTracker
             checkedIn={checkedIn}
@@ -144,7 +207,7 @@ const Dashboard = () => {
             onCheckOut={handleCheckOut}
           />
 
-          <LeaveStatus leaveData={leaveData} />
+<LeaveStatus leaveData={leaveData} />
 
           {/* Uncomment if you want shift calendar */}
           {/* <ShiftCalendarSection

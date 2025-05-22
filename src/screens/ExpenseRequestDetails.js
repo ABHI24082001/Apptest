@@ -6,7 +6,6 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import AppSafeArea from '../component/AppSafeArea';
 import { Appbar, Chip, Divider } from 'react-native-paper';
@@ -37,7 +36,7 @@ const ExpenseRequestDetails = [
     paymentType: 'Expense',
     amount: '₹9,250',
     remarks: 'Hotel stay and meals',
-    status: 'Approved',
+    status: 'Pending',
   },
   {
     id: '3',
@@ -50,32 +49,33 @@ const ExpenseRequestDetails = [
     paymentType: 'Advance',
     amount: '₹12,000',
     remarks: 'Conference registration',
-    status: 'Rejected',
+    status: 'Pending',
   },
 ];
 
 const PaymentTypeColors = {
-  'Advance': '#3b82f6', // Blue
-  'Expense': '#10b981', // Green
-};
-
-const StatusColors = {
-  'Pending': '#f59e0b', // Amber
-  'Approved': '#10b981', // Green
-  'Rejected': '#ef4444', // Red
+  Advance: '#3b82f6', // Blue
+  Expense: '#10b981', // Green
 };
 
 const ExpenseRequest = ({ navigation }) => {
   const [rmRemarks, setRmRemarks] = useState({});
   const [approvalRemarks, setApprovalRemarks] = useState({});
   const [expandedCard, setExpandedCard] = useState(null);
+  const [amounts, setAmounts] = useState(() => {
+    const initialAmounts = {};
+    ExpenseRequestDetails.forEach(item => {
+      initialAmounts[item.id] = item.amount.replace('₹', ''); // Store without ₹ symbol
+    });
+    return initialAmounts;
+  });
 
   const handleApprove = (id) => {
     if (!rmRemarks[id]?.trim()) {
       alert('Please add remarks before approving');
       return;
     }
-    alert(`Approved expense request ID: ${id}`);
+    alert(`Approved expense request ID: ${id} with amount: ₹${amounts[id]}`);
   };
 
   const handleReject = (id) => {
@@ -83,21 +83,35 @@ const ExpenseRequest = ({ navigation }) => {
       alert('Please add remarks before rejecting');
       return;
     }
-    alert(`Rejected expense request ID: ${id}`);
+    alert(`Rejected expense request ID: ${id} with amount: ₹${amounts[id]}`);
   };
 
   const toggleCardExpansion = (id) => {
     setExpandedCard(expandedCard === id ? null : id);
   };
 
+  const handleAmountChange = (text, id) => {
+    // Remove all non-digit characters except commas
+    const cleanedText = text.replace(/[^0-9,]/g, '');
+    
+    // Format the number with commas
+    let formattedValue = cleanedText;
+    if (cleanedText.length > 3) {
+      const parts = cleanedText.split(',');
+      const numberPart = parts.join(''); // Remove existing commas
+      formattedValue = numberPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    setAmounts(prev => ({ ...prev, [id]: formattedValue }));
+  };
+
   const renderItem = ({ item }) => {
     const isExpanded = expandedCard === item.id;
     const paymentColor = PaymentTypeColors[item.paymentType] || '#6b7280';
-    const statusColor = StatusColors[item.status] || '#6b7280';
 
     return (
-      <TouchableOpacity 
-        style={[styles.card, isExpanded && styles.expandedCard]} 
+      <TouchableOpacity
+        style={[styles.card, isExpanded && styles.expandedCard]}
         onPress={() => toggleCardExpansion(item.id)}
         activeOpacity={0.9}
       >
@@ -110,15 +124,6 @@ const ExpenseRequest = ({ navigation }) => {
               <Text style={styles.employeeDetail}>• {item.dept}</Text>
             </View>
           </View>
-          
-          <View style={styles.statusContainer}>
-            <Chip
-              style={[styles.statusChip, { backgroundColor: `${statusColor}19`, borderColor: statusColor }]}
-              textStyle={{ color: statusColor, fontWeight: '800'  }}
-            >
-              {item.status}
-            </Chip>
-          </View>
         </View>
 
         {/* Payment info */}
@@ -130,9 +135,21 @@ const ExpenseRequest = ({ navigation }) => {
             >
               {item.paymentType}
             </Chip>
-            <Text style={styles.amountText}>{item.amount}</Text>
+
+            <View style={styles.amountBox}>
+              <Text style={styles.currencySymbol}>₹</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={amounts[item.id]}
+                onChangeText={(text) => handleAmountChange(text, item.id)}
+                keyboardType="numeric"
+                maxLength={15}
+                placeholder="0"
+                placeholderTextColor="#065f46"
+              />
+            </View>
           </View>
-          
+
           <View style={styles.projectContainer}>
             <Text style={styles.projectLabel}>Project:</Text>
             <Text style={styles.projectValue}>{item.project}</Text>
@@ -149,12 +166,6 @@ const ExpenseRequest = ({ navigation }) => {
         {isExpanded && (
           <View style={styles.expandedSection}>
             <Divider style={styles.divider} />
-            
-            {/* Employee ID */}
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Employee ID:</Text>
-              <Text style={styles.detailValue}>{item.empId}</Text>
-            </View>
 
             {/* Remarks section */}
             <View style={styles.sectionContainer}>
@@ -180,10 +191,10 @@ const ExpenseRequest = ({ navigation }) => {
 
             {/* Approval Remarks (optional) */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Approve Manager Remarks</Text>
+              <Text style={styles.sectionTitle}>Final Approve Manager Remarks</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Add approval Mangaer "
+                placeholder="Add approval Manager remarks"
                 placeholderTextColor="#9ca3af"
                 maxLength={400}
                 multiline
@@ -196,19 +207,18 @@ const ExpenseRequest = ({ navigation }) => {
             {item.status === 'Pending' && (
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                  style={[styles.button, styles.rejectButton]}
-                  onPress={() => handleReject(item.id)}
-                >
-                  <Icon name="x" size={18} color="#fff" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>Reject</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
                   style={[styles.button, styles.approveButton]}
                   onPress={() => handleApprove(item.id)}
                 >
                   <Icon name="check" size={18} color="#fff" style={styles.buttonIcon} />
                   <Text style={styles.buttonText}>Approve</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.rejectButton]}
+                  onPress={() => handleReject(item.id)}
+                >
+                  <Icon name="x" size={18} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Reject</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -292,14 +302,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginRight: 8,
   },
-  statusContainer: {
-    marginLeft: 10,
-  },
-  statusChip: {
-    height: 34,
-    borderRadius: 15,
-    borderWidth: 1,
-  },
   paymentInfoContainer: {
     marginBottom: 10,
   },
@@ -312,10 +314,30 @@ const styles = StyleSheet.create({
     height: 35,
     marginRight: 12,
   },
-  amountText: {
+  amountBox: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#10b981',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    minWidth: 100,
+  },
+  currencySymbol: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: '#065f46',
+    marginRight: 2,
+  },
+  amountInput: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#065f46',
+    padding: 0,
+    flex: 1,
+    minWidth: 60,
   },
   projectContainer: {
     flexDirection: 'row',
@@ -347,20 +369,6 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 12,
     backgroundColor: '#e5e7eb',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  detailValue: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '500',
   },
   sectionContainer: {
     marginBottom: 16,

@@ -14,82 +14,141 @@ import CoreText from '../component/CoreText';
 import {useNavigation} from '@react-navigation/native';
 import {useForm} from 'react-hook-form';
 import HookFormInput from '../component/HookFormInput';
+import axios from 'axios';
+import BASE_URL from '../constants/apiConfig';
+// const BASE_URL = 'https://hcmapiv2.anantatek.com/api/';
+const ERROR_COLOR = '#f44336';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useAuth } from '../constants/AuthContext';
 const SignInScreen = () => {
   const {
     control,
     handleSubmit,
     formState: {errors},
+    setError,
+    clearErrors,
   } = useForm();
+
   const [hidePassword, setHidePassword] = useState(true);
   const [loginMessage, setLoginMessage] = useState({type: '', text: ''});
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
-  const onSubmit = data => {
-    const {email, password} = data;
+  const {login} = useAuth();
 
-    if (email === 'sonukr2408100@gmail.com' && password === '12345') {
-      setLoginMessage({
-        type: 'success',
-        text: 'Login Successful. Welcome back!',
+  const onSubmit = async (data) => {
+    const { username, password } = data;
+    setLoading(true);
+    setLoginMessage({ type: '', text: '' });
+    clearErrors();
+  
+    try {
+      const response = await axios.post(`${BASE_URL}EmpRegistration/GetAuthUser`, {
+        UserName: username,
+        Password: password,
+        UserType: 0,
       });
-      navigation.navigate('Main');
-    } else {
-      setLoginMessage({
-        type: 'error',
-        text: 'Invalid email or password',
-      });
+  
+      if (response.data) {
+        console.log('Login Response:', response.data); // ✅ Console log user data
+  
+        await AsyncStorage.setItem('hasLoggedIn', 'true');
+  
+        login(response.data); // ✅ Set user globally
+  
+        setLoginMessage({
+          type: 'success',
+          text: 'Login Successful. Welcome back!',
+        });
+  
+        navigation.navigate('Main');
+      } else {
+        setLoginMessage({
+          type: 'error',
+          text: 'Invalid username or password',
+        });
+      }
+  
+    } catch (error) {
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.message || error?.message || 'Login failed';
+      const lowerMsg = errorMessage.toLowerCase();
+  
+      const isUsernameError = lowerMsg.includes('username');
+      const isPasswordError = lowerMsg.includes('password');
+  
+      if (status === 404 || isUsernameError || isPasswordError) {
+        if (isUsernameError) {
+          setError('username', {
+            type: 'manual',
+            message: 'Username is invalid',
+          });
+        }
+        if (isPasswordError) {
+          setError('password', {
+            type: 'manual',
+            message: 'Password is invalid',
+          });
+        }
+        if (!isUsernameError && !isPasswordError) {
+          setLoginMessage({
+            type: 'error',
+            text: 'Username or Password is invalid',
+          });
+        }
+      } else {
+        setLoginMessage({
+          type: 'error',
+          text: errorMessage,
+        });
+      }
+  
+    } finally {
+      setLoading(false);
     }
   };
+  
 
+
+
+  
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
-        
+
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
-          
-          {/* Top Banner Image */}
+
           <Image
             source={require('../assets/image/withh.png')}
             style={styles.bannerImage}
             resizeMode="cover"
           />
 
-          {/* Decorative Corner Banner (Top Left) */}
           <Image
             source={require('../assets/image/hr2.jpg')}
             style={styles.cornerBanner}
             resizeMode="contain"
           />
 
-          {/* Card View for Login Form */}
           <View style={styles.card}>
-            <CoreText
-              size="xxl"
-              font="bold"
-              color="primary"
-              style={styles.welcomeTitle}>
+            <CoreText size="xxl" font="bold" color="primary" style={styles.welcomeTitle}>
               Welcome Cloudtree
             </CoreText>
-            <CoreText
-              size="md"
-              font="bold"
-              color="#666"
-              style={styles.subtitle}>
+            <CoreText size="md" font="bold" color="#666" style={styles.subtitle}>
               Login in to explore HCM Solutions.
             </CoreText>
 
-            {/* Inline Login Message */}
             {loginMessage.text !== '' && (
               <CoreText
                 size="sm"
                 font="medium"
-                color={loginMessage.type === 'error' ? 'red' : 'green'}
+                color={loginMessage.type === 'error' ? ERROR_COLOR : 'green'}
                 style={{textAlign: 'center', marginBottom: 10}}>
                 {loginMessage.text}
               </CoreText>
@@ -97,17 +156,12 @@ const SignInScreen = () => {
 
             <HookFormInput
               control={control}
-              name="email"
-              placeholder="Email"
-              leftIcon="email-outline"
-              keyboardType="email-address"
-              rules={{
-                required: 'Email is required',
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: 'Invalid email format',
-                },
-              }}
+              name="username"
+              placeholder="Username"
+              leftIcon="account-outline"
+              keyboardType="default"
+              rules={{required: 'Username is required'}}
+              error={errors.username}
             />
 
             <HookFormInput
@@ -118,11 +172,21 @@ const SignInScreen = () => {
               secureTextEntry={hidePassword}
               rules={{required: 'Password is required'}}
               rightIcon={hidePassword ? 'eye-off-outline' : 'eye-outline'}
-              rightIconType="MaterialCommunityIcons"
               rightIconOnPress={() => setHidePassword(!hidePassword)}
-              style={styles.input}
               error={errors.password}
             />
+
+            {errors.username && (
+              <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
+                {errors.username.message}
+              </CoreText>
+            )}
+
+            {errors.password && (
+              <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
+                {errors.password.message}
+              </CoreText>
+            )}
 
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword')}
@@ -132,14 +196,17 @@ const SignInScreen = () => {
               </CoreText>
             </TouchableOpacity>
 
-            <CustomButton title="Log In" onPress={handleSubmit(onSubmit)} />
+            <CustomButton
+              title={loading ? 'Logging In...' : 'Log In'}
+              disabled={loading}
+              onPress={handleSubmit(onSubmit)}
+            />
 
             <CoreText size="xs" color="primary" style={styles.terms}>
               Privacy Policy and Terms of Service
             </CoreText>
           </View>
 
-          {/* Footer inside ScrollView, will scroll or move when keyboard opens */}
           <View style={styles.footerContainer}>
             <CoreText style={styles.footerText}>Powered By</CoreText>
             <Image
@@ -189,7 +256,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 25,
     padding: 20,
     borderRadius: 12,
-    
   },
   welcomeTitle: {
     textAlign: 'center',
@@ -197,9 +263,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  input: {
     marginBottom: 20,
   },
   forgotContainer: {

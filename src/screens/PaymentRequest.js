@@ -321,11 +321,11 @@ const PaymentRequest = ({navigation}) => {
                     )}
                   </View>
                   <View style={[styles.gridCell, styles.actionsCell]}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       style={styles.gridActionBtn}
                       onPress={() => handleEditExpense(item)}>
                       <Icon name="pencil" size={18} color="#3B82F6" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity
                       style={styles.gridActionBtn}
                       onPress={() => handleDeleteExpense(item.id)}>

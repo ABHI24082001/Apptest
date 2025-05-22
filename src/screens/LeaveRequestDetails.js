@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   Linking,
 } from 'react-native';
 import AppSafeArea from '../component/AppSafeArea';
-import { Appbar, Avatar, Chip, Divider } from 'react-native-paper';
+import {Appbar, Avatar, Chip, Divider} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 
 const leaveData = [
   {
     id: '1',
+    employeeName: 'Geoffrey Buckley',
+    designation: 'Customer Service Manager',
+    department: 'Customer Service',
     leaveType: 'Casual Leave',
     leaveDuration: 'Full Day',
     numberOfDays: 3,
@@ -22,10 +25,12 @@ const leaveData = [
     remark: 'Need to attend sister wedding',
     startDate: '2025-05-01',
     endDate: '2025-05-03',
-    status: 'Pending',
   },
   {
     id: '2',
+    employeeName: 'Alice Johnson',
+    designation: 'Software Engineer',
+    department: 'Development',
     leaveType: 'Sick Leave',
     leaveDuration: 'Half Day',
     numberOfDays: 1,
@@ -33,10 +38,12 @@ const leaveData = [
     remark: '',
     startDate: '2025-05-06',
     endDate: '2025-05-06',
-    status: 'Pending',
   },
   {
     id: '3',
+    employeeName: 'Michael Smith',
+    designation: 'Product Manager',
+    department: 'Product',
     leaveType: 'Paid Leave',
     leaveDuration: 'Full Day',
     numberOfDays: 5,
@@ -50,16 +57,16 @@ const leaveData = [
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
-  'Sick Leave': '#ef4444',   // Red
-  'Paid Leave': '#10b981',   // Green
+  'Sick Leave': '#ef4444', // Red
+  'Paid Leave': '#10b981', // Green
 };
 
-const LeaveRequest = ({ navigation }) => {
+const LeaveRequest = ({navigation}) => {
   const [rmRemarks, setRmRemarks] = useState({});
   const [approvalRemarks, setApprovalRemarks] = useState({});
   const [expandedCard, setExpandedCard] = useState(null);
 
-  const handleApprove = (id) => {
+  const handleApprove = id => {
     if (!rmRemarks[id]?.trim()) {
       alert('Please add remarks before approving');
       return;
@@ -67,7 +74,7 @@ const LeaveRequest = ({ navigation }) => {
     alert(`Approved leave request ID: ${id}`);
   };
 
-  const handleReject = (id) => {
+  const handleReject = id => {
     if (!rmRemarks[id]?.trim()) {
       alert('Please add remarks before rejecting');
       return;
@@ -75,78 +82,80 @@ const LeaveRequest = ({ navigation }) => {
     alert(`Rejected leave request ID: ${id}`);
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
-  const toggleCardExpansion = (id) => {
+  const toggleCardExpansion = id => {
     setExpandedCard(expandedCard === id ? null : id);
   };
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({item}) => {
     const isExpanded = expandedCard === item.id;
     const leaveColor = LeaveTypeColors[item.leaveType] || '#6b7280';
 
     return (
-      <TouchableOpacity 
-        style={[styles.card, isExpanded && styles.expandedCard]} 
+      <TouchableOpacity
+        style={[styles.card, isExpanded && styles.expandedCard]}
         onPress={() => toggleCardExpansion(item.id)}
-        activeOpacity={0.9}
-      >
+        activeOpacity={0.9}>
         {/* Header section */}
         <View style={styles.cardHeader}>
           <View style={styles.leaveTypeContainer}>
             <Chip
-              style={[styles.leaveTypeChip, { backgroundColor: `${leaveColor}20` }]}
-              textStyle={{ color: leaveColor, fontWeight: '800' }}
-            >
+              style={[
+                styles.leaveTypeChip,
+                {backgroundColor: `${leaveColor}20`},
+              ]}
+              textStyle={{color: leaveColor, fontWeight: '800'}}>
               {item.leaveType}
             </Chip>
-            <Chip
-              style={styles.statusChip}
-              textStyle={styles.statusText}
-            >
-              {item.status}
-            </Chip>
           </View>
-          
-          <Icon 
-            name={isExpanded ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#6b7280" 
+
+          <Icon
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#6b7280"
           />
         </View>
-        
+
         {/* Date and duration info */}
         <View style={styles.dateContainer}>
           <View style={styles.dateBox}>
             <Text style={styles.dateLabel}>From</Text>
             <Text style={styles.dateValue}>{formatDate(item.startDate)}</Text>
           </View>
-          
+
           <View style={styles.dateArrow}>
             <Icon name="arrow-right" size={18} color="#9ca3af" />
           </View>
-          
+
           <View style={styles.dateBox}>
             <Text style={styles.dateLabel}>To</Text>
             <Text style={styles.dateValue}>{formatDate(item.endDate)}</Text>
           </View>
-          
+
           <View style={styles.daysContainer}>
             <Text style={styles.daysValue}>{item.numberOfDays}</Text>
-            <Text style={styles.daysLabel}>{item.numberOfDays > 1 ? 'Days' : 'Day'}</Text>
+            <Text style={styles.daysLabel}>
+              {item.numberOfDays > 1 ? 'Days' : 'Day'}
+            </Text>
           </View>
         </View>
 
         {/* Duration type */}
         <View style={styles.durationTypeContainer}>
-          <Icon name="clock" size={16} color="#6b7280" style={styles.durationIcon} />
+          <Icon
+            name="clock"
+            size={16}
+            color="#6b7280"
+            style={styles.durationIcon}
+          />
           <Text style={styles.durationText}>{item.leaveDuration}</Text>
         </View>
 
@@ -154,23 +163,40 @@ const LeaveRequest = ({ navigation }) => {
         {isExpanded && (
           <View style={styles.expandedSection}>
             <Divider style={styles.divider} />
-            
+
             {/* Reason section */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Reason</Text>
+              <Text style={styles.sectionTitle}>EmployeeName</Text>
               <Text style={styles.reasonText}>
-                {item.remark ? item.remark : 'No reason provided'}
+                {item.employeeName ? item.employeeName : 'No reason provided'}
               </Text>
             </View>
+
+            {/* Reason section */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Designation</Text>
+              <Text style={styles.reasonText}>
+                {item.designation ? item.designation : 'No reason provided'}
+              </Text>
+            </View>
+
+
+              {/* Reason section */}
+              <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Department</Text>
+              <Text style={styles.reasonText}>
+                {item.department ? item.department : 'No reason provided'}
+              </Text>
+            </View>
+
 
             {/* Document section */}
             {item.document ? (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Supporting Document</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.documentButton}
-                  onPress={() => Linking.openURL(item.document)}
-                >
+                  onPress={() => Linking.openURL(item.document)}>
                   <Icon name="file-text" size={18} color="#3b82f6" />
                   <Text style={styles.documentText}>View document</Text>
                 </TouchableOpacity>
@@ -187,13 +213,18 @@ const LeaveRequest = ({ navigation }) => {
                 maxLength={400}
                 multiline
                 value={rmRemarks[item.id] || ''}
-                onChangeText={(text) => setRmRemarks((prev) => ({ ...prev, [item.id]: text }))}
+                onChangeText={text =>
+                  setRmRemarks(prev => ({...prev, [item.id]: text}))
+                }
               />
             </View>
 
             {/* Approval Remarks (optional) */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Approve Manager Remarks</Text>
+              <Text style={styles.sectionTitle}>
+                {' '}
+                Final Approvel Manager Remarks
+              </Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Add approval Mangaer notes"
@@ -201,26 +232,35 @@ const LeaveRequest = ({ navigation }) => {
                 maxLength={400}
                 multiline
                 value={approvalRemarks[item.id] || ''}
-                onChangeText={(text) => setApprovalRemarks((prev) => ({ ...prev, [item.id]: text }))}
+                onChangeText={text =>
+                  setApprovalRemarks(prev => ({...prev, [item.id]: text}))
+                }
               />
             </View>
 
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, styles.rejectButton]}
-                onPress={() => handleReject(item.id)}
-              >
-                <Icon name="x" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Reject</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={[styles.button, styles.approveButton]}
-                onPress={() => handleApprove(item.id)}
-              >
-                <Icon name="check" size={18} color="#fff" style={styles.buttonIcon} />
+                onPress={() => handleApprove(item.id)}>
+                <Icon
+                  name="check"
+                  size={18}
+                  color="#fff"
+                  style={styles.buttonIcon}
+                />
                 <Text style={styles.buttonText}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.rejectButton]}
+                onPress={() => handleReject(item.id)}>
+                <Icon
+                  name="x"
+                  size={18}
+                  color="#fff"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.buttonText}>Reject</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -232,15 +272,21 @@ const LeaveRequest = ({ navigation }) => {
   return (
     <AppSafeArea>
       <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} color="#4B5563" />
-        <Appbar.Content title="Leave Requests" titleStyle={styles.headerTitle} />
+        <Appbar.BackAction
+          onPress={() => navigation.goBack()}
+          color="#4B5563"
+        />
+        <Appbar.Content
+          title="Leave Requests"
+          titleStyle={styles.headerTitle}
+        />
         {/* <Appbar.Action icon="filter" color="#4B5563" onPress={() => alert('Filter pressed')} /> */}
       </Appbar.Header>
 
       <FlatList
         contentContainerStyle={styles.listContainer}
         data={leaveData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
       />
@@ -260,7 +306,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '800',
     fontSize: 18,
-   
   },
   listContainer: {
     padding: 16,
@@ -275,7 +320,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
   },
   expandedCard: {
     elevation: 4,

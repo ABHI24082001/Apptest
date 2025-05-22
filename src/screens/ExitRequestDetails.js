@@ -17,6 +17,8 @@ const exitData = [
     id: '1',
     employeeCode: 'AA_28',
     name: 'Abhi',
+    designation: 'Software Engineer',
+    department: 'IT',
     exitType: 'Resignation',
     exitDuration: 'Full Day',
     numberOfDays: 3,
@@ -30,12 +32,13 @@ const exitData = [
     reportingManagerStatus: 'accept',
     reportingManagerRemarks: 'Call me before leaving',
     finalRemarks: 'Approved. Enjoy your time off!',
-    status: 'Pending'
   },
   {
     id: '2',
     employeeCode: 'BB_45',
     name: 'Sonu',
+    designation: 'HR Manager',
+    department: 'Human Resources',
     exitType: 'Termination',
     exitDuration: 'Half Day',
     numberOfDays: 1,
@@ -48,13 +51,14 @@ const exitData = [
     approveManagerRemarks: 'Okay, take care',
     reportingManagerStatus: 'accept',
     reportingManagerRemarks: 'Health comes first',
-    finalRemarks: 'Approved. Submit a doctor\'s note if possible.',
-    status: 'Pending'
+    finalRemarks: "Approved. Submit a doctor's note if possible.",
   },
   {
     id: '3',
     employeeCode: 'CC_33',
     name: 'durga',
+    designation: 'Project Manager',
+    department: 'Operations',
     exitType: 'Retirement',
     exitDuration: 'Full Day',
     numberOfDays: 5,
@@ -68,9 +72,9 @@ const exitData = [
     reportingManagerStatus: 'accept',
     reportingManagerRemarks: 'Have a great trip',
     finalRemarks: 'Approved. Safe travels!',
-    status: 'Pending'
   },
 ];
+
 
 const ExitTypeColors = {
   'Resignation': '#3b82f6',
@@ -128,11 +132,9 @@ const ExitRequest = ({ navigation }) => {
               style={[styles.leaveTypeChip, { backgroundColor: `${exitColor}20` }]}
               textStyle={{ color: exitColor, fontWeight: '800' }}
             >
-              {item.exitType}
+              {item.endDate}
             </Chip>
-            <Chip style={styles.statusChip} textStyle={styles.statusText}>
-              {item.status}
-            </Chip>
+           
           </View>
           <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
         </View>
@@ -168,9 +170,14 @@ const ExitRequest = ({ navigation }) => {
               <Text style={styles.reasonText}>{item.name || 'No reason provided'}</Text>
             </View>
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>EmployeeCode</Text>
-              <Text style={styles.reasonText}>{item.employeeCode || 'No code '}</Text>
+              <Text style={styles.sectionTitle}>Department</Text>
+              <Text style={styles.reasonText}>{item.department || 'No code '}</Text>
             </View>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Designation</Text>
+              <Text style={styles.reasonText}>{item.designation || 'No code '}</Text>
+            </View>
+           
 
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Exit Reason</Text>
@@ -234,6 +241,14 @@ const ExitRequest = ({ navigation }) => {
             </View> */}
 
             <View style={styles.buttonContainer}>
+
+            <TouchableOpacity
+                style={[styles.button, styles.approveButton]}
+                onPress={() => handleApprove(item.id)}
+              >
+                <Icon name="check" size={18} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>Approve</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.button, styles.rejectButton]}
                 onPress={() => handleReject(item.id)}
@@ -241,13 +256,7 @@ const ExitRequest = ({ navigation }) => {
                 <Icon name="x" size={18} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Reject</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.approveButton]}
-                onPress={() => handleApprove(item.id)}
-              >
-                <Icon name="check" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Approve</Text>
-              </TouchableOpacity>
+              
             </View>
           </View>
         )}

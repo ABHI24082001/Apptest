@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import {createDrawerNavigator} from '@react-navigation/drawer';
-import {TouchableOpacity, View, StyleSheet, Platform} from 'react-native';
+import {TouchableOpacity, View, StyleSheet, Platform , Image} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {Menu, Provider} from 'react-native-paper';
 import Animated, {
@@ -14,14 +14,20 @@ import CustomDrawer from '../component/CustomDrawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import { useAuth } from '../constants/AuthContext';
 import AntDesign from 'react-native-vector-icons/AntDesign'
+import {BASE_URL} from '../constants/apiConfig';
 
 const Drawer = createDrawerNavigator();
+
+
 
 // ---------------- Notification Button ----------------
 const NotificationButton = ({navigation}) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const [visible, setVisible] = useState(false);
+
 
   useEffect(() => {
     scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
@@ -32,6 +38,8 @@ const NotificationButton = ({navigation}) => {
     transform: [{scale: scale.value}],
     opacity: opacity.value,
   }));
+
+  
 
   return (
     <TouchableOpacity
@@ -50,22 +58,46 @@ const NotificationButton = ({navigation}) => {
 // ---------------- Profile Menu ----------------
 const ProfileMenu = ({navigation}) => {
   const [visible, setVisible] = useState(false);
+  const {user} = useAuth();
+  // empImage
+  // : 
+  // "23042025150637.jpeg"
+  console.log('User==============================:', user);
+  const imageUrl = user?.empImage
+    ? `${BASE_URL}Uploads/Employee/${user.empImage}`
+    : null;
 
+
+
+    
   return (
     <Menu
-      visible={visible}
-      onDismiss={() => setVisible(false)}
-      anchor={
-        <TouchableOpacity
-          onPress={() => setVisible(true)}
-          style={{marginRight: 10}}>
+    visible={visible}
+    onDismiss={() => setVisible(false)}
+    anchor={
+      <TouchableOpacity
+        onPress={() => setVisible(true)}
+        style={{marginRight: 10}}>
+        {imageUrl ? (
+          <Image
+            source={{uri: imageUrl}}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              borderWidth: 1,
+              borderColor: '#ccc',
+            }}
+          />
+        ) : (
           <MaterialCommunityIcons
             name="account-circle"
             size={26}
             color="#000"
           />
-        </TouchableOpacity>
-      }>
+        )}
+      </TouchableOpacity>
+    }>
       <Menu.Item
         onPress={() => {
           setVisible(false);

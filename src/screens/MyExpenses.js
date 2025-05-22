@@ -15,8 +15,8 @@ import {useNavigation} from '@react-navigation/native';
 
 const AdvancePaymentReport = () => {
   const navigation = useNavigation();
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('advance');
+  const [selectedFilter, setSelectedFilter] = useState('pending'); // changed default to pending
+  const [activeTab, setActiveTab] = useState('expense'); // changed default to expense
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
@@ -190,7 +190,7 @@ const AdvancePaymentReport = () => {
           onConfirm={date => {
             setShowFromPicker(false);
             setFromDate(date);
-            setSelectedFilter('all');
+            setSelectedFilter('all'); // reset filter on date change
           }}
           onCancel={() => setShowFromPicker(false)}
         />
@@ -202,7 +202,7 @@ const AdvancePaymentReport = () => {
           onConfirm={date => {
             setShowToPicker(false);
             setToDate(date);
-            setSelectedFilter('all');
+            setSelectedFilter('all'); // reset filter on date change
           }}
           onCancel={() => setShowToPicker(false)}
         />
@@ -283,9 +283,9 @@ const AdvancePaymentReport = () => {
                 <Text style={styles.value}>₹2000</Text>
               </View>
               <View style={styles.statusRow}>
-                <Icon name="check-circle" size={20} color="#4CAF50" />
-                <Text style={[styles.statusText, {color: '#4CAF50'}]}>
-                  Approved
+                <Icon name="clock" size={20} color="#FFA000" />
+                <Text style={[styles.statusText, {color: '#FFA000'}]}>
+                  Pending
                 </Text>
                 <Text style={styles.statusDate}>05/04/2025</Text>
               </View>
