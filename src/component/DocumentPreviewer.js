@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {View, StyleSheet, Text, TouchableOpacity, Image} from 'react-native';
-import DocumentPicker from 'react-native-document-picker';
+import DocumentPicker, {pick} from 'react-native-document-picker';
 import {openDocument} from '@react-native-documents/viewer';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
@@ -29,6 +29,22 @@ const DocumentPreviewer = () => {
     }
   };
 
+  const handleFilePick = async () => {
+    try {
+      const file = await pick({
+        type: ['application/pdf'],
+      });
+      if (file) {
+        console.log('Selected file:', file);
+        // Handle the selected file (e.g., save it to state or upload it)
+      }
+    } catch (err) {
+      if (!pick.isCancel(err)) {
+        console.error('Error picking document:', err);
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Uploaded Document</Text>
@@ -40,6 +56,10 @@ const DocumentPreviewer = () => {
         <Text style={styles.previewText}>
           {file ? file.name : 'Tap to upload / preview'}
         </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={handleFilePick} style={styles.button}>
+        <Text style={styles.buttonText}>Pick a Document</Text>
       </TouchableOpacity>
     </View>
   );
@@ -72,6 +92,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     color: '#666',
+  },
+  button: {
+    backgroundColor: '#007BFF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

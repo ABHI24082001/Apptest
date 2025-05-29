@@ -29,7 +29,7 @@ target 'hrms' do
       :mac_catalyst_enabled => false
     )
 
-    # 👇 Ensure this part exists to fix simulator build on M1/M2/M3 Macs
+    # ✅ Fix simulator builds on Apple Silicon
     installer.pods_project.build_configurations.each do |config|
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
@@ -40,4 +40,4 @@ target 'hrms' do
       end
     end
   end
-end  # ✅ This 'end' was missing
+end

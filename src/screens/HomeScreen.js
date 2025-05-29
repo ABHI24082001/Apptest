@@ -5,7 +5,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Text
+  Text,
 } from 'react-native';
 import {Card} from 'react-native-paper';
 import Animated, {useSharedValue} from 'react-native-reanimated';
@@ -20,7 +20,6 @@ import BASE_URL from '../constants/apiConfig';
 import axios from 'axios';
 import {useAuth} from '../constants/AuthContext';
 
-
 const Dashboard = () => {
   const TOTAL_SHIFT_SECONDS = 60;
   const SHIFT_HOURS = '10:00 AM - 10:01 AM';
@@ -32,7 +31,6 @@ const Dashboard = () => {
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const [leaveData, setLeaveData] = useState([]);
-
 
   // const leaveData = [
   //   {label: 'CL', available: 10, used: 5},
@@ -125,7 +123,6 @@ const Dashboard = () => {
     });
   };
 
-
   const {user} = useAuth();
 
   console.log(user, 'User============ Data');
@@ -135,15 +132,16 @@ const Dashboard = () => {
         if (user?.id) {
           const response = await axios.get(
             `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`,
-            
           );
           setEmployeeData(response.data);
+
+          clg
         }
       } catch (error) {
         console.error('Error fetching employee data:', error);
       }
     };
-  
+
     fetchEmployeeData();
   }, [user]);
 
@@ -152,31 +150,27 @@ const Dashboard = () => {
       try {
         const employeeId = user?.id;
         const companyId = user?.childCompanyId;
-  
+
         if (!employeeId || !companyId) return;
-  
+
         const response = await axios.get(
-          `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`
+          `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
         );
-  
+
         const transformed = response.data.leaveBalances.map(item => ({
           label: item.leavename,
           used: item.usedLeaveNo,
           available: item.availbleLeaveNo,
         }));
-  
+
         setLeaveData(transformed);
       } catch (error) {
         console.error('Error fetching leave data:', error.message);
       }
     };
-  
+
     fetchLeaveData();
   }, []);
-  
-  
-
-
 
   return (
     <AppSafeArea>
@@ -191,8 +185,8 @@ const Dashboard = () => {
           {employeeData && (
             <UserProfileCard
               name={employeeData.employeeName}
-              role={`${employeeData.designationName}, ${employeeData.departmentName}`}
-              // company="The Cloudtree"
+              designation={employeeData.designationName}
+              department={employeeData.departmentName}
             />
           )}
 
@@ -207,7 +201,7 @@ const Dashboard = () => {
             onCheckOut={handleCheckOut}
           />
 
-<LeaveStatus leaveData={leaveData} />
+          <LeaveStatus leaveData={leaveData} />
 
           {/* Uncomment if you want shift calendar */}
           {/* <ShiftCalendarSection

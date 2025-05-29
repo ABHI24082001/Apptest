@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,9 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '../constants/AuthContext';
-
+import {useAuth} from '../constants/AuthContext';
+import axios from 'axios';
+import BASE_URL from '../constants/apiConfig';
 const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
@@ -29,13 +30,13 @@ const CustomDrawer = ({navigation}) => {
 
   const avatarScale = useSharedValue(1);
 
-  const { logout } = useAuth(); 
+  const {logout} = useAuth();
   const handleLogout = async () => {
     try {
       await logout(); // ✅ Clear user and AsyncStorage
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Login' }], // ✅ Navigate to Login
+        routes: [{name: 'Login'}], // ✅ Navigate to Login
       });
     } catch (error) {
       console.error('Logout Error:', error);
@@ -148,6 +149,34 @@ const CustomDrawer = ({navigation}) => {
     );
   };
 
+  const [employeeData, setEmployeeData] = useState(null);
+  const {user} = useAuth();
+
+  console.log(user, 'User============ Data');
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axios.get(
+            `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`,
+          );
+          setEmployeeData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [user]);
+
+  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
+  const imageUrl = user?.empImage // make sure we actually have a filename
+    ? `${IMG_BASE_URL}${user.empImage}` // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
+    : null;
+
+  console.log('employee avatar ➜', imageUrl);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -156,12 +185,19 @@ const CustomDrawer = ({navigation}) => {
         <Animated.View style={[styles.profile, avatarStyle]}>
           <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.9}>
             <Image
-              source={require('../assets/image/profile.png')}
+              source={
+                imageUrl ? {uri: imageUrl} : require('../assets/image/boy.png')
+              }
               style={styles.avatar}
             />
           </TouchableOpacity>
-          <Text style={styles.name}>John Doe</Text>
-          <Text style={styles.subText}>Department: IT</Text>
+
+          {employeeData && (
+            <>
+              <Text style={styles.name}>{employeeData?.employeeName}</Text>
+              <Text style={styles.subText}>{employeeData.designationName}</Text>
+            </>
+          )}
         </Animated.View>
 
         <View style={styles.menuList}>
@@ -390,7 +426,7 @@ const CustomDrawer = ({navigation}) => {
                 color="#5D6D7E"
                 style={styles.menuIcon}
               />
-             <Text style={styles.menuLabel}>Employees' Requests</Text>
+              <Text style={styles.menuLabel}>Employees' Requests</Text>
             </View>
             <MaterialCommunityIcons
               name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
@@ -486,10 +522,7 @@ const CustomDrawer = ({navigation}) => {
           // onPress={() =>
           //   navigation.reset({index: 0, routes: [{name: 'Login'}]})
           // }
-          onPress={handleLogout}
-
-          
-          >
+          onPress={handleLogout}>
           <MaterialCommunityIcons
             name="logout-variant"
             size={24}
@@ -541,7 +574,7 @@ const styles = StyleSheet.create({
     borderColor: '#3A5BA0',
   },
   name: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: '#2C3E50',
   },

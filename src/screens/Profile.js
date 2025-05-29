@@ -1,16 +1,27 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Image, StyleSheet, Text, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  ScrollView,
+  Image,
+  StyleSheet,
+  Text,
+  Platform,
+  TouchableOpacity
+} from 'react-native';
 import { Card, Appbar, Divider } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
   withTiming,
   interpolate,
   Extrapolate
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
+import BASE_URL from '../constants/apiConfig';
+import { useAuth } from '../constants/AuthContext';
+import axios from 'axios';
 
 const ProfileSection = ({ title, icon, data }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -71,7 +82,6 @@ const ProfileSection = ({ title, icon, data }) => {
           </Animated.View>
         </View>
       </TouchableOpacity>
-      
       <Animated.View style={contentStyle}>
         <View style={styles.sectionContent}>
           {data.map(item => renderItem(item.icon, item.label, item.value))}
@@ -83,196 +93,130 @@ const ProfileSection = ({ title, icon, data }) => {
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const { user } = useAuth();
+  const [employeeData, setEmployeeData] = useState(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axios.get(
+            `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`
+          );
+          setEmployeeData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [user]);
+
+  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
+ 
+
+
+  const imageUrl =
+  user?.empImage            // make sure we actually have a filename
+    ? `${IMG_BASE_URL}${user.empImage}`   // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
+    : null;  
+
+    console.log('employee avatar ➜', imageUrl); 
+    
+  if (!employeeData) {
+    return (
+      <AppSafeArea>
+        <Appbar.Header><Appbar.Content title="Profile" /></Appbar.Header>
+        <Text style={{ padding: 20, textAlign: 'center' }}>Loading profile...</Text>
+      </AppSafeArea>
+    );
+  }
 
   const generalInfoData = [
-    { icon: 'badge-account', label: 'Employee ID', value: 'AA_28' },
-    { icon: 'map-marker', label: 'Branch', value: 'Noida' },
-    { icon: 'water', label: 'Blood Group', value: 'A+' },
-    { icon: 'account-heart', label: 'Marital Status', value: 'Un-Married' },
-    { icon: 'account', label: "Father's Name", value: 'Jacob Birgitta' },
-    { icon: 'account', label: "Mother's Name", value: 'Bella Birgitta' },
-    { icon: 'bank', label: 'Bank Name', value: 'Urielle Ellison' },
-    { icon: 'credit-card', label: 'Bank AC Number', value: '858' },
-    { icon: 'barcode', label: 'Bank IFSC Code', value: 'Sit consequat Quam' }
+    { icon: 'badge-account', label: 'Employee ID', value: employeeData.employeeId },
+    { icon: 'map-marker', label: 'Branch', value: employeeData.branchName },
+    { icon: 'water', label: 'Blood Group', value: employeeData.bloodGroup },
+    { icon: 'account-heart', label: 'Marital Status', value: employeeData.maritalStatus },
+    { icon: 'account', label: "Father's Name", value: employeeData.empFather },
+    { icon: 'account', label: "Mother's Name", value: employeeData.empMother },
+    { icon: 'bank', label: 'Bank Name', value: employeeData.existingBank },
+    { icon: 'credit-card', label: ' AC Number', value: employeeData.bankAcNo },
+    { icon: 'barcode', label: 'IFSC Code', value: employeeData.bankIfsc }
   ];
 
   const contactData = [
-    { icon: 'email', label: 'Email', value: 'Jayanta@cloudtree.com' },
-    { icon: 'phone', label: 'Primary No', value: '+00 99371520' },
-    { icon: 'cellphone', label: 'Emergency No', value: '+00 99371520' }
+    { icon: 'email', label: 'Email', value: employeeData.emailAddress },
+    { icon: 'phone', label: 'Primary No', value: employeeData.pcontactNo },
+    { icon: 'cellphone', label: 'Emergency No', value: employeeData.emergencyContactNo }
   ];
 
   const credentialsData = [
-    { icon: 'email', label: 'Email', value: 'Jayanta@cloudtree.com' },
-    { icon: 'account', label: 'User name', value: 'Jayanta Beher' },
-    { icon: 'id-card', label: 'User id', value: 'A23' }
+    { icon: 'email', label: 'Email', value: employeeData.emailAddress },
+    { icon: 'account', label: 'Username', value: employeeData.username },
+    { icon: 'id-card', label: 'User ID', value: employeeData.employeeId }
   ];
 
   const professionalData = [
-    { icon: 'domain', label: 'Vertical', value: 'Pacific' },
-    { icon: 'briefcase', label: 'Individual Company', value: 'Honey and Heath Trading' },
-    { icon: 'account-group', label: 'Employee Type', value: 'Apprentice' },
-    { icon: 'account-supervisor', label: 'Reporting Manager', value: '(Accounts Manager)' }
+    { icon: 'domain', label: 'Vertical', value: employeeData.companyVerticalId?.toString() ?? 'N/A' },
+    { icon: 'briefcase', label: 'Branch Name', value: employeeData.branchName },
+    { icon: 'account-group', label: 'Employee Type', value: employeeData.employeeTypeName },
+    { icon: 'account-supervisor', label: 'Designation', value: employeeData.designationName}, 
+    { icon: 'account-supervisor', label: 'Department', value: employeeData.departmentName}
+
   ];
-  
+
   return (
     <AppSafeArea>
-      {/* Header */}
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Profile" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {/* Profile Header */}
         <Card style={styles.profileCard} elevation={2}>
           <View style={styles.profileContent}>
-            <Image source={require('../assets/image/boy.png')} style={styles.profileImage} />
-            <Text style={styles.name}>Jayanta Behera</Text>
-            <Text style={styles.role}>IT, .Net Developer</Text>
+            <Image
+              source={imageUrl ? { uri: imageUrl } : require('../assets/image/boy.png')}
+              style={styles.profileImage}
+            />
+            <Text style={styles.name}>{employeeData.employeeName}</Text>
+            <Text style={styles.role}>{employeeData.designationName}, {employeeData.departmentName}</Text>
           </View>
         </Card>
 
-        {/* Section Components */}
-        <ProfileSection 
-          title="General Info" 
-          icon="information-outline"
-          data={generalInfoData} 
-        />
-        
-        <ProfileSection 
-          title="Contact" 
-          icon="phone-outline"
-          data={contactData} 
-        />
-        
-        <ProfileSection 
-          title="Credentials" 
-          icon="shield-account-outline"
-          data={credentialsData} 
-        />
-        
-        <ProfileSection 
-          title="Professional Details" 
-          icon="briefcase-outline"
-          data={professionalData} 
-        />
+        <ProfileSection title="General Info" icon="information-outline" data={generalInfoData} />
+        <ProfileSection title="Contact" icon="phone-outline" data={contactData} />
+        <ProfileSection title="Credentials" icon="shield-account-outline" data={credentialsData} />
+        <ProfileSection title="Professional Details" icon="briefcase-outline" data={professionalData} />
       </ScrollView>
     </AppSafeArea>
   );
 };
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: '#fff',
-    elevation: Platform.OS === 'android' ? 3 : 0,
-   
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f6f8',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-    paddingTop: 10,
-  },
-  profileCard: {
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingVertical: 20,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  profileContent: {
-    alignItems: 'center',
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 12,
-    borderWidth: 3,
-    borderColor: '#f0f0f0',
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#222',
-  },
-  role: {
-    fontSize: 14,
-    color: '#666',
-  },
-  sectionCard: {
-    borderRadius: 12,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionIcon: {
-    marginRight: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#333',
-  },
-  sectionContent: {
-    padding: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginVertical: 6,
-  },
-  icon: {
-    marginTop: 2,
-    marginRight: 10,
-    width: 20,
-    textAlign: 'center',
-  },
-  textWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',  
-  },
-  label: {
-    width: 120,
-    fontWeight: '800',
-    fontSize: 16,
-    color: '#333',  
-  },
-  colon: {
-    marginRight: 4,
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#333',
-  },
-  value: {
-    flexShrink: 1,
-    fontSize: 16,
-    color: '#555',
-    fontWeight: '600'
-  },
+  header: { backgroundColor: '#fff', elevation: Platform.OS === 'android' ? 3 : 0 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  container: { flex: 1, backgroundColor: '#f4f6f8' },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 30, paddingTop: 10 },
+  profileCard: { borderRadius: 12, marginBottom: 16, paddingVertical: 20, alignItems: 'center', backgroundColor: '#fff' },
+  profileContent: { alignItems: 'center' },
+  profileImage: { width: 80, height: 80, borderRadius: 40, marginBottom: 12, borderWidth: 3, borderColor: '#f0f0f0' },
+  name: { fontSize: 18, fontWeight: 'bold', marginBottom: 4, color: '#222' },
+  role: { fontSize: 14, color: '#666' },
+  sectionCard: { borderRadius: 12, marginBottom: 16, backgroundColor: '#fff', overflow: 'hidden' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#f9f9f9' },
+  sectionTitleContainer: { flexDirection: 'row', alignItems: 'center' },
+  sectionIcon: { marginRight: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#333' },
+  sectionContent: { padding: 12 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 6 },
+  icon: { marginTop: 2, marginRight: 10, width: 20, textAlign: 'center' },
+  textWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  label: { width: 110, fontWeight: '800', fontSize: 16, color: '#333' },
+  colon: { marginRight: 4, fontSize: 14, fontWeight: '800', color: '#333' },
+  value: { flexShrink: 1, fontSize: 16, color: '#555', fontWeight: '600' },
 });
 
 export default ProfileScreen;

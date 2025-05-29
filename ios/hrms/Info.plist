@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+
+   <key>NSCameraUsageDescription</key>
+    <string>This app uses the camera to verify your identity during check-in.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -65,12 +68,19 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+    <key>NSFaceIDUsageDescription</key>
+    <string>This app uses Face ID for secure check-in.</string>
 
 	<key>NSLocationWhenInUseUsageDescription</key>
-<string></string>
+    <string></string>
 
-<key>NSDocumentsFolderUsageDescription</key>
-<string>Allow file selection</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Allow file selection</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+<string>This app needs access to your photo library</string>
+
+
+
 
 </dict>
 
