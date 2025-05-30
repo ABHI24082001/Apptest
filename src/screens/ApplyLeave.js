@@ -21,20 +21,23 @@ import {Picker} from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
 import { Platform } from 'react-native';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
 const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
 
 const ApplyLeaveScreen = ({navigation}) => {
-  const {user} = useAuth();
+  const employeeDetails = useFetchEmployeeDetails(); // Use employeeDetails globally
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
-  const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveData, setLeaveData] = useState([]);
   const [leavePolicies, setLeavePolicies] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [documentPath, setDocumentPath] = useState('');
   const [charCount, setCharCount] = useState(100);
+
+  // console.log(employeeDetails, 'Employee Details'); // Log employeeDetails
+
   const {
     control,
     handleSubmit,
@@ -43,22 +46,22 @@ const ApplyLeaveScreen = ({navigation}) => {
     formState: {errors},
   } = useForm({
     defaultValues: {
-      EmployeeId: user?.id ?? '',
-      ReportingId: '13' ?? '',
+      EmployeeId: employeeDetails?.id ?? '',
+      ReportingId: employeeDetails?.reportingEmpId ?? '',
       LeaveType: '1',
       LeaveId: '',
       FromLeaveDate: new Date(),
       ToLeaveDate: new Date(),
       LeaveNo: 1,
       Remarks: '',
-      DocumentPath: '', // <-- Add DocumentPath to form
+      DocumentPath: '',
       Status: 'Pending',
-      CompanyId: user?.childCompanyId ?? '',
+      CompanyId: employeeDetails?.childCompanyId ?? '',
       IsDelete: 0,
       Flag: 1,
-      CreatedBy: user?.id ?? '',
+      CreatedBy: employeeDetails?.id ?? '',
       CreatedDate: new Date(),
-      ModifiedBy: user?.id ?? '',
+      ModifiedBy: employeeDetails?.id ?? '',
       ModifiedDate: new Date(),
       ApprovalStatus: 1,
       ApplyLeaveId: 0,
@@ -109,11 +112,11 @@ const ApplyLeaveScreen = ({navigation}) => {
             : policiesResponse.data?.data || []
         );
         // Fetch leave balances if needed
-        if (user?.id) {
+        if (employeeDetails?.id) {
           const balancesResponse = await axios.get(
-            `${BASE_URL_PROD}/LeaveBalance/GetByEmployee/${user.id}`
+            `${BASE_URL_PROD}/LeaveBalance/GetByEmployee/${employeeDetails.id}`
           );
-          setLeaveBalances(
+          setLeaveData(
             Array.isArray(balancesResponse.data)
               ? balancesResponse.data
               : balancesResponse.data?.data || []
@@ -121,26 +124,11 @@ const ApplyLeaveScreen = ({navigation}) => {
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        if (error.response && error.response.status === 404) {
-          Alert.alert(
-            'API Not Found',
-            'The requested API endpoint was not found (404). Please check your API URL, network connection, or contact your backend team.'
-          );
-        } else if (
-          error.code === 'ENOTFOUND' ||
-          error.message?.includes('Network')
-        ) {
-          Alert.alert(
-            'Network Error',
-            'Unable to reach the server. Please check your internet connection or VPN settings.'
-          );
-        } else {
-          Alert.alert('Error', 'Failed to load initial data');
-        }
+        Alert.alert('Error', 'Failed to load initial data');
       }
     };
     fetchData();
-  }, [user]);
+  }, [employeeDetails]);
 
   // Helper to generate unique filename
   function generatePdfFileName() {
@@ -176,19 +164,13 @@ const ApplyLeaveScreen = ({navigation}) => {
     }
   };
 
-  const handleRemarksChange = text => {
-    setValue('Remarks', text);
-    setCharCount(100 - (text ? text.length : 0));
-  };
+
 
   const onSubmit = async data => {
-    // Log the data and formData for debugging
-    console.log('Form data:', data);
-
     const payload = {
       Id: 0,
-      EmployeeId: user?.id ?? 0,
-      ReportingId: data.ReportingId ? Number(data.ReportingId) : 0,
+      EmployeeId: employeeDetails?.id ?? 0,
+      ReportingId: employeeDetails?.reportingEmpId ?? 0,
       LeaveType: Number(data.LeaveType),
       LeaveId: Number(data.LeaveId),
       FromLeaveDate: data.FromLeaveDate
@@ -199,24 +181,32 @@ const ApplyLeaveScreen = ({navigation}) => {
         : '',
       LeaveNo: Number(data.LeaveNo),
       Remarks: data.Remarks,
-      DocumentPath: data.DocumentPath || documentPath || '', // <-- Add DocumentPath to payload
+      DocumentPath: data.DocumentPath || documentPath || '',
       Status: data.Status ?? 'Pending',
-      CompanyId: user?.childCompanyId ?? 0,
+      CompanyId: employeeDetails?.childCompanyId ?? 0,
       IsDelete: 0,
       Flag: 1,
-      CreatedBy: user?.id ?? 0,
-      CreatedDate: data.CreatedDate
-        ? formatDateForBackend(data.CreatedDate)
-        : '',
-      ModifiedBy: user?.id ?? 0,
-      ModifiedDate: data.ModifiedDate
-        ? formatDateForBackend(data.ModifiedDate)
-        : '',
+      CreatedBy: employeeDetails?.id ?? 0,
+      CreatedDate: formatDateForBackend(new Date()),
+      ModifiedBy: employeeDetails?.id ?? 0,
+      ModifiedDate: formatDateForBackend(new Date()),
       ApprovalStatus: 1,
       ApplyLeaveId: 0,
     };
 
-    console.log('Submitting payload:', payload);
+    // console.log('Payload being sent:', payload);
+
+    // Validation: Check if leave is already applied for the same day
+    const isLeaveAlreadyApplied = leaveData.some(
+      leave =>
+        new Date(leave.FromLeaveDate).toDateString() ===
+        new Date(data.FromLeaveDate).toDateString()
+    );
+
+    if (isLeaveAlreadyApplied) {
+      Alert.alert('Error', 'Leave has already been applied for the selected day.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -243,69 +233,43 @@ const ApplyLeaveScreen = ({navigation}) => {
         );
       }
     } catch (error) {
-      if (error.response && error.response.status === 400) {
-        console.log('400 Bad Request:', error.response?.data);
-        Alert.alert(
-          'Bad Request',
-          error.response?.data?.message ||
-            'The server rejected your request. Please check all required fields and data formats.',
-        );
-      } else if (error.response && error.response.status === 503) {
-        Alert.alert(
-          'Service Unavailable',
-          'The server is temporarily unavailable (503). Please try again later or contact your IT/admin team.',
-        );
-      } else if (error.code === 'ECONNABORTED') {
-        Alert.alert(
-          'Timeout',
-          'The request timed out. Please check your internet connection or try again later.',
-        );
-      } else {
-        console.log('Backend error:', error?.response?.data);
-        Alert.alert(
-          'Error',
-          error.response?.data?.message || error.message || 'Unknown error',
-        );
-      }
+      console.error('Error submitting leave:', error);
+      Alert.alert('Error', 'Failed to submit leave');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
+
+    useEffect(() => {
     const fetchLeaveData = async () => {
       try {
-        const employeeId = user?.id;
-        const companyId = user?.childCompanyId;
+        if (employeeDetails?.id && employeeDetails?.childCompanyId) {
+          const response = await axios.get(
+            `${BASE_URL_PROD}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+          );
 
-        if (!employeeId || !companyId) return;
+          const transformed = response.data.leaveBalances.map(item => ({
+            label: item.leavename,
+            used: item.usedLeaveNo,
+            available: item.availbleLeaveNo,
+          }));
 
-        const response = await axios.get(
-          `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
-        );
-
-        const transformed = response.data.leaveBalances.map(item => ({
-          label: item.leavename,
-          used: item.usedLeaveNo,
-          available: item.availbleLeaveNo,
-        }));
-
-        setLeaveData(transformed);
+          setLeaveData(transformed);
+          console.log('Leave data fetched:', transformed); // Debug leaveData
+        }
       } catch (error) {
         console.error('Error fetching leave data:', error.message);
       }
     };
 
     fetchLeaveData();
-  }, []);
+  }, [employeeDetails]);
 
   return (
     <AppSafeArea>
       <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
+        <Appbar.BackAction onPress={() => navigation.goBack()} color="#4B5563" />
         <Appbar.Content title="Apply Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
@@ -534,7 +498,6 @@ const ApplyLeaveScreen = ({navigation}) => {
   );
 };
 
-
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -708,6 +671,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
 });
+
 
 /*
 How to save a PDF to your own app folder (like WhatsApp):

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -15,36 +15,12 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import moment from 'moment';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
 
-const MOCK_LEAVE_DATA = [
-  {
-    id: '101',
-    applyDate: '2025-04-01',
-    leave: 'Sick Leave',
-    leaveType: 'Half day',
-    noOfLeave: 2,
-    status: 'Approved',
-    statusDate: '2025-04-03',
-  },
-  {
-    id: '102',
-    applyDate: '2025-03-18',
-    leave: 'Casual Leave',
-    leaveType: 'Full day',
-    noOfLeave: 1,
-    status: 'Pending',
-    statusDate: '2025-03-20',
-  },
-  {
-    id: '103',
-    applyDate: '2025-02-10',
-    leave: 'Casual Leave',
-    leaveType: 'Full day',
-    noOfLeave: 3,
-    status: 'Rejected',
-    statusDate: '2025-02-12',
-  },
-];
+
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
+const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
 
 const filterOptions = [
   { label: 'All', value: '' },
@@ -58,6 +34,30 @@ const LeaveReportScreen = ({ navigation }) => {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('');
+  const [leaveData, setLeaveData] = useState([]); // Replace mock data with dynamic data
+
+  const employeeDetails = useFetchEmployeeDetails(); 
+
+  console.log(employeeDetails, 'Employee Details');
+
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      try {
+        const response = await axios.get(
+          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/1/${employeeDetails?.id}`
+        );
+        setLeaveData(response.data); // Set fetched data
+        console.log('Fetched leave data:', response.data); // Debug fetched data
+      } catch (error) {
+        console.error('Error fetching leave data:', error);
+        Alert.alert('Error', 'Failed to fetch leave data');
+      }
+    };
+
+    if (employeeDetails?.id) {
+      fetchLeaveData();
+    }
+  }, [employeeDetails]);
 
   const formatDate = (dateString) => {
     return dateString ? moment(dateString).format('DD/MM/YY') : 'Select';
@@ -68,11 +68,11 @@ const LeaveReportScreen = ({ navigation }) => {
   };
 
   const filterData = () => {
-    return MOCK_LEAVE_DATA.filter(item => {
-      const itemDate = new Date(item.applyDate);
+    return leaveData.filter(item => {
+      const itemDate = new Date(item.fromLeaveDate);
       const fromMatch = fromDate ? itemDate >= new Date(fromDate) : true;
       const toMatch = toDate ? itemDate <= new Date(toDate) : true;
-      const leaveTypeMatch = selectedFilter ? item.leave === selectedFilter : true;
+      const leaveTypeMatch = selectedFilter ? item.leaveName === selectedFilter : true;
       return fromMatch && toMatch && leaveTypeMatch;
     });
   };
@@ -172,42 +172,61 @@ const LeaveReportScreen = ({ navigation }) => {
                 {item.status}
               </Text>
             </View>
-            <Text style={styles.statusDate}>
-              {formatDate(item.statusDate)}
+
+            <View style={styles.statusBadge}>
+              {/* <Icon
+                name="ellipse"
+                size={10}
+                color={statusColor}
+                style={{ marginRight: 6 }}
+              /> */}
+              <Text style={styles.statusDate}>
+              {/* {formatDate(item.createdDate)} */}
+                Approval Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
             </Text>
+              
+            </View>
+          
+
+             <Icon
+                name="create-outline"
+                size={20}
+                color="#1976d2"
+                onPress={() => navigation.navigate('ApplyLeave', { leaveId: item.id })}
+                // style={{ marginLeft: 'auto' }}
+              />
+              
           </View>
 
           <View style={styles.datesContainer}>
             <View style={styles.dateItem}>
-              <Text style={styles.dateLabel}>Apply Date</Text>
+              <Text style={styles.dateLabel}>From Date</Text>
               <Text style={styles.dateValue}>
-                {formatDate(item.applyDate)}
+                {formatDate(item.fromLeaveDate)}
+              </Text>
+            </View>
+            <View style={styles.dateItem}>
+              <Text style={styles.dateLabel}>To Date</Text>
+              <Text style={styles.dateValue}>
+                {formatDate(item.toLeaveDate)}
               </Text>
             </View>
             <View style={styles.dateItem}>
               <Text style={styles.dateLabel}>Leave Days</Text>
               <Text style={styles.dateValue}>
-                {item.noOfLeave} {item.noOfLeave > 1 ? 'days' : 'day'}
+                {item.leaveNo} {item.leaveNo > 1 ? 'days' : 'day'}
               </Text>
             </View>
-            {item.leaveType === 'Full day' && (
-              <View style={styles.dateItem}>
-                <Text style={styles.dateLabel}>End Date</Text>
-                <Text style={styles.dateValue}>
-                  {calculateEndDate(item.applyDate, item.noOfLeave)}
-                </Text>
-              </View>
-            )}
           </View>
 
           <View style={styles.detailsContainer}>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Leave</Text>
-              <Text style={styles.detailValue}>{item.leave}</Text>
+              <Text style={styles.detailValue}>{item.leaveName}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Leave Type</Text>
-              <Text style={styles.detailValue}>{item.leaveType}</Text>
+              <Text style={styles.detailLabel}>Remarks</Text>
+              <Text style={styles.detailValue}>{item.remarks || 'N/A'}</Text>
             </View>
           </View>
         </Card.Content>
@@ -220,7 +239,7 @@ const LeaveReportScreen = ({ navigation }) => {
       {renderAppBar()}
       <FlatList
         data={filterData()}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id.toString()}
         renderItem={renderCard}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContainer}

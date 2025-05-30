@@ -19,6 +19,8 @@ import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
 import axios from 'axios';
 import {useAuth} from '../constants/AuthContext';
+import useFetchEmployeeData from '../components/FetchEmployeeData';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 
 const Dashboard = () => {
   const TOTAL_SHIFT_SECONDS = 60;
@@ -29,17 +31,9 @@ const Dashboard = () => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [shiftCompleted, setShiftCompleted] = useState(false);
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
-  const [employeeData, setEmployeeData] = useState(null);
+  const employeeData = useFetchEmployeeData();
+  const employeeDetails = useFetchEmployeeDetails();
   const [leaveData, setLeaveData] = useState([]);
-
-  // const leaveData = [
-  //   {label: 'CL', available: 10, used: 5},
-  //   {label: 'PL', available: 8, used: 2},
-  //   {label: 'SL', available: 4, used: 1},
-  //   {label: 'ML', available: 10, used: 4},
-  //   {label: 'EL', available: 6, used: 2},
-  //   {label: 'WFH', available: 3, used: 1},
-  // ];
 
   const leaveUsers = [
     {
@@ -116,35 +110,11 @@ const Dashboard = () => {
     setShiftCompleted(false);
   };
 
-  const handleDateSelect = (date, shift) => {
-    setSelectedShiftInfo({
-      date: format(new Date(date), 'MMM dd, yyyy'),
-      shift,
-    });
-  };
-
   const {user} = useAuth();
 
-  console.log(user, 'User============ Data');
-  useEffect(() => {
-    const fetchEmployeeData = async () => {
-      try {
-        if (user?.id) {
-          const response = await axios.get(
-            `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`,
-          );
-          setEmployeeData(response.data);
-
-          clg
-        }
-      } catch (error) {
-        console.error('Error fetching employee data:', error);
-      }
-    };
-
-    fetchEmployeeData();
-  }, [user]);
-
+  // console.log(user, 'User============ Data');
+  // console.log(employeeData, 'Employee================== Data'); // Log employeeData
+  // console.log(employeeDetails, 'Fetch Employee Details'); // Log fetchEmployeeDetails
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {
@@ -210,6 +180,20 @@ const Dashboard = () => {
           /> */}
 
           <OnLeaveUsers leaveUsers={leaveUsers} />
+
+          {/* {employeeDetails && (
+            <View style={styles.card}>
+              <Text style={styles.title}>Employee Details</Text>
+              <Text>Name: {employeeDetails.employeeName}</Text>
+              <Text>Designation: {employeeDetails.designationName}</Text>
+              <Text>Department: {employeeDetails.departmentName}</Text>
+              <Text>Branch: {employeeDetails.branchName}</Text>
+              <Text>Email: {employeeDetails.emailAddress}</Text>
+              <Text>Contact: {employeeDetails.pcontactNo}</Text>
+              <Text>Address: {employeeDetails.presentAddress}</Text>
+              <Text>Date of Joining: {employeeDetails.dateofJoin}</Text>
+            </View>
+          )} */}
         </ScrollView>
       </KeyboardAvoidingView>
     </AppSafeArea>
@@ -223,6 +207,21 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     backgroundColor: '#F5F7FA',
     paddingHorizontal: 10,
+  },
+  card: {
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
 });
 
