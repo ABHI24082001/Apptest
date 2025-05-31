@@ -8,11 +8,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Alert,
+  ActionSheetIOS,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useForm, Controller} from 'react-hook-form';
 import axios from 'axios';
-import {useAuth} from '../constants/AuthContext';
 import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Button} from 'react-native-paper';
 import LeaveHeader from '../component/LeaveHeader';
@@ -26,7 +26,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
 const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
 
-const ApplyLeaveScreen = ({navigation}) => {
+const ApplyLeaveScreen = ({ navigation, route }) => {
   const employeeDetails = useFetchEmployeeDetails(); // Use employeeDetails globally
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,35 +36,44 @@ const ApplyLeaveScreen = ({navigation}) => {
   const [documentPath, setDocumentPath] = useState('');
   const [charCount, setCharCount] = useState(100);
 
-  // console.log(employeeDetails, 'Employee Details'); // Log employeeDetails
+  const passedLeaveData = route.params?.leaveData; // Get passed data from navigation
 
+
+  console.log(route.params, 'Route================= Params'); // Debugging: Check route params
+  debugger
   const {
     control,
     handleSubmit,
     setValue,
     watch,
-    formState: {errors},
+    formState: { errors },
   } = useForm({
     defaultValues: {
       EmployeeId: employeeDetails?.id ?? '',
       ReportingId: employeeDetails?.reportingEmpId ?? '',
-      LeaveType: '1',
-      LeaveId: '',
-      FromLeaveDate: new Date(),
-      ToLeaveDate: new Date(),
-      LeaveNo: 1,
-      Remarks: '',
-      DocumentPath: '',
-      Status: 'Pending',
+      LeaveType: passedLeaveData?.leaveType?.toString() ?? '1',
+      LeaveId: passedLeaveData?.leaveId?.toString() ?? '',
+      FromLeaveDate: passedLeaveData?.fromLeaveDate
+        ? new Date(passedLeaveData.fromLeaveDate)
+        : new Date(),
+      ToLeaveDate: passedLeaveData?.toLeaveDate
+        ? new Date(passedLeaveData.toLeaveDate)
+        : new Date(),
+      LeaveNo: passedLeaveData?.leaveNo ?? 1,
+      Remarks: passedLeaveData?.remarks ?? '',
+      DocumentPath: passedLeaveData?.documentPath ?? '',
+      Status: passedLeaveData?.status ?? 'Pending',
       CompanyId: employeeDetails?.childCompanyId ?? '',
       IsDelete: 0,
       Flag: 1,
       CreatedBy: employeeDetails?.id ?? '',
-      CreatedDate: new Date(),
+      CreatedDate: passedLeaveData?.createdDate
+        ? new Date(passedLeaveData.createdDate)
+        : new Date(),
       ModifiedBy: employeeDetails?.id ?? '',
       ModifiedDate: new Date(),
-      ApprovalStatus: 1,
-      ApplyLeaveId: 0,
+      ApprovalStatus: passedLeaveData?.approvalStatus ?? 1,
+      ApplyLeaveId: passedLeaveData?.id ?? 0,
     },
   });
 
@@ -104,31 +113,32 @@ const ApplyLeaveScreen = ({navigation}) => {
       try {
         // Fetch leave policies for Leave Name dropdown
         const policiesResponse = await axios.get(
-          `${BASE_URL_PROD}/LeavePolicy/GetAllLeavePolicy/1`
+          `${BASE_URL_PROD}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`
         );
-        setLeavePolicies(
-          Array.isArray(policiesResponse.data)
-            ? policiesResponse.data
-            : policiesResponse.data?.data || []
-        );
-        // Fetch leave balances if needed
-        if (employeeDetails?.id) {
-          const balancesResponse = await axios.get(
-            `${BASE_URL_PROD}/LeaveBalance/GetByEmployee/${employeeDetails.id}`
+        const policies = Array.isArray(policiesResponse.data)
+          ? policiesResponse.data
+          : policiesResponse.data?.data || [];
+        setLeavePolicies(policies);
+
+        // Auto-select Leave Name if LeaveId or Leave Name is passed
+        if (passedLeaveData?.LeaveId || passedLeaveData?.leaveName) {
+          const selectedPolicy = policies.find(
+            policy =>
+              policy.policyId === passedLeaveData?.LeaveId ||
+              policy.leaveName === passedLeaveData?.leaveName
           );
-          setLeaveData(
-            Array.isArray(balancesResponse.data)
-              ? balancesResponse.data
-              : balancesResponse.data?.data || []
-          );
+          if (selectedPolicy) {
+            setValue('LeaveId', selectedPolicy.policyId); // Auto-select LeaveId
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        Alert.alert('Error', 'Failed to load initial data');
+        Alert.alert('Error', 'Failed to load leave policies');
       }
     };
+
     fetchData();
-  }, [employeeDetails]);
+  }, [employeeDetails, passedLeaveData, setValue]);
 
   // Helper to generate unique filename
   function generatePdfFileName() {
@@ -168,7 +178,7 @@ const ApplyLeaveScreen = ({navigation}) => {
 
   const onSubmit = async data => {
     const payload = {
-      Id: 0,
+      Id: data.ApplyLeaveId,
       EmployeeId: employeeDetails?.id ?? 0,
       ReportingId: employeeDetails?.reportingEmpId ?? 0,
       LeaveType: Number(data.LeaveType),
@@ -187,14 +197,13 @@ const ApplyLeaveScreen = ({navigation}) => {
       IsDelete: 0,
       Flag: 1,
       CreatedBy: employeeDetails?.id ?? 0,
-      CreatedDate: formatDateForBackend(new Date()),
+      CreatedDate: formatDateForBackend(data.CreatedDate),
       ModifiedBy: employeeDetails?.id ?? 0,
       ModifiedDate: formatDateForBackend(new Date()),
-      ApprovalStatus: 1,
-      ApplyLeaveId: 0,
+      ApprovalStatus: data.ApprovalStatus ?? 1,
     };
-
-    // console.log('Payload being sent:', payload);
+debugger
+    console.log('Updateeeeeeeeeeeeeeeee being sent:', payload);
 
     // Validation: Check if leave is already applied for the same day
     const isLeaveAlreadyApplied = leaveData.some(
@@ -266,6 +275,23 @@ const ApplyLeaveScreen = ({navigation}) => {
     fetchLeaveData();
   }, [employeeDetails]);
 
+  const showIOSPicker = (options, selectedValue, onChange) => {
+    const labels = options.map(option => option.label);
+    const values = options.map(option => option.value);
+
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Cancel', ...labels],
+        cancelButtonIndex: 0,
+      },
+      buttonIndex => {
+        if (buttonIndex > 0) {
+          onChange(values[buttonIndex - 1]);
+        }
+      }
+    );
+  };
+
   return (
     <AppSafeArea>
       <Appbar.Header style={styles.header}>
@@ -291,28 +317,48 @@ const ApplyLeaveScreen = ({navigation}) => {
                 <Text style={styles.errorText}>{errors.LeaveId.message}</Text>
               )}
             </Text>
-            <View style={styles.pickerContainer}>
-              <Controller
-                control={control}
-                rules={{required: 'This field is required'}}
-                name="LeaveId"
-                render={({field: {onChange, value}}) => (
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={onChange}
-                    style={styles.picker}>
-                    <Picker.Item label="Select Leave" value="" />
-                    {leavePolicies.map(policy => (
-                      <Picker.Item
-                        key={policy.policyId}
-                        label={policy.leaveName}
-                        value={policy.policyId}
-                      />
-                    ))}
-                  </Picker>
-                )}
-              />
-            </View>
+            {Platform.OS === 'ios' ? (
+              <TouchableOpacity
+                style={styles.iosPickerButton}
+                onPress={() =>
+                  showIOSPicker(
+                    leavePolicies.map(policy => ({
+                      label: policy.leaveName,
+                      value: policy.policyId,
+                    })),
+                    watch('LeaveId'),
+                    value => setValue('LeaveId', value)
+                  )
+                }>
+                <Text style={styles.iosPickerText}>
+                  {leavePolicies.find(policy => policy.policyId === watch('LeaveId'))?.leaveName || 'Select Leave'}
+                </Text>
+                <Icon name="chevron-down" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.pickerContainer}>
+                <Controller
+                  control={control}
+                  rules={{ required: 'This field is required' }}
+                  name="LeaveId"
+                  render={({ field: { onChange, value } }) => (
+                    <Picker
+                      selectedValue={value}
+                      onValueChange={onChange}
+                      style={styles.picker}>
+                      <Picker.Item label="Select Leave" value="" />
+                      {leavePolicies.map(policy => (
+                        <Picker.Item
+                          key={policy.policyId}
+                          label={policy.leaveName}
+                          value={policy.policyId}
+                        />
+                      ))}
+                    </Picker>
+                  )}
+                />
+              </View>
+            )}
           </View>
 
           {/* Leave Type Dropdown */}
@@ -323,23 +369,44 @@ const ApplyLeaveScreen = ({navigation}) => {
                 <Text style={styles.errorText}>{errors.LeaveType.message}</Text>
               )}
             </Text>
-            <View style={styles.pickerContainer}>
-              <Controller
-                control={control}
-                rules={{required: 'This field is required'}}
-                name="LeaveType"
-                render={({field: {onChange, value}}) => (
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={onChange}
-                    style={styles.picker}>
-                    <Picker.Item label="Full Day" value="1" />
-                    <Picker.Item label="Half Day" value="2" />
-                    <Picker.Item label="Company Off" value="3" />
-                  </Picker>
-                )}
-              />
-            </View>
+            {Platform.OS === 'ios' ? (
+              <TouchableOpacity
+                style={styles.iosPickerButton}
+                onPress={() =>
+                  showIOSPicker(
+                    [
+                      { label: 'Full Day', value: '1' },
+                      { label: 'Half Day', value: '2' },
+                      { label: 'Company Off', value: '3' },
+                    ],
+                    watch('LeaveType'),
+                    value => setValue('LeaveType', value)
+                  )
+                }>
+                <Text style={styles.iosPickerText}>
+                  {['Full Day', 'Half Day', 'Company Off'][Number(watch('LeaveType')) - 1] || 'Select Type'}
+                </Text>
+                <Icon name="chevron-down" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.pickerContainer}>
+                <Controller
+                  control={control}
+                  rules={{ required: 'This field is required' }}
+                  name="LeaveType"
+                  render={({ field: { onChange, value } }) => (
+                    <Picker
+                      selectedValue={value}
+                      onValueChange={onChange}
+                      style={styles.picker}>
+                      <Picker.Item label="Full Day" value="1" />
+                      <Picker.Item label="Half Day" value="2" />
+                      <Picker.Item label="Company Off" value="3" />
+                    </Picker>
+                  )}
+                />
+              </View>
+            )}
           </View>
 
           {/* Date Picker */}
@@ -552,6 +619,10 @@ const styles = StyleSheet.create({
     width: '100%',
     color: '#111827',
   },
+  pickerIOS: {
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
   readonlyInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -669,6 +740,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 12,
     backgroundColor: '#3B82F6',
+  },
+  iosPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  iosPickerText: {
+    fontSize: 16,
+    color: '#111827',
   },
 });
 

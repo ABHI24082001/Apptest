@@ -36,7 +36,7 @@ const LeaveReportScreen = ({ navigation }) => {
   const [selectedFilter, setSelectedFilter] = useState('');
   const [leaveData, setLeaveData] = useState([]); // Replace mock data with dynamic data
 
-  const employeeDetails = useFetchEmployeeDetails(); 
+  const employeeDetails = useFetchEmployeeDetails();
 
   console.log(employeeDetails, 'Employee Details');
 
@@ -61,10 +61,6 @@ const LeaveReportScreen = ({ navigation }) => {
 
   const formatDate = (dateString) => {
     return dateString ? moment(dateString).format('DD/MM/YY') : 'Select';
-  };
-
-  const calculateEndDate = (startDate, days) => {
-    return moment(startDate).add(days - 1, 'days').format('DD/MM/YY');
   };
 
   const filterData = () => {
@@ -150,13 +146,13 @@ const LeaveReportScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderCard = ({ item }) => {
-    const statusColor = item.status === 'Approved' 
-      ? '#4caf50' 
-      : item.status === 'Rejected' 
-        ? '#f44336' 
+  const renderCard = ({ item, index }) => {
+    const statusColor = item.status === 'Approved'
+      ? '#4caf50'
+      : item.status === 'Rejected'
+        ? '#f44336'
         : '#f4b400';
-        
+
     return (
       <Card style={styles.card}>
         <Card.Content>
@@ -172,30 +168,21 @@ const LeaveReportScreen = ({ navigation }) => {
                 {item.status}
               </Text>
             </View>
-
-            <View style={styles.statusBadge}>
-              {/* <Icon
-                name="ellipse"
-                size={10}
-                color={statusColor}
-                style={{ marginRight: 6 }}
-              /> */}
-              <Text style={styles.statusDate}>
-              {/* {formatDate(item.createdDate)} */}
-                Approval Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
+            <Text style={styles.statusDate}>
+              Approval Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
             </Text>
-              
-            </View>
-          
-
-             <Icon
-                name="create-outline"
-                size={20}
-                color="#1976d2"
-                onPress={() => navigation.navigate('ApplyLeave', { leaveId: item.id })}
-                // style={{ marginLeft: 'auto' }}
-              />
-              
+            <Icon
+              name="create-outline"
+              size={20}
+              color="#1976d2"
+              onPress={() => {
+                const leaveDataToPass = {
+                  ...item,
+                  leaveName: item.leaveName, // Ensure Leave Name is passed
+                };
+                navigation.navigate('ApplyLeave', { leaveData: leaveDataToPass }); // Pass leaveData correctly
+              }}
+            />
           </View>
 
           <View style={styles.datesContainer}>
@@ -221,7 +208,7 @@ const LeaveReportScreen = ({ navigation }) => {
 
           <View style={styles.detailsContainer}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Leave</Text>
+              <Text style={styles.detailLabel}>Leave Name</Text> {/* Add Leave Name */}
               <Text style={styles.detailValue}>{item.leaveName}</Text>
             </View>
             <View style={styles.detailItem}>
@@ -239,7 +226,7 @@ const LeaveReportScreen = ({ navigation }) => {
       {renderAppBar()}
       <FlatList
         data={filterData()}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderCard}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContainer}
