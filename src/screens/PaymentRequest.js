@@ -8,20 +8,39 @@ import {
   ScrollView,
   Platform,
   Modal,
-  FlatList,
   Alert,
-  Image,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import RNPickerSelect from 'react-native-picker-select';
-import DocumentPicker from '@react-native-documents/picker';
+import {pick} from '@react-native-documents/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
+import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 
 const PaymentRequest = ({navigation}) => {
   // Form handling with react-hook-form
+
+  // State management
+  const [date, setDate] = useState(new Date());
+  const [openDatePicker, setOpenDatePicker] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [expenseItems, setExpenseItems] = useState([]);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [expenseHeads, setExpenseHeads] = useState([]);
+
+  // State for FeedbackModal
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState('success');
+
+  const employeeDetails = useFetchEmployeeDetails();
+  const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
   const {
     control,
     handleSubmit,
@@ -32,24 +51,26 @@ const PaymentRequest = ({navigation}) => {
     getValues,
   } = useForm({
     defaultValues: {
-      requestType: '',
+      RequestTypeId: 1, // Default value for RequestTypeId
+      requestType: 'expense', // Auto-select 'Expense' as default
+      EmployeeId: employeeDetails?.id || 0, // Use employee ID from fetched details'',
       projectName: '',
       expenseHead: '',
       amount: '',
       paymentTitle: '',
       remarks: '',
       date: new Date(),
+      CreatedDate: employeeDetails?.createdDate
+        ? new Date(employeeDetails.createdDate)
+        : new Date(),
+      ModifiedBy: employeeDetails?.id ?? '',
+      ModifiedDate: new Date(),
+      CreatedBy: employeeDetails?.id ?? '',
     },
   });
 
-  // State management
-  const [date, setDate] = useState(new Date());
-  const [openDatePicker, setOpenDatePicker] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [expenseItems, setExpenseItems] = useState([]);
-  const [editingItemId, setEditingItemId] = useState(null);
-  const [totalAmount, setTotalAmount] = useState(0);
+  // Watch the requestType value
+  const requestType = watch('requestType');
 
   // Calculate total amount whenever expenseItems change
   useEffect(() => {
@@ -75,18 +96,58 @@ const PaymentRequest = ({navigation}) => {
   // Document picker handler
   const handleDocumentPick = async () => {
     try {
-      const res = await DocumentPicker.pickSingle({
+      const res = await pick({
         type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
       });
-      setUploadedFile(res);
+
+      if (res && res[0]) {
+        const file = res[0];
+        console.log('Selected File:', file); // Debugging file details
+
+        if (file.size > 5 * 1024 * 1024) {
+          Alert.alert('Error', 'File size should be less than 5MB');
+          return;
+        }
+
+        setUploadedFile({
+          name: file.name,
+          uri: file.uri,
+          type: file.type,
+        });
+        Alert.alert('Success', 'File uploaded successfully');
+      }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         console.log('User cancelled the picker');
       } else {
         console.error('DocumentPicker Error:', err);
+        Alert.alert('Error', 'Failed to upload document');
       }
     }
   };
+
+  // Fetch expense head list
+  useEffect(() => {
+    const fetchExpenseHeads = async () => {
+      try {
+        const response = await axios.get(
+          `${BASE_URL_PROD}/ExpHeadMaster/GetExpenseHeadList/${employeeDetails?.childCompanyId}`,
+        );
+        setExpenseHeads(
+          response.data.map(head => ({
+            id: head.id,
+            name: head.expenseHead, // Map the correct property
+          })),
+        );
+      } catch (error) {
+        console.error('Error fetching expense heads:', error);
+      }
+    };
+
+    if (employeeDetails?.childCompanyId) {
+      fetchExpenseHeads();
+    }
+  }, [employeeDetails]);
 
   // Add expense item handler
   const handleAddExpense = () => {
@@ -103,11 +164,20 @@ const PaymentRequest = ({navigation}) => {
       return;
     }
 
+    if (!data.date) {
+      Alert.alert('Error', 'Transaction Date is required');
+      return;
+    }
+
     // Validate amount format
     if (!/^[0-9]*(\.[0-9]{0,2})?$/.test(data.amount)) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
+
+    const selectedExpenseHead = expenseHeads.find(
+      head => head.name === data.expenseHead,
+    );
 
     if (editingItemId) {
       // Update existing item
@@ -116,6 +186,7 @@ const PaymentRequest = ({navigation}) => {
           item.id === editingItemId
             ? {
                 ...item,
+                headId: selectedExpenseHead?.id,
                 head: data.expenseHead,
                 project: data.projectName,
                 title: data.paymentTitle,
@@ -128,18 +199,18 @@ const PaymentRequest = ({navigation}) => {
       );
     } else {
       // Add new item
-      setExpenseItems([
-        ...expenseItems,
-        {
-          id: Date.now().toString(),
-          head: data.expenseHead,
-          project: data.projectName,
-          title: data.paymentTitle,
-          amount: data.amount,
-          date: data.date,
-          document: uploadedFile,
-        },
-      ]);
+      const newItem = {
+        id: Date.now().toString(),
+        headId: selectedExpenseHead?.id,
+        head: data.expenseHead,
+        project: data.projectName,
+        title: data.paymentTitle,
+        amount: data.amount,
+        date: data.date,
+        document: uploadedFile,
+      };
+      setExpenseItems([...expenseItems, newItem]);
+      console.log('Added Expense Item:', newItem); // Debugging added item
     }
 
     setIsModalVisible(false);
@@ -184,35 +255,134 @@ const PaymentRequest = ({navigation}) => {
     );
   };
 
+  function formatDateForBackend(date) {
+    if (!date || isNaN(new Date(date).getTime())) return null;
+    const d = new Date(date);
+    const pad = n => String(n).padStart(2, '0');
+    return (
+      d.getFullYear() +
+      '-' +
+      pad(d.getMonth() + 1) +
+      '-' +
+      pad(d.getDate()) +
+      'T' +
+      pad(d.getHours()) +
+      ':' +
+      pad(d.getMinutes()) +
+      ':' +
+      pad(d.getSeconds())
+    );
+  }
   // Submit form handler
-  const onSubmit = data => {
-    // Validate that at least one expense item is added
-    if (expenseItems.length === 0) {
-      Alert.alert('Error', 'Please add at least one expense item');
-      return;
+  const onSubmit = async data => {
+    if (requestType === 'advance') {
+      // Prepare data for Advance submission
+      const formData = {
+        PaymentRequest: {
+          RequestId: 0,
+          RequestTypeId: data.RequestTypeId,
+          EmployeeId: employeeDetails?.id,
+          ProjectId: null,
+          ReportingMgrId: employeeDetails?.reportingEmpId,
+          TotalAmount: totalAmount,
+          CompanyId: employeeDetails?.childCompanyId,
+          Status: 'Pending',
+          Remarks: data.remarks,
+          IsDelete: 0,
+          Flag: 1,
+          CreatedBy: employeeDetails?.id ?? 0,
+          CreatedDate: formatDateForBackend(new Date()),
+          ModifiedBy: employeeDetails?.id ?? 0,
+          ModifiedDate: formatDateForBackend(new Date()),
+        },
+        tempPayments: [], // No expense items for Advance
+      };
+
+      console.log('Advance Submission Payload:', formData);
+
+      try {
+        const response = await axios.post(
+          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          formData,
+        );
+        console.log('Advance Submission Response:', response.data);
+        setFeedbackMessage('Advance request submitted successfully');
+        setFeedbackType('success');
+        setFeedbackVisible(true);
+        reset();
+        setTotalAmount(0);
+        setUploadedFile(null);
+      } catch (error) {
+        console.error('Error submitting advance request:', error);
+        setFeedbackMessage('Failed to submit advance request');
+        setFeedbackType('fail');
+        setFeedbackVisible(true);
+      }
+    } else if (requestType === 'expense') {
+      // Validate that at least one expense item is added
+      if (expenseItems.length === 0) {
+        Alert.alert('Error', 'Please add at least one expense item');
+        return;
+      }
+
+      // Validate that remarks are provided
+      if (!data.remarks) {
+        Alert.alert('Error', 'Please provide remarks');
+        return;
+      }
+
+      // Prepare data for Expense submission
+      const formData = {
+        PaymentRequest: {
+          RequestId: 1,
+          RequestTypeId: data.RequestTypeId,
+          EmployeeId: employeeDetails?.id,
+          ProjectId: null,
+          ReportingMgrId: employeeDetails?.reportingEmpId,
+          TotalAmount: totalAmount,
+          Status: 'Pending',
+          Remarks: data.remarks,
+          CompanyId: employeeDetails?.childCompanyId,
+          IsDelete: 0,
+          Flag: 1,
+          CreatedBy: employeeDetails?.id ?? 0,
+          CreatedDate: formatDateForBackend(new Date()),
+          ModifiedBy: employeeDetails?.id ?? 0,
+          ModifiedDate: formatDateForBackend(new Date()),
+        },
+        tempPayments: expenseItems.map(item => ({
+          Id: 0,
+          TransactionDate: formatDateForBackend(item.date),
+          ExpenseHeadId: item.headId,
+          ExpenseHead: item.head,
+          Amount: parseFloat(item.amount),
+          ApprovedAmount: 0,
+          RequestType: data.RequestTypeId,
+          DocumentPath: item.document?.uri || null,
+        })),
+      };
+
+      console.log('Expense Submission Payload:', JSON.stringify(formData, null, 2));
+
+      try {
+        const response = await axios.post(
+          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          formData,
+        );
+        console.log('Expense Submission Response:', response.data);
+        setFeedbackMessage('Expense request submitted successfully');
+        setFeedbackType('success');
+        setFeedbackVisible(true);
+        reset();
+        setExpenseItems([]);
+        setUploadedFile(null);
+      } catch (error) {
+        console.error('Error submitting expense request:', error);
+        setFeedbackMessage('Failed to submit expense request');
+        setFeedbackType('fail');
+        setFeedbackVisible(true);
+      }
     }
-
-    // Validate that remarks are provided
-    if (!data.remarks) {
-      Alert.alert('Error', 'Please provide remarks');
-      return;
-    }
-
-    // Prepare data for submission
-    const formData = {
-      ...data,
-      expenseItems,
-      totalAmount,
-      uploadedFile,
-    };
-
-    console.log('Form submitted:', formData);
-    Alert.alert('Success', 'Payment request submitted successfully');
-
-    // Reset form after successful submission
-    reset();
-    setExpenseItems([]);
-    setUploadedFile(null);
   };
 
   // Format currency
@@ -229,6 +399,14 @@ const PaymentRequest = ({navigation}) => {
 
   return (
     <AppSafeArea>
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        type={feedbackType}
+        message={feedbackMessage}
+      />
+
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
@@ -260,7 +438,10 @@ const PaymentRequest = ({navigation}) => {
           rules={{required: 'Request type is required'}}
           render={({field: {onChange, value}}) => (
             <RNPickerSelect
-              onValueChange={onChange}
+              onValueChange={selectedValue => {
+                onChange(selectedValue);
+                setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2); // Set RequestTypeId based on selection
+              }}
               value={value}
               placeholder={{label: 'Select Request Type', value: null}}
               items={[
@@ -274,70 +455,88 @@ const PaymentRequest = ({navigation}) => {
           )}
         />
 
-        {/* Expense Items Grid Section */}
-        <View style={styles.expenseSection}>
-          <View style={styles.expenseSectionHeader}>
-            <Text style={styles.expenseSectionTitle}>Expense Items</Text>
-            {/* <Text style={styles.expenseSectionSubtitle}>
-              Total: ₹{formatCurrency(totalAmount)}
-            </Text> */}
-          </View>
-
-          <TouchableOpacity style={styles.addBtn} onPress={openAddExpenseModal}>
-            <Icon name="plus" size={20} color="#fff" />
-            <Text style={styles.addBtnText}>Add Expense</Text>
-          </TouchableOpacity>
-
-          {expenseItems.length > 0 && (
-            <View style={styles.gridContainer}>
-              {/* Grid Header */}
-              <View style={styles.gridHeader}>
-                <Text style={styles.gridHeaderText}>Date</Text>
-                <Text style={styles.gridHeaderText}>Expense Head</Text>
-                <Text style={styles.gridHeaderText}>Title</Text>
-                <Text style={styles.gridHeaderText}>Amount</Text>
-                <Text style={styles.gridHeaderText}>Document</Text>
-                <Text style={styles.gridHeaderText}>Actions</Text>
-              </View>
-
-              {/* Grid Rows */}
-              {expenseItems.map(item => (
-                <View key={item.id} style={styles.gridRow}>
-                  <Text style={styles.gridCell}>{formatDate(item.date)}</Text>
-                  <Text style={styles.gridCell}>{item.head}</Text>
-                  <Text style={styles.gridCell}>{item.title || '—'}</Text>
-                  <Text style={styles.gridCell}>
-                    ₹{formatCurrency(item.amount)}
-                  </Text>
-                  <View style={styles.gridCell}>
-                    {item.document ? (
-                      <Icon
-                        name="file-check-outline"
-                        size={20}
-                        color="#10B981"
-                      />
-                    ) : (
-                      <Icon name="file-remove-outline" size={20} color="#EF4444" />
-                    )}
-                  </View>
-                  <View style={[styles.gridCell, styles.actionsCell]}>
-                    {/* <TouchableOpacity
-                      style={styles.gridActionBtn}
-                      onPress={() => handleEditExpense(item)}>
-                      <Icon name="pencil" size={18} color="#3B82F6" />
-                    </TouchableOpacity> */}
-                    <TouchableOpacity
-                      style={styles.gridActionBtn}
-                      onPress={() => handleDeleteExpense(item.id)}>
-                      <Icon name="trash-can" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+        {/* Expense Items Section */}
+        {requestType === 'expense' && (
+          <View style={styles.expenseSection}>
+            <View style={styles.expenseSectionHeader}>
+              <Text style={styles.expenseSectionTitle}>Expense Items</Text>
             </View>
-          )}
-        </View>
 
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={openAddExpenseModal}>
+              <Icon name="plus" size={20} color="#fff" />
+              <Text style={styles.addBtnText}>Add Expense</Text>
+            </TouchableOpacity>
+
+            {expenseItems.length > 0 && (
+              <View style={styles.gridContainer}>
+                {/* Grid Header */}
+                <View style={styles.gridHeader}>
+                  <Text style={styles.gridHeaderText}>Date</Text>
+                  <Text style={styles.gridHeaderText}>Expense Head</Text>
+                  <Text style={styles.gridHeaderText}>Title</Text>
+                  <Text style={styles.gridHeaderText}>Amount</Text>
+                  <Text style={styles.gridHeaderText}>Document</Text>
+                  <Text style={styles.gridHeaderText}>Actions</Text>
+                </View>
+
+                {/* Grid Rows */}
+                {expenseItems.map(item => (
+                  <View key={item.id} style={styles.gridRow}>
+                    <Text style={styles.gridCell}>{formatDate(item.date)}</Text>
+                    <Text style={styles.gridCell}>{item.head}</Text>
+                    <Text style={styles.gridCell}>{item.title || '—'}</Text>
+                    <Text style={styles.gridCell}>
+                      ₹{formatCurrency(item.amount)}
+                    </Text>
+                    <View style={styles.gridCell}>
+                      {item.document ? (
+                        <Icon
+                          name="file-check-outline"
+                          size={20}
+                          color="#10B981"
+                        />
+                      ) : (
+                        <Icon
+                          name="file-remove-outline"
+                          size={20}
+                          color="#EF4444"
+                        />
+                      )}
+                    </View>
+                    <View style={[styles.gridCell, styles.actionsCell]}>
+                      <TouchableOpacity
+                        style={styles.gridActionBtn}
+                        onPress={() => handleDeleteExpense(item.id)}>
+                        <Icon name="trash-can" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+        {/* Total Amount Input Field */}
+        <View style={styles.totalAmountContainer}>
+          <Text style={styles.label}>Total Amount</Text>
+          <TextInput
+            value={
+              requestType === 'advance'
+                ? totalAmount.toString()
+                : `₹${totalAmount.toFixed(2)}`
+            } // Editable for 'advance'
+            editable={requestType === 'advance'} // Allow editing only for 'advance'
+            onChangeText={value => {
+              if (requestType === 'advance') {
+                const numericValue = parseFloat(value) || 0;
+                setTotalAmount(numericValue);
+              }
+            }}
+            style={[styles.input, styles.totalAmountInput]}
+          />
+        </View>
         {/* Remarks */}
         <Text style={styles.label}>
           Remarks <Text style={styles.required}>*</Text>
@@ -371,30 +570,6 @@ const PaymentRequest = ({navigation}) => {
           onPress={handleSubmit(onSubmit)}>
           <Text style={styles.submitText}>Submit</Text>
         </TouchableOpacity>
-
-        {/* Cancel Button */}
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => {
-            Alert.alert(
-              'Cancel Request',
-              'Are you sure you want to cancel this request?',
-              [
-                {text: 'No', style: 'cancel'},
-                {
-                  text: 'Yes',
-                  onPress: () => {
-                    reset();
-                    setExpenseItems([]);
-                    setUploadedFile(null);
-                    navigation.goBack();
-                  },
-                },
-              ],
-            );
-          }}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Add Expense Modal */}
@@ -415,7 +590,10 @@ const PaymentRequest = ({navigation}) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.modalBody}>
-              <Text style={styles.label}>Date</Text>
+              {/* Transaction Date */}
+              <Text style={styles.label}>
+                Transaction Date <Text style={styles.required}>*</Text>
+              </Text>
               <TouchableOpacity
                 style={styles.inputWithIcon}
                 onPress={() => setOpenDatePicker(true)}>
@@ -449,11 +627,10 @@ const PaymentRequest = ({navigation}) => {
                     onValueChange={onChange}
                     value={value}
                     placeholder={{label: 'Select Expense Head', value: null}}
-                    items={[
-                      {label: 'Travel', value: 'travel'},
-                      {label: 'Marketing', value: 'marketing'},
-                      {label: 'IT Service', value: 'it'},
-                    ]}
+                    items={expenseHeads.map(head => ({
+                      label: head.name,
+                      value: head.name,
+                    }))}
                     style={pickerSelectStyles}
                     useNativeAndroidPickerStyle={false}
                     Icon={() => (
@@ -512,20 +689,21 @@ const PaymentRequest = ({navigation}) => {
                 onPress={handleDocumentPick}>
                 {uploadedFile ? (
                   <View style={styles.uploadedFileContainer}>
-                    <Icon
-                      name="file-document-outline"
-                      size={24}
-                      color="#10B981"
-                    />
+                    <Icon name="file-pdf-box" size={24} color="#E11D48" />
                     <Text style={styles.uploadedFileName} numberOfLines={1}>
                       {uploadedFile.name}
                     </Text>
+                    <TouchableOpacity
+                      onPress={() => setUploadedFile(null)}
+                      style={styles.removeFileBtn}>
+                      <Icon name="close-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={styles.uploadPlaceholder}>
                     <Icon name="upload" size={24} color="#999" />
                     <Text style={styles.uploadPlaceholderText}>
-                      Choose PDF or JPG
+                      Choose PDF or Image
                     </Text>
                   </View>
                 )}
@@ -620,6 +798,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    marginTop: 10,
   },
   uploadPlaceholder: {
     alignItems: 'center',
@@ -628,12 +807,23 @@ const styles = StyleSheet.create({
   uploadedFileContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 10,
   },
   uploadedFileName: {
+    flex: 1,
     marginLeft: 8,
     fontSize: 14,
     color: '#333',
+  },
+  removeFileBtn: {
+    marginLeft: 10,
+  },
+  uploadPlaceholderText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
   },
   submitBtn: {
     backgroundColor: '#2962ff',
@@ -844,9 +1034,16 @@ const styles = StyleSheet.create({
   gridActionBtn: {
     paddingHorizontal: 6,
   },
+  totalAmountContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  totalAmountInput: {
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    fontWeight: 'bold',
+  },
 });
-
-
 
 const pickerSelectStyles = {
   inputIOS: {
@@ -875,7 +1072,6 @@ const pickerSelectStyles = {
     top: 18,
     right: 10,
   },
-  
 };
 
 export default PaymentRequest;

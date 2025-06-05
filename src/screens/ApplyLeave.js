@@ -133,7 +133,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
           leaveName: policy.leaveName,
         }));
 
-        console.log(policiesResponse.data, 'Leave Policies Fetched'); // Debugging: Check fetched policies
+        // console.log(policiesResponse.data, 'Leave Policies Fetched'); // Debugging: Check fetched policies
 
         setLeavePolicies(policies);
 
@@ -164,25 +164,27 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     return `leave_${pad(now.getDate())}${pad(now.getMonth() + 1)}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.pdf`;
   }
 
-  // Pick and store PDF file (no RNFS, just filename logic)
+  // Document picker handler
   const handleDocumentPick = async () => {
     try {
       const res = await pick({
         mode: 'open',
         allowMultiSelection: false,
-        type: ['application/pdf'],
+        type: ['application/pdf', 'image/jpeg', 'image/png'], // Support PDF and images
       });
+
       if (res && res.length > 0) {
         const file = res[0];
         if (file.size > 5 * 1024 * 1024) {
           Alert.alert('Error', 'File size should be less than 5MB');
           return;
         }
-        const fileName = generatePdfFileName();
+
+        const fileName = file.name || generatePdfFileName(); // Use file name or generate one
         setUploadedFile(file);
         setDocumentPath(fileName);
         setValue('DocumentPath', fileName);
-        Alert.alert('File Selected', `PDF will be saved as: ${fileName}`);
+        Alert.alert('File Selected', `File will be saved as: ${fileName}`);
       }
     } catch (err) {
       if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
@@ -220,7 +222,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       ApprovalStatus: data.ApprovalStatus ?? 1,
     };
 
-    console.log('Payload sent:', payload);
+    // console.log('Payload sent:', payload);
 
     setIsSubmitting(true);
 
@@ -235,7 +237,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
           timeout: 20000,
         },
       );
-      console.log('Backend API response:', response?.data);
+      // console.log('Backend API response:', response?.data);
 
       if (response?.data?.isSuccess || response?.status === 200) {
         const successMessage = data.ApplyLeaveId
@@ -569,13 +571,18 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
             <Text style={styles.label}>Supporting Document (PDF only)</Text>
             {uploadedFile ? (
               <View style={styles.documentPreview}>
-                <Icon name="file-pdf-box" size={24} color="#e74c3c" />
+                <Icon
+                  name={uploadedFile.type.includes('pdf') ? 'file-pdf-box' : 'file-image'}
+                  size={24}
+                  color={uploadedFile.type.includes('pdf') ? '#e74c3c' : '#3498db'}
+                />
                 <Text style={styles.documentName}>{documentPath}</Text>
-                <TouchableOpacity onPress={() => {
-                  setUploadedFile(null);
-                  setDocumentPath('');
-                  setValue('DocumentPath', '');
-                }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setUploadedFile(null);
+                    setDocumentPath('');
+                    setValue('DocumentPath', '');
+                  }}>
                   <Icon name="close" size={20} color="#e74c3c" />
                 </TouchableOpacity>
               </View>

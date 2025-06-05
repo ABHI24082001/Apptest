@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Appbar } from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
-
+// /api/ApplyLeave/GetAllEmployeeApplyLeave/{CompanyId}/{UserId}
 const statusTabs = [
   { label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline' },
   { label: 'Approved', color: '#00C851', icon: 'check-circle-outline' },
