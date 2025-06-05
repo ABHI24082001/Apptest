@@ -6,7 +6,8 @@ import {
   StyleSheet,
   Text,
   Platform,
-  TouchableOpacity
+  TouchableOpacity,
+  TextInput
 } from 'react-native';
 import { Card, Appbar, Divider } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -23,7 +24,7 @@ import BASE_URL from '../constants/apiConfig';
 import { useAuth } from '../constants/AuthContext';
 import axios from 'axios';
 
-const ProfileSection = ({ title, icon, data }) => {
+const ProfileSection = ({ title, icon, data, onEdit }) => {
   const [isOpen, setIsOpen] = useState(false);
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
@@ -55,16 +56,19 @@ const ProfileSection = ({ title, icon, data }) => {
     };
   });
 
-  const renderItem = (icon, label, value) => (
-    <View key={label}>
-      <View style={styles.row}>
-        <Icon name={icon} size={20} color="#666" style={styles.icon} />
-        <View style={styles.textWrapper}>
-          <Text style={styles.label}>{label}</Text>
-          <Text style={styles.colon}>:</Text>
-          <Text style={styles.value}>{value}</Text>
-        </View>
+  const renderItem = (icon, label, value, editable = false) => (
+    <View key={label} style={styles.row}>
+      <Icon name={icon} size={20} color="#666" style={styles.icon} />
+      <View style={styles.textWrapper}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.colon}>:</Text>
+        <Text style={styles.value}>{value}</Text>
       </View>
+      {editable && (
+        <TouchableOpacity onPress={() => onEdit(label)} style={styles.editIcon}>
+          <Icon name="pencil" size={20} color="#000" />
+        </TouchableOpacity>
+      )}
       <Divider style={{ marginVertical: 4 }} />
     </View>
   );
@@ -84,7 +88,9 @@ const ProfileSection = ({ title, icon, data }) => {
       </TouchableOpacity>
       <Animated.View style={contentStyle}>
         <View style={styles.sectionContent}>
-          {data.map(item => renderItem(item.icon, item.label, item.value))}
+          {data.map(item =>
+            renderItem(item.icon, item.label, item.value, item.editable)
+          )}
         </View>
       </Animated.View>
     </Card>
@@ -95,7 +101,8 @@ const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const [employeeData, setEmployeeData] = useState(null);
-  const [visible, setVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // State to track editing
+  const [editedBloodGroup, setEditedBloodGroup] = useState(''); // State for edited blood group
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -114,21 +121,36 @@ const ProfileScreen = () => {
     fetchEmployeeData();
   }, [user]);
 
+  const handleEdit = (field) => {
+    if (field === 'Blood Group') {
+      setIsEditing(true);
+      setEditedBloodGroup(employeeData.bloodGroup); // Pre-fill with current value
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const updatedData = { ...employeeData, bloodGroup: editedBloodGroup };
+      await axios.put(
+        `${BASE_URL}EmpRegistration/UpdateEmpRegistration/${user.id}`,
+        updatedData
+      );
+      setEmployeeData(updatedData); // Update local state
+      setIsEditing(false); // Exit editing mode
+    } catch (error) {
+      console.error('Error updating blood group:', error);
+    }
+  };
+
   const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
- 
+  const imageUrl = user?.empImage ? `${IMG_BASE_URL}${user.empImage}` : null;
 
-
-  const imageUrl =
-  user?.empImage            // make sure we actually have a filename
-    ? `${IMG_BASE_URL}${user.empImage}`   // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
-    : null;  
-
-    console.log('employee avatar ➜', imageUrl); 
-    
   if (!employeeData) {
     return (
       <AppSafeArea>
-        <Appbar.Header><Appbar.Content title="Profile" /></Appbar.Header>
+        <Appbar.Header>
+          <Appbar.Content title="Profile" />
+        </Appbar.Header>
         <Text style={{ padding: 20, textAlign: 'center' }}>Loading profile...</Text>
       </AppSafeArea>
     );
@@ -137,7 +159,20 @@ const ProfileScreen = () => {
   const generalInfoData = [
     { icon: 'badge-account', label: 'Employee ID', value: employeeData.employeeId },
     { icon: 'map-marker', label: 'Branch', value: employeeData.branchName },
-    { icon: 'water', label: 'Blood Group', value: employeeData.bloodGroup },
+    {
+      icon: 'water',
+      label: 'Blood Group',
+      value: isEditing ? (
+        <TextInput
+          style={styles.editInput}
+          value={editedBloodGroup}
+          onChangeText={setEditedBloodGroup}
+        />
+      ) : (
+        employeeData.bloodGroup
+      ),
+      editable: true,
+    },
     { icon: 'account-heart', label: 'Marital Status', value: employeeData.maritalStatus },
     { icon: 'account', label: "Father's Name", value: employeeData.empFather },
     { icon: 'account', label: "Mother's Name", value: employeeData.empMother },
@@ -182,11 +217,30 @@ const ProfileScreen = () => {
               style={styles.profileImage}
             />
             <Text style={styles.name}>{employeeData.employeeName}</Text>
-            <Text style={styles.role}>{employeeData.designationName}, {employeeData.departmentName}</Text>
+            <Text style={styles.role}>
+              {employeeData.designationName}, {employeeData.departmentName}
+            </Text>
           </View>
         </Card>
 
-        <ProfileSection title="General Info" icon="information-outline" data={generalInfoData} />
+        <ProfileSection
+          title="General Info"
+          icon="information-outline"
+          data={generalInfoData}
+          onEdit={handleEdit}
+        />
+
+        {isEditing && (
+          <View style={styles.editActions}>
+            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelButton}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <ProfileSection title="Contact" icon="phone-outline" data={contactData} />
         <ProfileSection title="Credentials" icon="shield-account-outline" data={credentialsData} />
         <ProfileSection title="Professional Details" icon="briefcase-outline" data={professionalData} />
@@ -217,6 +271,42 @@ const styles = StyleSheet.create({
   label: { width: 110, fontWeight: '800', fontSize: 16, color: '#333' },
   colon: { marginRight: 4, fontSize: 14, fontWeight: '800', color: '#333' },
   value: { flexShrink: 1, fontSize: 16, color: '#555', fontWeight: '600' },
+  editIcon: {
+    marginLeft: 10,
+  },
+  editInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    fontSize: 16,
+    color: '#555',
+    flex: 1,
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 1,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 10,
+  },
+  saveButton: {
+    backgroundColor: '#3B82F6',
+    padding: 10,
+    borderRadius: 8,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+    padding: 10,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontWeight: 'bold',
+  },
 });
 
 export default ProfileScreen;

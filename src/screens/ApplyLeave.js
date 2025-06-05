@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Alert,
   ActionSheetIOS,
+  ActivityIndicator
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useForm, Controller} from 'react-hook-form';
@@ -21,13 +22,15 @@ import {Picker} from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
 import { Platform } from 'react-native';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
-const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import FeedbackModal from '../component/FeedbackModal';
+
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; 
+const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; 
 
 const ApplyLeaveScreen = ({ navigation, route }) => {
-  const employeeDetails = useFetchEmployeeDetails(); // Use employeeDetails globally
+  const employeeDetails = useFetchEmployeeDetails();
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveData, setLeaveData] = useState([]);
@@ -35,12 +38,10 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [documentPath, setDocumentPath] = useState('');
   const [charCount, setCharCount] = useState(100);
+  const [feedback, setFeedback] = useState({ visible: false, type: '', message: '' }); // State for FeedbackModal
 
-  const passedLeaveData = route.params?.leaveData; // Get passed data from navigation
+  const passedLeaveData = route.params?.leaveData; 
 
-
-  console.log(route.params, 'Route================= Params'); // Debugging: Check route params
-  debugger
   const {
     control,
     handleSubmit,
@@ -111,16 +112,32 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Validate employeeDetails and childCompanyId
+        if (!employeeDetails?.childCompanyId) {
+          throw new Error('Invalid employee details: Missing childCompanyId');
+        }
+
         // Fetch leave policies for Leave Name dropdown
         const policiesResponse = await axios.get(
-          `${BASE_URL_PROD}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`
+          `${BASE_URL_PROD}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
+        
         );
-        const policies = Array.isArray(policiesResponse.data)
-          ? policiesResponse.data
-          : policiesResponse.data?.data || [];
+
+        // Validate response data
+        if (!Array.isArray(policiesResponse.data)) {
+          throw new Error('Invalid response format: Expected an array');
+        }
+
+        const policies = policiesResponse.data.map(policy => ({
+          policyId: policy.policyId,
+          leaveName: policy.leaveName,
+        }));
+
+        console.log(policiesResponse.data, 'Leave Policies Fetched'); // Debugging: Check fetched policies
+
         setLeavePolicies(policies);
 
-        // Auto-select Leave Name if LeaveId or Leave Name is passed
+        
         if (passedLeaveData?.LeaveId || passedLeaveData?.leaveName) {
           const selectedPolicy = policies.find(
             policy =>
@@ -128,12 +145,12 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
               policy.leaveName === passedLeaveData?.leaveName
           );
           if (selectedPolicy) {
-            setValue('LeaveId', selectedPolicy.policyId); // Auto-select LeaveId
+            setValue('LeaveId', selectedPolicy.policyId); 
           }
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        Alert.alert('Error', 'Failed to load leave policies');
+        console.error('Error fetching leave policies:', error.message || error);
+      
       }
     };
 
@@ -202,26 +219,14 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       ModifiedDate: formatDateForBackend(new Date()),
       ApprovalStatus: data.ApprovalStatus ?? 1,
     };
-debugger
-    console.log('Updateeeeeeeeeeeeeeeee being sent:', payload);
 
-    // Validation: Check if leave is already applied for the same day
-    const isLeaveAlreadyApplied = leaveData.some(
-      leave =>
-        new Date(leave.FromLeaveDate).toDateString() ===
-        new Date(data.FromLeaveDate).toDateString()
-    );
-
-    if (isLeaveAlreadyApplied) {
-      Alert.alert('Error', 'Leave has already been applied for the selected day.');
-      return;
-    }
+    console.log('Payload sent:', payload);
 
     setIsSubmitting(true);
 
     try {
       const response = await axios.post(
-        'https://hcmapiv2.anantatek.com/api/ApplyLeave/SaveAndUpdateApplyLeave',
+        `${BASE_URL_PROD}/ApplyLeave/SaveAndUpdateApplyLeave`,
         payload,
         {
           headers: {
@@ -233,17 +238,48 @@ debugger
       console.log('Backend API response:', response?.data);
 
       if (response?.data?.isSuccess || response?.status === 200) {
-        Alert.alert('Success', 'Leave applied successfully');
-        navigation.goBack();
+        const successMessage = data.ApplyLeaveId
+          ? 'Leave updated successfully'
+          : 'Leave applied successfully';
+
+        setFeedback({
+          visible: true,
+          type: 'success',
+          message: successMessage,
+        });
+
+        // Clear form data if applying a new leave
+        if (!data.ApplyLeaveId) {
+          setValue('LeaveId', '');
+          setValue('LeaveType', '1');
+          setValue('FromLeaveDate', new Date());
+          setValue('ToLeaveDate', new Date());
+          setValue('LeaveNo', 1);
+          setValue('Remarks', '');
+          setValue('DocumentPath', '');
+          setUploadedFile(null);
+          setDocumentPath('');
+        }
+
+        // Delay navigation until feedback modal is closed
+        setTimeout(() => {
+          setFeedback({ visible: false, type: '', message: '' });
+          navigation.navigate('LeaveRequstStatus');
+        }, 2000); // Adjust delay as needed
       } else {
-        Alert.alert(
-          'Error',
-          response?.data?.message || 'Failed to apply leave',
-        );
+        setFeedback({
+          visible: true,
+          type: 'fail',
+          message: response?.data?.message || 'Failed to apply/update leave',
+        });
       }
     } catch (error) {
       console.error('Error submitting leave:', error);
-      Alert.alert('Error', 'Failed to submit leave');
+      setFeedback({
+        visible: true,
+        type: 'fail',
+        message: 'Failed to submit leave',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -346,7 +382,7 @@ debugger
                       selectedValue={value}
                       onValueChange={onChange}
                       style={styles.picker}>
-                      <Picker.Item label="Select Leave" value="" />
+                      
                       {leavePolicies.map(policy => (
                         <Picker.Item
                           key={policy.policyId}
@@ -375,6 +411,7 @@ debugger
                 onPress={() =>
                   showIOSPicker(
                     [
+                      { label: 'Select Leave Type', value: '' },
                       { label: 'Full Day', value: '1' },
                       { label: 'Half Day', value: '2' },
                       { label: 'Company Off', value: '3' },
@@ -384,7 +421,7 @@ debugger
                   )
                 }>
                 <Text style={styles.iosPickerText}>
-                  {['Full Day', 'Half Day', 'Company Off'][Number(watch('LeaveType')) - 1] || 'Select Type'}
+                  {['Select Leave Type', 'Full Day', 'Half Day', 'Company Off'][Number(watch('LeaveType'))] || 'Select Leave Type'}
                 </Text>
                 <Icon name="chevron-down" size={20} color="#9CA3AF" />
               </TouchableOpacity>
@@ -399,6 +436,7 @@ debugger
                       selectedValue={value}
                       onValueChange={onChange}
                       style={styles.picker}>
+
                       <Picker.Item label="Full Day" value="1" />
                       <Picker.Item label="Half Day" value="2" />
                       <Picker.Item label="Company Off" value="3" />
@@ -561,6 +599,13 @@ debugger
           </Button>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <FeedbackModal
+        visible={feedback.visible}
+        type={feedback.type}
+        message={feedback.message}
+        onClose={() => setFeedback({ visible: false, type: '', message: '' })}
+      />
     </AppSafeArea>
   );
 };

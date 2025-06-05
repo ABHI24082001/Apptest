@@ -1,200 +1,116 @@
-import React, { useState } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   ScrollView,
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { Appbar } from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
+import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
-import Pagination from '../component/Pagination';
 import DatePicker from 'react-native-date-picker';
-
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
+import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 const statusTabs = [
-  { label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline' },
-  { label: 'Approved', color: '#00C851', icon: 'check-circle-outline' },
-  { label: 'Rejected', color: '#ff4444', icon: 'close-circle-outline' },
+  {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
 ];
-
-const originalLeaveData = [
-  {
-  name: 'Ansuman Samal',
-  role: '.Net Developer',
-  dept: 'IT Dept',
-  empId: '784512',
-  recordId: 'ID5690',
-  type: 'Sick Leave',
-  days: 2,
-  date: '9 April 2025 - 10 April 2025',
-  reason: 'Sick Leave',
-  status: 'Pending',
-  appliedOn: '4/3/2025 06:45:54 PM',
-  },
-  {
-  name: 'Priya Sharma',
-  role: 'UI Designer',
-  dept: 'Design',
-  empId: '145236',
-  recordId: 'ID5691',
-  type: 'Sick Leave',
-  days: 1,
-  date: '6 April 2025',
-  reason: 'Health Issue',
-  status: 'Approved',
-  appliedOn: '4/1/2025 02:15:22 PM',
-  },
-  {
-  name: 'Ravi Kumar',
-  role: 'HR Executive',
-  dept: 'HR',
-  empId: '784999',
-  recordId: 'ID5692',
-  type: 'Casual Leave',
-  days: 3,
-  date: '1 April 2025 - 3 April 2025',
-  reason: 'Family Function',
-  status: 'Rejected',
-  appliedOn: '3/29/2025 10:30:00 AM',
-  },
-  // More records added below
-  {
-  name: 'Neha Singh',
-  role: 'Marketing Manager',
-  dept: 'Marketing',
-  empId: '963852',
-  recordId: 'ID5693',
-  type: 'Casual Leave',
-  days: 1,
-  date: '12 April 2025',
-  reason: 'Personal Work',
-  status: 'Pending',
-  appliedOn: '4/7/2025 09:20:14 AM',
-  },
-  {
-  name: 'Manish Joshi',
-  role: 'Finance Analyst',
-  dept: 'Finance',
-  empId: '741258',
-  recordId: 'ID5694',
-  type: 'Earned Leave',
-  days: 5,
-  date: '15 April 2025 - 19 April 2025',
-  reason: 'Vacation',
-  status: 'Approved',
-  appliedOn: '4/5/2025 04:50:33 PM',
-  },
-  {
-  name: 'Sunita Verma',
-  role: 'Project Manager',
-  dept: 'IT Dept',
-  empId: '852369',
-  recordId: 'ID5695',
-  type: 'Sick Leave',
-  days: 2,
-  date: '20 April 2025 - 21 April 2025',
-  reason: 'Flu',
-  status: 'Rejected',
-  appliedOn: '4/15/2025 11:45:00 AM',
-  },
-  {
-  name: 'Rajesh Kumar',
-  role: 'Sales Executive',
-  dept: 'Sales',
-  empId: '963741',
-  recordId: 'ID5696',
-  type: 'Casual Leave',
-  days: 1,
-  date: '22 April 2025',
-  reason: 'Family Emergency',
-  status: 'Pending',
-  appliedOn: '4/20/2025 08:30:00 AM',
-  },
-  {
-  name: 'Aarti Desai',
-  role: 'HR Manager',
-  dept: 'HR',
-  empId: '159753',
-  recordId: 'ID5697',
-  type: 'Maternity Leave',
-  days: 30,
-  date: '1 May 2025 - 30 May 2025',
-  reason: 'Maternity',
-  status: 'Approved',
-  appliedOn: '4/10/2025 01:15:45 PM',
-  },
-  {
-  name: 'Karan Mehta',
-  role: 'Software Engineer',
-  dept: 'IT Dept',
-  empId: '357951',
-  recordId: 'ID5698',
-  type: 'Casual Leave',
-  days: 2,
-  date: '25 April 2025 - 26 April 2025',
-  reason: 'Personal',
-  status: 'Pending',
-  appliedOn: '4/18/2025 10:00:00 AM',
-  },
-  ];
-  
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'Pending':
-      return '#FFA500';
-    case 'Approved':
-      return '#00C851';
-    case 'Rejected':
-      return '#ff4444';
-    default:
-      return '#6B7280';
-  }
-};
-
-const ITEMS_PER_PAGE = 2;
 
 const LeaveRequestStatusScreen = () => {
   const navigation = useNavigation();
-  const [selectedStatus, setSelectedStatus] = useState('Pending');
-  const [currentPage, setCurrentPage] = useState(1);
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [leaveData, setLeaveData] = useState([]); // State for leave data
+  const [feedbackVisible, setFeedbackVisible] = useState(false); // State for FeedbackModal visibility
+  const [feedbackMessage, setFeedbackMessage] = useState(''); // State for FeedbackModal message
+  const employeeDetails = useFetchEmployeeDetails();
+
+  const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
+  const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
+
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      try {
+        if (employeeDetails?.id) {
+          const response = await axios.get(
+            `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
+          );
+          setLeaveData(response.data); // Set fetched data
+          console.log(
+            'Fetched ==============================leave data:',
+            response.data,
+          ); // Debug fetched data
+        }
+
+        console.log(
+          'Employee Details in LeaveRequestStatusScreen:',
+          employeeDetails,)
+      } catch (error) {
+        console.error('Error fetching leave data:', error);
+      }
+    };
+
+    fetchLeaveData();
+  }, [employeeDetails]);
+
+  console.log('Employee Details', employeeDetails);
 
   // Format date for display
-  const formatDate = (date) => {
+  const formatDate = date => {
     return date ? date.toLocaleDateString('en-GB') : 'Select';
   };
 
-  // Filter data by selected status and date range
-  const filteredData = originalLeaveData.filter(item => {
-    const matchesStatus = item.status === selectedStatus;
-    if (!fromDate && !toDate) return matchesStatus;
-    
-    const itemDate = new Date(item.appliedOn.split(' ')[0]);
+  // Filter data by date range
+  const filteredData = leaveData.filter(item => {
+    if (!fromDate && !toDate) return true;
+
+    const itemDate = new Date(item.fromLeaveDate); // Corrected to use `fromLeaveDate`
     const fromMatch = fromDate ? itemDate >= fromDate : true;
     const toMatch = toDate ? itemDate <= toDate : true;
-    
-    return matchesStatus && fromMatch && toMatch;
+
+    return fromMatch && toMatch;
   });
 
-  // Calculate total pages
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const getStatusColor = status => {
+    switch (status) {
+      case 'Pending':
+        return '#FFA500';
+      default:
+        return '#6B7280';
+    }
+  };
 
-  // Paginate filtered data
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
+  const handleDeleteLeave = async id => {
+    try {
+      const leaveToDelete = leaveData.find(item => item.id === id);
+      console.log('Deleting leave data:', leaveToDelete); // Log the leave data being deleted
+      console.log('Leave ID to delete:', id); // Log the ID being deleted
 
-  // Reset to page 1 when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedStatus, fromDate, toDate]);
+      const response = await axios.get(
+        `${BASE_URL_PROD}/ApplyLeave/DeleteApplyLeave/${id}`, 
+      );
+
+      if (response?.status === 200) {
+        setLeaveData(prevData => prevData.filter(item => item.id !== id)); // Remove deleted leave from state
+        setFeedbackMessage('Leave deleted successfully'); // Set success message
+        setFeedbackVisible(true); // Show FeedbackModal
+      } else {
+        Alert.alert('Error', 'Failed to delete leave');
+      }
+    } catch (error) {
+      console.error('Error deleting leave:', error);
+      Alert.alert('Error', 'Failed to delete leave');
+    }
+  };
+
+  const handleEditLeave = leaveDataToPass => {
+    navigation.navigate('ApplyLeave', {leaveData: leaveDataToPass});
+  };
 
   return (
     <AppSafeArea>
@@ -204,39 +120,13 @@ const LeaveRequestStatusScreen = () => {
         <Appbar.Content title="My Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
-      {/* Status Tabs */}
-      <View style={styles.tabContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-          {statusTabs.map((tab, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.tab,
-                selectedStatus === tab.label && {
-                  backgroundColor: `${tab.color}15`,
-                  borderColor: tab.color,
-                },
-              ]}
-              onPress={() => setSelectedStatus(tab.label)}
-            >
-              <Icon name={tab.icon} size={18} color={tab.color} style={styles.tabIcon} />
-              <Text style={[styles.tabText, { color: tab.color }]}>
-                {tab.label} (
-                {originalLeaveData.filter(item => item.status === tab.label).length})
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
       {/* Date Range Picker */}
       <View style={styles.dateRangeContainer}>
         <Text style={styles.filterTitle}>Filter by Applied Date</Text>
         <View style={styles.datePickerRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => setShowFromPicker(true)}
-          >
+            onPress={() => setShowFromPicker(true)}>
             <View style={styles.dateButtonContent}>
               <Icon name="calendar" size={18} color="#3B82F6" />
               <Text style={styles.dateButtonText}>
@@ -245,12 +135,16 @@ const LeaveRequestStatusScreen = () => {
             </View>
           </TouchableOpacity>
 
-          <Icon name="arrow-right" size={20} color="#6B7280" style={styles.arrowIcon} />
+          <Icon
+            name="arrow-right"
+            size={20}
+            color="#6B7280"
+            style={styles.arrowIcon}
+          />
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => setShowToPicker(true)}
-          >
+            onPress={() => setShowToPicker(true)}>
             <View style={styles.dateButtonContent}>
               <Icon name="calendar" size={18} color="#3B82F6" />
               <Text style={styles.dateButtonText}>
@@ -260,13 +154,12 @@ const LeaveRequestStatusScreen = () => {
           </TouchableOpacity>
 
           {(fromDate || toDate) && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.clearButton}
               onPress={() => {
                 setFromDate(null);
                 setToDate(null);
-              }}
-            >
+              }}>
               <Icon name="close" size={18} color="#EF4444" />
             </TouchableOpacity>
           )}
@@ -275,54 +168,79 @@ const LeaveRequestStatusScreen = () => {
 
       {/* Leave Cards */}
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {paginatedData.length === 0 ? (
+        {filteredData.length === 0 ? (
           <View style={styles.emptyState}>
             <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No {selectedStatus} requests</Text>
+            <Text style={styles.emptyText}>No requests</Text>
             {(fromDate || toDate) && (
               <Text style={styles.emptySubText}>for selected date range</Text>
             )}
           </View>
         ) : (
-          paginatedData.map((item, index) => (
+          filteredData.map((item, index) => (
             <TouchableOpacity key={index} activeOpacity={0.9}>
               <View style={styles.card}>
+                {/* Leave Type */}
                 <View style={styles.detailRow}>
-                  <Icon name="calendar-blank-outline" size={16} color="#6B7280" />
+                  <Icon name="briefcase-outline" size={16} color="#6B7280" />
+                  <Text style={styles.detailText}>Leave</Text>
                   <Text style={styles.detailText}>
-                    {item.date} ({item.days} day{item.days > 1 ? 's' : ''})
+                    : <Text>{item.leaveName || 'N/A'}</Text>
                   </Text>
                 </View>
 
+                {/* Remarks */}
                 <View style={styles.detailRow}>
-                  <Icon name="information-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Leave type</Text>
-                  <Text style={styles.detailText}>: {item.type}</Text>
+                  <Icon name="comment-outline" size={16} color="#6B7280" />
+                  <Text style={styles.detailText}>Remarks</Text>
+                  <Text style={styles.detailText}>
+                    : <Text>{item.remarks || 'N/A'}</Text>
+                  </Text>
                 </View>
 
+                {/* Applied Date */}
                 <View style={styles.detailRow}>
                   <Icon name="clock-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Applied on: {item.appliedOn}</Text>
+                  <Text style={styles.detailText}>
+                    Applied on:{' '}
+                    <Text>
+                      {item.createdDate
+                        ? new Date(item.createdDate).toLocaleDateString()
+                        : 'N/A'}
+                    </Text>
+                  </Text>
                 </View>
 
+                {/* Status, Cancel Button, and Edit/Delete Buttons */}
                 <View style={styles.cardFooter}>
-                  <View style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: `${getStatusColor(item.status)}15`,
-                      borderColor: getStatusColor(item.status),
-                    },
-                  ]}>
-                    <Text style={[
-                      styles.statusText,
-                      { color: getStatusColor(item.status) },
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor: `${getStatusColor(item.status)}15`,
+                        borderColor: getStatusColor(item.status),
+                      },
                     ]}>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {color: getStatusColor(item.status)},
+                      ]}>
                       {item.status}
                     </Text>
                   </View>
+
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => handleEditLeave(item)}>
+                    <Text style={styles.editText}>Edit</Text>
+                  </TouchableOpacity>
+
                   {item.status === 'Pending' && (
-                    <TouchableOpacity style={styles.cancelBtn}>
-                      <Text style={styles.cancelText}>Cancel</Text>
+                    <TouchableOpacity
+                      style={styles.cancelBtn}
+                      onPress={() => handleDeleteLeave(item.id)}>
+                      <Text style={styles.cancelText}>Delete</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -332,22 +250,13 @@ const LeaveRequestStatusScreen = () => {
         )}
       </ScrollView>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      )}
-
       {/* Date Pickers */}
       <DatePicker
         modal
         open={showFromPicker}
         date={fromDate || new Date()}
         mode="date"
-        onConfirm={(date) => {
+        onConfirm={date => {
           setShowFromPicker(false);
           setFromDate(date);
         }}
@@ -359,36 +268,41 @@ const LeaveRequestStatusScreen = () => {
         date={toDate || new Date()}
         mode="date"
         minimumDate={fromDate}
-        onConfirm={(date) => {
+        onConfirm={date => {
           setShowToPicker(false);
           setToDate(date);
         }}
         onCancel={() => setShowToPicker(false)}
       />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        type="deleted"
+        message={feedbackMessage}
+      />
     </AppSafeArea>
   );
 };
 
-
 export default LeaveRequestStatusScreen;
-
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
- header: {
-     backgroundColor: '#fff',
-     elevation: Platform.OS === 'android' ? 4 : 0,
-   },
-   headerTitle: {
-     fontSize: 18,
-     fontWeight: 'bold',
-     color: '#333',
-   },
-   dateRangeContainer: {
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  dateRangeContainer: {
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -486,7 +400,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
@@ -573,5 +487,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 17,
     color: '#9CA3AF',
+  },
+  editBtn: {
+    backgroundColor: '#E0F7FA',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00ACC1',
+    marginLeft: 8,
+  },
+  editText: {
+    color: '#00796B',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

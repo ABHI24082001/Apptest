@@ -5,16 +5,16 @@ import LottieView from 'lottie-react-native';
 const FeedbackModal = ({
   visible,
   onClose,
-  type = 'success', // 'success' or 'fail'
+  type = 'success', // 'success', 'fail', or 'deleted'
   message = '',
 }) => {
   useEffect(() => {
     if (visible) {
       const timer = setTimeout(() => {
         onClose();
-      }, 2000);
+      }, 3000);
 
-      return () => clearTimeout(timer); // Cleanup on unmount or visibility change
+      return () => clearTimeout(timer);
     }
   }, [visible, onClose]);
 
@@ -26,7 +26,9 @@ const FeedbackModal = ({
             source={
               type === 'success'
                 ? require('../lotti/Sucess.json')
-                : require('../lotti/Fail.json')
+                : type === 'fail'
+                ? require('../lotti/Fail.json')
+                : require('../lotti/deleted .json') // Corrected file name
             }
             autoPlay
             loop={false}

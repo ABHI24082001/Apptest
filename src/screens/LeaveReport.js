@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Animated,
 } from 'react-native';
 import {
   Text,
@@ -34,29 +35,30 @@ const LeaveReportScreen = ({ navigation }) => {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('');
-  const [leaveData, setLeaveData] = useState([]); // Replace mock data with dynamic data
-
+  const [statusFilter, setStatusFilter] = useState(''); // New state for status filter
+  const [leaveData, setLeaveData] = useState([]); // State for leave data
+  const [expandedCardIndex, setExpandedCardIndex] = useState(null); // State to track expanded card
+  const [animationHeight] = useState(new Animated.Value(0)); // Animated height state
   const employeeDetails = useFetchEmployeeDetails();
 
-  console.log(employeeDetails, 'Employee Details');
+  console.log('Employee====================================== Details:', employeeDetails); // Debug employee details
 
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {
-        const response = await axios.get(
-          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/1/${employeeDetails?.id}`
-        );
-        setLeaveData(response.data); // Set fetched data
-        console.log('Fetched leave data:', response.data); // Debug fetched data
+        if (employeeDetails?.id) {
+          const response = await axios.get(
+            `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+          );
+          setLeaveData(response.data); // Set fetched data
+          console.log('Fetchedc leave data:', response.data); // Debug fetched data
+        }
       } catch (error) {
         console.error('Error fetching leave data:', error);
-        Alert.alert('Error', 'Failed to fetch leave data');
       }
     };
 
-    if (employeeDetails?.id) {
-      fetchLeaveData();
-    }
+    fetchLeaveData();
   }, [employeeDetails]);
 
   const formatDate = (dateString) => {
@@ -66,10 +68,12 @@ const LeaveReportScreen = ({ navigation }) => {
   const filterData = () => {
     return leaveData.filter(item => {
       const itemDate = new Date(item.fromLeaveDate);
+     
       const fromMatch = fromDate ? itemDate >= new Date(fromDate) : true;
       const toMatch = toDate ? itemDate <= new Date(toDate) : true;
       const leaveTypeMatch = selectedFilter ? item.leaveName === selectedFilter : true;
-      return fromMatch && toMatch && leaveTypeMatch;
+      const statusMatch = statusFilter ? item.status === statusFilter : true; // Filter by status
+      return fromMatch && toMatch && leaveTypeMatch && statusMatch;
     });
   };
 
@@ -82,6 +86,7 @@ const LeaveReportScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
+      {/* Filter By Leave Type */}
       <View style={styles.filterContainer}>
         <Text style={styles.sectionTitle}>Filter By Leave Type</Text>
         <View style={styles.chipRow}>
@@ -109,6 +114,31 @@ const LeaveReportScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Filter By Status */}
+      <View style={styles.filterContainer}>
+        <Text style={styles.sectionTitle}>Filter By Status</Text>
+        <View style={styles.chipRow}>
+          {['Approved', 'Rejected'].map(status => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.chip,
+                statusFilter === status && styles.chipSelected,
+              ]}
+              onPress={() => setStatusFilter(statusFilter === status ? '' : status)} // Toggle filter
+            >
+              <Text style={[
+                styles.chipText,
+                statusFilter === status && styles.chipTextSelected,
+              ]}>
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Filter By Date Range */}
       <View style={styles.filterContainer}>
         <Text style={styles.sectionTitle}>Filter By Date Range</Text>
         <View style={styles.dateRow}>
@@ -146,6 +176,25 @@ const LeaveReportScreen = ({ navigation }) => {
     </View>
   );
 
+  const toggleCardExpansion = (index) => {
+    if (expandedCardIndex === index) {
+      // Collapse animation
+      Animated.timing(animationHeight, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setExpandedCardIndex(null));
+    } else {
+      // Expand animation
+      setExpandedCardIndex(index);
+      Animated.timing(animationHeight, {
+        toValue: 100, // Adjust height as needed
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
   const renderCard = ({ item, index }) => {
     const statusColor = item.status === 'Approved'
       ? '#4caf50'
@@ -157,32 +206,16 @@ const LeaveReportScreen = ({ navigation }) => {
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.cardHeader}>
-            <View style={styles.statusBadge}>
-              <Icon
-                name="ellipse"
-                size={10}
-                color={statusColor}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {item.status}
-              </Text>
-            </View>
             <Text style={styles.statusDate}>
-              Approval Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
+              Apply Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
             </Text>
-            <Icon
-              name="create-outline"
-              size={20}
-              color="#1976d2"
-              onPress={() => {
-                const leaveDataToPass = {
-                  ...item,
-                  leaveName: item.leaveName, // Ensure Leave Name is passed
-                };
-                navigation.navigate('ApplyLeave', { leaveData: leaveDataToPass }); // Pass leaveData correctly
-              }}
-            />
+            <TouchableOpacity onPress={() => toggleCardExpansion(index)}>
+              <Icon
+                name={expandedCardIndex === index ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#1976d2"
+              />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.datesContainer}>
@@ -208,7 +241,7 @@ const LeaveReportScreen = ({ navigation }) => {
 
           <View style={styles.detailsContainer}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Leave Name</Text> {/* Add Leave Name */}
+              <Text style={styles.detailLabel}>Leave Name</Text>
               <Text style={styles.detailValue}>{item.leaveName}</Text>
             </View>
             <View style={styles.detailItem}>
@@ -216,6 +249,24 @@ const LeaveReportScreen = ({ navigation }) => {
               <Text style={styles.detailValue}>{item.remarks || 'N/A'}</Text>
             </View>
           </View>
+
+          {/* Animated Expanded Section */}
+          {expandedCardIndex === index && (
+            <Animated.View style={[styles.remarksContainer, { height: animationHeight }]}>
+              <View style={styles.remarkItem}>
+                <Text style={styles.remarkLabel}>Reporting Manager Remark</Text>
+                <Text style={styles.remarkValue}>
+                  {item.reportingManagerRemark || 'No remarks provided'}
+                </Text>
+              </View>
+              <View style={styles.remarkItem}>
+                <Text style={styles.remarkLabel}>Final Approval Manager Remark</Text>
+                <Text style={styles.remarkValue}>
+                  {item.finalApprovalManagerRemark || 'No remarks provided'}
+                </Text>
+              </View>
+            </Animated.View>
+          )}
         </Card.Content>
       </Card>
     );
@@ -420,6 +471,27 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     marginTop: 4, 
     color: '#222' 
+  },
+  remarksContainer: {
+    overflow: 'hidden', // Ensure content is hidden during animation
+    marginTop: 10,
+    paddingTop: 3,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  remarkItem: {
+    marginBottom: 6,
+  },
+  remarkLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  remarkValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
+    marginTop: 4,
   },
 });
 
