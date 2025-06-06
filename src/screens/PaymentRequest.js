@@ -21,7 +21,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 
-const PaymentRequest = ({navigation}) => {
+const PaymentRequest = ({navigation, route}) => {
   // Form handling with react-hook-form
 
   // State management
@@ -33,6 +33,9 @@ const PaymentRequest = ({navigation}) => {
   const [editingItemId, setEditingItemId] = useState(null);
   const [totalAmount, setTotalAmount] = useState(0);
   const [expenseHeads, setExpenseHeads] = useState([]);
+
+  const expenceData = route?.params?.expence || null;
+  console.log('PaymentRequest Routes:', expenceData);
 
   // State for FeedbackModal
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -92,36 +95,45 @@ const PaymentRequest = ({navigation}) => {
     setEditingItemId(null);
     setIsModalVisible(true);
   };
+  function generatePdfFileName() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `leave_${pad(now.getDate())}${pad(
+      now.getMonth() + 1,
+    )}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(
+      now.getSeconds(),
+    )}.pdf`;
+  }
 
   // Document picker handler
   const handleDocumentPick = async () => {
     try {
       const res = await pick({
-        type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
+        mode: 'open',
+        allowMultiSelection: false,
+        type: ['application/pdf', 'image/jpeg', 'image/png'], // Support PDF and images
       });
 
-      if (res && res[0]) {
+      if (res && res.length > 0) {
         const file = res[0];
-        console.log('Selected File:', file); // Debugging file details
-
         if (file.size > 5 * 1024 * 1024) {
           Alert.alert('Error', 'File size should be less than 5MB');
           return;
         }
 
+        const fileName = file.name || generatePdfFileName(); // Use file name or generate one
         setUploadedFile({
-          name: file.name,
+          name: fileName,
           uri: file.uri,
           type: file.type,
         });
-        Alert.alert('Success', 'File uploaded successfully');
+        setValue('DocumentPath', fileName); // Update form value
+        Alert.alert('File Selected', `File will be saved as: ${fileName}`);
       }
     } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        console.log('User cancelled the picker');
-      } else {
-        console.error('DocumentPicker Error:', err);
-        Alert.alert('Error', 'Failed to upload document');
+      if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
+        console.error('Error selecting file:', err);
+        Alert.alert('Error', 'Failed to select file');
       }
     }
   };
@@ -223,18 +235,6 @@ const PaymentRequest = ({navigation}) => {
     });
   };
 
-  // Edit expense item handler
-  const handleEditExpense = item => {
-    setEditingItemId(item.id);
-    setValue('expenseHead', item.head);
-    setValue('projectName', item.project);
-    setValue('paymentTitle', item.title);
-    setValue('amount', item.amount);
-    setValue('date', item.date || new Date());
-    setUploadedFile(item.document || null);
-    setIsModalVisible(true);
-  };
-
   // Delete expense item handler
   const handleDeleteExpense = id => {
     Alert.alert(
@@ -275,113 +275,74 @@ const PaymentRequest = ({navigation}) => {
   }
   // Submit form handler
   const onSubmit = async data => {
-    if (requestType === 'advance') {
-      // Prepare data for Advance submission
-      const formData = {
-        PaymentRequest: {
-          RequestId: 0,
-          RequestTypeId: data.RequestTypeId,
-          EmployeeId: employeeDetails?.id,
-          ProjectId: null,
-          ReportingMgrId: employeeDetails?.reportingEmpId,
-          TotalAmount: totalAmount,
-          CompanyId: employeeDetails?.childCompanyId,
-          Status: 'Pending',
-          Remarks: data.remarks,
-          IsDelete: 0,
-          Flag: 1,
-          CreatedBy: employeeDetails?.id ?? 0,
-          CreatedDate: formatDateForBackend(new Date()),
-          ModifiedBy: employeeDetails?.id ?? 0,
-          ModifiedDate: formatDateForBackend(new Date()),
-        },
-        tempPayments: [], // No expense items for Advance
-      };
+    const isEditing = !!expenceData?.requestId; // Check if editing an existing request
 
-      console.log('Advance Submission Payload:', formData);
+    const formData = {
+      PaymentRequest: {
+        RequestId: isEditing ? expenceData.requestId : 0,
+        RequestTypeId: data.RequestTypeId,
+        EmployeeId: employeeDetails?.id,
+        ProjectId: null,
+        ReportingMgrId: employeeDetails?.reportingEmpId,
+        TotalAmount: totalAmount,
+        CompanyId: employeeDetails?.childCompanyId,
+        Status: 'Pending',
+        Remarks: data.remarks,
+        IsDelete: 0,
+        Flag: 1,
+        CreatedBy: employeeDetails?.id ?? 0,
+        CreatedDate: formatDateForBackend(new Date()),
+        ModifiedBy: employeeDetails?.id ?? 0,
+        ModifiedDate: formatDateForBackend(new Date()),
+      },
+      tempPayments: expenseItems.map(item => ({
+        Id: item.id,
+        TransactionDate: formatDateForBackend(item.date),
+        ExpenseHeadId: item.headId,
+        ExpenseHead: item.head,
+        Amount: parseFloat(item.amount),
+        ApprovedAmount: 0,
+        RequestType: data.RequestTypeId,
+        DocumentPath: item.document?.uri || null,
+      })),
+    };
 
-      try {
-        const response = await axios.post(
-          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
-          formData,
-        );
-        console.log('Advance Submission Response:', response.data);
-        setFeedbackMessage('Advance request submitted successfully');
-        setFeedbackType('success');
-        setFeedbackVisible(true);
-        reset();
-        setTotalAmount(0);
-        setUploadedFile(null);
-      } catch (error) {
-        console.error('Error submitting advance request:', error);
-        setFeedbackMessage('Failed to submit advance request');
-        setFeedbackType('fail');
-        setFeedbackVisible(true);
-      }
-    } else if (requestType === 'expense') {
-      // Validate that at least one expense item is added
-      if (expenseItems.length === 0) {
-        Alert.alert('Error', 'Please add at least one expense item');
-        return;
-      }
+    console.log(
+      `${isEditing ? 'Editing' : 'Submitting'} Payload:`,
+      JSON.stringify(formData, null, 2)
+    );
 
-      // Validate that remarks are provided
-      if (!data.remarks) {
-        Alert.alert('Error', 'Please provide remarks');
-        return;
-      }
+    try {
+      const response = await axios.post(
+        `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+        formData
+      );
+      console.log(`${isEditing ? 'Edit' : 'Submission'} Response:`, response.data);
+      setFeedbackMessage(
+        isEditing
+          ? 'Payment request updated successfully'
+          : 'Payment request submitted successfully'
+      );
+      setFeedbackType('success');
+      setFeedbackVisible(true);
 
-      // Prepare data for Expense submission
-      const formData = {
-        PaymentRequest: {
-          RequestId: 1,
-          RequestTypeId: data.RequestTypeId,
-          EmployeeId: employeeDetails?.id,
-          ProjectId: null,
-          ReportingMgrId: employeeDetails?.reportingEmpId,
-          TotalAmount: totalAmount,
-          Status: 'Pending',
-          Remarks: data.remarks,
-          CompanyId: employeeDetails?.childCompanyId,
-          IsDelete: 0,
-          Flag: 1,
-          CreatedBy: employeeDetails?.id ?? 0,
-          CreatedDate: formatDateForBackend(new Date()),
-          ModifiedBy: employeeDetails?.id ?? 0,
-          ModifiedDate: formatDateForBackend(new Date()),
-        },
-        tempPayments: expenseItems.map(item => ({
-          Id: 0,
-          TransactionDate: formatDateForBackend(item.date),
-          ExpenseHeadId: item.headId,
-          ExpenseHead: item.head,
-          Amount: parseFloat(item.amount),
-          ApprovedAmount: 0,
-          RequestType: data.RequestTypeId,
-          DocumentPath: item.document?.uri || null,
-        })),
-      };
-
-      console.log('Expense Submission Payload:', JSON.stringify(formData, null, 2));
-
-      try {
-        const response = await axios.post(
-          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
-          formData,
-        );
-        console.log('Expense Submission Response:', response.data);
-        setFeedbackMessage('Expense request submitted successfully');
-        setFeedbackType('success');
-        setFeedbackVisible(true);
-        reset();
-        setExpenseItems([]);
-        setUploadedFile(null);
-      } catch (error) {
-        console.error('Error submitting expense request:', error);
-        setFeedbackMessage('Failed to submit expense request');
-        setFeedbackType('fail');
-        setFeedbackVisible(true);
-      }
+      // Delay navigation until the feedback modal is closed
+      setTimeout(() => {
+        setFeedbackVisible(false);
+        navigation.navigate('ExpenseRequestStatus'); // Navigate to Expense Request
+      }, 2000);
+    } catch (error) {
+      console.error(
+        `Error ${isEditing ? 'updating' : 'submitting'} payment request:`,
+        error
+      );
+      setFeedbackMessage(
+        isEditing
+          ? 'Failed to update payment request'
+          : 'Failed to submit payment request'
+      );
+      setFeedbackType('fail');
+      setFeedbackVisible(true);
     }
   };
 
@@ -396,6 +357,57 @@ const PaymentRequest = ({navigation}) => {
     if (!date) return '—';
     return new Date(date).toLocaleDateString();
   };
+
+  // Extract data passed via route.params
+  const paymentData = route?.params?.paymentData || null;
+
+  // Log the passed data for debugging
+  useEffect(() => {
+    if (paymentData) {
+      console.log('Received Payment Data:', paymentData);
+    }
+  }, [paymentData]);
+
+  // Fetch expense details if editing an existing request
+  useEffect(() => {
+    const fetchExpenseDetails = async () => {
+      if (expenceData?.requestId && expenceData?.companyId) {
+        try {
+          const response = await axios.get(
+            `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`
+          );
+          const expenseDetails = response.data;
+
+          // Populate form fields with fetched data
+          setValue('remarks', expenseDetails?.remarks || '');
+          setTotalAmount(expenseDetails?.totalAmount || 0);
+
+          // Populate expense items if available
+          if (expenseDetails?.tempPayments) {
+            setExpenseItems(
+              expenseDetails.tempPayments.map(item => ({
+                id: item.id || Date.now().toString(),
+                headId: item.expenseHeadId,
+                head: item.expenseHead,
+                project: item.projectName,
+                title: item.paymentTitle,
+                amount: item.amount,
+                date: new Date(item.transactionDate),
+                document: item.documentPath
+                  ? { uri: item.documentPath, name: item.documentPath }
+                  : null,
+              }))
+            );
+          }
+        } catch (error) {
+          console.error('Error fetching expense details:', error);
+          Alert.alert('Error', 'Failed to fetch expense details');
+        }
+      }
+    };
+
+    fetchExpenseDetails();
+  }, [expenceData]);
 
   return (
     <AppSafeArea>
@@ -684,9 +696,7 @@ const PaymentRequest = ({navigation}) => {
 
               {/* Upload Document */}
               <Text style={styles.label}>Upload Document</Text>
-              <TouchableOpacity
-                style={styles.uploadBox}
-                onPress={handleDocumentPick}>
+              <TouchableOpacity style={styles.uploadBox}>
                 {uploadedFile ? (
                   <View style={styles.uploadedFileContainer}>
                     <Icon name="file-pdf-box" size={24} color="#E11D48" />
@@ -694,17 +704,22 @@ const PaymentRequest = ({navigation}) => {
                       {uploadedFile.name}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setUploadedFile(null)}
+                      onPress={() => {
+                        setUploadedFile(null);
+                        setValue('DocumentPath', ''); // Clear form value
+                      }}
                       style={styles.removeFileBtn}>
                       <Icon name="close-circle" size={20} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={styles.uploadPlaceholder}>
-                    <Icon name="upload" size={24} color="#999" />
-                    <Text style={styles.uploadPlaceholderText}>
-                      Choose PDF or Image
-                    </Text>
+                    <TouchableOpacity onPress={handleDocumentPick} style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Icon name="upload" size={24} color="#999" />
+                      <Text style={styles.uploadPlaceholderText}>
+                        Choose PDF or Image
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </TouchableOpacity>

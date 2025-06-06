@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   StyleSheet,
@@ -12,55 +12,59 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 const AdvancePaymentReport = () => {
+  const employeeDetails = useFetchEmployeeDetails();
   const navigation = useNavigation();
-  const [selectedFilter, setSelectedFilter] = useState('pending'); // changed default to pending
-  const [activeTab, setActiveTab] = useState('expense'); // changed default to expense
+  const [selectedFilter, setSelectedFilter] = useState('pending');
+  const [activeTab, setActiveTab] = useState('expense');
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [reports, setReports] = useState([]); // Updated to dynamic data
+  const [loading, setLoading] = useState(false);
 
-  const reports = [
-    {
-      id: '1',
-      requestDate: '2025-04-01',
-      requestAmount: '1000',
-      approvedAmount: '1000',
-      status: 'approved',
-      statusDate: '2025-04-30',
-      Remark: 'use it',
-    },
-    {
-      id: '2',
-      requestDate: '2025-03-01',
-      requestAmount: '1500',
-      approvedAmount: '1500',
-      status: 'pending',
-      statusDate: '2025-04-10',
-      Remark: '',
-    },
-    {
-      id: '3',
-      requestDate: '2025-02-01',
-      requestAmount: '5000',
-      approvedAmount: '5000',
-      status: 'rejected',
-      statusDate: '2025-02-01',
-      Remark: '',
-    },
-  ];
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const endpoint =
+        activeTab === 'advance'
+          ? `${BASE_URL_PROD}/PaymentAdvanceRequest/GetAdvanceReport`
+          : `${BASE_URL_PROD}/PaymentAdvanceRequest/GetExpenseReport`;
 
-  const filterOptions = [
-    {label: 'All', value: 'all'},
-    {label: 'Approved', value: 'approved'},
-    {label: 'Pending', value: 'pending'},
-    {label: 'Rejected', value: 'rejected'},
-  ];
+      const response = await axios.get(endpoint, {
+        params: {
+          employeeId: employeeDetails?.id,
+          fromDate: fromDate ? fromDate.toISOString() : null,
+          toDate: toDate ? toDate.toISOString() : null,
+        },
+      });
+
+      if (response.status === 200) {
+        setReports(response.data);
+      } else {
+        setReports([]);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (employeeDetails?.id) {
+      fetchReports();
+    }
+  }, [activeTab, fromDate, toDate, employeeDetails]);
 
   const getStatusIcon = status => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'approved':
         return {icon: 'check-circle', color: '#4CAF50'};
       case 'pending':
@@ -84,38 +88,13 @@ const AdvancePaymentReport = () => {
 
   const filteredReports = reports.filter(report => {
     const matchesFilter =
-      selectedFilter === 'all' || report.status === selectedFilter;
-    const matchesDate = isWithinDateRange(report.requestDate);
+      selectedFilter === 'all' || report.status.toLowerCase() === selectedFilter;
+    const matchesDate = isWithinDateRange(report.transactionDate || report.createdDate);
     return matchesFilter && matchesDate;
   });
 
   const ListHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Filter Chips */}
-      <View style={styles.chipRow}>
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.chip,
-              selectedFilter === option.value && styles.chipSelected,
-            ]}
-            onPress={() => {
-              setSelectedFilter(option.value);
-              setFromDate(null);
-              setToDate(null);
-            }}>
-            <Text
-              style={[
-                styles.chipText,
-                selectedFilter === option.value && styles.chipTextSelected,
-              ]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Date Range Filter */}
       <View style={styles.dateRow}>
         <TouchableOpacity
@@ -141,7 +120,7 @@ const AdvancePaymentReport = () => {
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
-          title="Payment Request List"
+          title="Payment Request Report"
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -208,35 +187,39 @@ const AdvancePaymentReport = () => {
         />
 
         {/* Report Cards */}
-        {activeTab === 'advance' ? (
+        {loading ? (
+          <Text style={{textAlign: 'center', marginTop: 40, color: '#999'}}>
+            Loading reports...
+          </Text>
+        ) : activeTab === 'advance' ? (
           filteredReports.length > 0 ? (
             filteredReports.map(report => {
               const statusIcon = getStatusIcon(report.status);
               return (
-                <Card key={report.id} style={styles.card}>
+                <Card key={report.requestId} style={styles.card}>
                   <View style={styles.cardContent}>
                     <View style={styles.row}>
                       <Icon name="calendar-check" size={20} color="#6D75FF" />
                       <Text style={styles.label}>Date:</Text>
                       <Text style={styles.value}>
-                        {formatDate(report.requestDate)}
+                        {formatDate(report.transactionDate || report.createdDate)}
                       </Text>
                     </View>
                     <View style={styles.row}>
                       <Icon name="cash" size={20} color="#6D75FF" />
                       <Text style={styles.label}>Request Amount:</Text>
-                      <Text style={styles.value}>₹{report.requestAmount}</Text>
+                      <Text style={styles.value}>₹{report.totalAmount}</Text>
                     </View>
                     <View style={styles.row}>
                       <Icon name="cash-check" size={20} color="#6D75FF" />
                       <Text style={styles.label}>Approved Amount:</Text>
-                      <Text style={styles.value}>₹{report.approvedAmount}</Text>
+                      <Text style={styles.value}>₹{report.approvalAmount}</Text>
                     </View>
                     <View style={styles.row}>
                       <Icon name="check" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Remarks</Text>
+                      <Text style={styles.label}>Remarks:</Text>
                       <Text style={styles.value}>
-                        {report.Remark ? report.Remark : 'No Remark'}
+                        {report.remarks || 'No Remark'}
                       </Text>
                     </View>
 
@@ -252,7 +235,7 @@ const AdvancePaymentReport = () => {
                           report.status.slice(1)}
                       </Text>
                       <Text style={styles.statusDate}>
-                        {formatDate(report.statusDate)}
+                        {formatDate(report.createdDate)}
                       </Text>
                     </View>
                   </View>
@@ -323,16 +306,6 @@ const styles = StyleSheet.create({
   tabButtonText: {fontSize: 14, fontWeight: '500', color: '#666'},
   activeTabButtonText: {color: '#FFF'},
   headerContainer: {marginBottom: 16},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12},
-  chip: {
-    backgroundColor: '#E0E0E0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  chipSelected: {backgroundColor: '#6D75FF'},
-  chipText: {fontSize: 14, color: '#333'},
-  chipTextSelected: {color: '#FFF'},
   dateRow: {flexDirection: 'row', justifyContent: 'space-between', gap: 8},
   dateBox: {
     flex: 1,
