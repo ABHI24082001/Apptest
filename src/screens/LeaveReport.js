@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   Platform,
   Animated,
+  RefreshControl,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import {
   Text,
@@ -13,21 +16,18 @@ import {
   Appbar,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Ionicons';
+import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import moment from 'moment';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
+import StatusCard from '../components/StatusCard';
+import TabFilter from '../components/TabFilter'; // Import TabFilter component
 
 
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
 const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
-
-const filterOptions = [
-  { label: 'All', value: '' },
-  { label: 'Sick Leave', value: 'Sick Leave' },
-  { label: 'Casual Leave', value: 'Casual Leave' },
-];
 
 const LeaveReportScreen = ({ navigation }) => {
   const [fromDate, setFromDate] = useState(null);
@@ -39,40 +39,73 @@ const LeaveReportScreen = ({ navigation }) => {
   const [leaveData, setLeaveData] = useState([]); // State for leave data
   const [expandedCardIndex, setExpandedCardIndex] = useState(null); // State to track expanded card
   const [animationHeight] = useState(new Animated.Value(0)); // Animated height state
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // New state for toggling filter sections
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [showLeaveTypeFilter, setShowLeaveTypeFilter] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  
+  // Modified state for filter values to work with TabFilter
+  const [selectedLeaveType, setSelectedLeaveType] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+
   const employeeDetails = useFetchEmployeeDetails();
 
   console.log('Employee====================================== Details:', employeeDetails); // Debug employee details
 
-  useEffect(() => {
-    const fetchLeaveData = async () => {
-      try {
-        if (employeeDetails?.id) {
-          const response = await axios.get(
-            `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`
-          );
-          setLeaveData(response.data); // Set fetched data
-          console.log('Fetchedc leave data:', response.data); // Debug fetched data
-        }
-      } catch (error) {
-        console.error('Error fetching leave data:', error);
-      }
-    };
-
+  // Add refresh handler
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
     fetchLeaveData();
+  }, []);
+
+  // Move fetch to useCallback for refresh
+  const fetchLeaveData = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (employeeDetails?.id) {
+        const response = await axios.get(
+          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+        );
+        setLeaveData(response.data);
+        console.log('Fetched leave data:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching leave data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [employeeDetails]);
+
+  useEffect(() => {
+    fetchLeaveData();
+  }, [fetchLeaveData]);
 
   const formatDate = (dateString) => {
     return dateString ? moment(dateString).format('DD/MM/YY') : 'Select';
   };
 
+  // Updated filterData function to work with new filter states
   const filterData = () => {
     return leaveData.filter(item => {
       const itemDate = new Date(item.fromLeaveDate);
-     
+      
       const fromMatch = fromDate ? itemDate >= new Date(fromDate) : true;
       const toMatch = toDate ? itemDate <= new Date(toDate) : true;
-      const leaveTypeMatch = selectedFilter ? item.leaveName === selectedFilter : true;
-      const statusMatch = statusFilter ? item.status === statusFilter : true; // Filter by status
+      
+      // Updated filter logic for leave type
+      const leaveTypeMatch = selectedLeaveType === 'All' 
+        ? true 
+        : item.leaveName === selectedLeaveType;
+      
+      // Updated filter logic for status
+      const statusMatch = selectedStatus === 'All' 
+        ? true 
+        : item.status === selectedStatus;
+      
       return fromMatch && toMatch && leaveTypeMatch && statusMatch;
     });
   };
@@ -87,92 +120,120 @@ const LeaveReportScreen = ({ navigation }) => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Filter By Leave Type */}
-      <View style={styles.filterContainer}>
-        <Text style={styles.sectionTitle}>Filter By Leave Type</Text>
-        <View style={styles.chipRow}>
-          {filterOptions.map(option => (
-            <TouchableOpacity
-              key={option.label}
-              style={[
-                styles.chip,
-                selectedFilter === option.value && styles.chipSelected,
-              ]}
-              onPress={() => {
-                setSelectedFilter(option.value);
-                setFromDate(null);
-                setToDate(null);
-              }}
-            >
-              <Text style={[
-                styles.chipText,
-                selectedFilter === option.value && styles.chipTextSelected,
-              ]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <View style={styles.filterToggleButton}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon name="filter-variant" size={22} color="#3B82F6" />
+          <Text style={styles.filterToggleText}>Leave Type Filters</Text>
         </View>
       </View>
 
-      {/* Filter By Status */}
-      <View style={styles.filterContainer}>
-        <Text style={styles.sectionTitle}>Filter By Status</Text>
-        <View style={styles.chipRow}>
-          {['Approved', 'Rejected'].map(status => (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.chip,
-                statusFilter === status && styles.chipSelected,
-              ]}
-              onPress={() => setStatusFilter(statusFilter === status ? '' : status)} // Toggle filter
-            >
-              <Text style={[
-                styles.chipText,
-                statusFilter === status && styles.chipTextSelected,
-              ]}>
-                {status}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Collapsible Leave Type Filter */}
+      {showLeaveTypeFilter && (
+        <View style={styles.tabFilterContainer}>
+          <TabFilter
+            tabs={[
+              {label: 'All', value: 'All'},
+              {label: 'Sick Leave', value: 'Sick Leave'},
+              {label: 'Casual Leave', value: 'Casual Leave'},
+              // Add more leave types as needed
+            ]}
+            activeTab={selectedLeaveType}
+            setActiveTab={setSelectedLeaveType}
+          />
+        </View>
+      )}
+      
+      {/* Status Filters */}
+      <View style={styles.filterToggleButton}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon name="check-circle-outline" size={22} color="#3B82F6" />
+          <Text style={styles.filterToggleText}>Status Filters</Text>
         </View>
       </View>
+      
+      {/* Collapsible Status Filter */}
+      {showStatusFilter && (
+        <View style={styles.tabFilterContainer}>
+          <TabFilter
+            tabs={[
+              {label: 'All', value: 'All'},
+              {label: 'Pending', value: 'Pending'},
+              {label: 'Approved', value: 'Approved'},
+              {label: 'Rejected', value: 'Rejected'},
+            ]}
+            activeTab={selectedStatus}
+            setActiveTab={setSelectedStatus}
+          />
+        </View>
+      )}
 
-      {/* Filter By Date Range */}
-      <View style={styles.filterContainer}>
-        <Text style={styles.sectionTitle}>Filter By Date Range</Text>
-        <View style={styles.dateRow}>
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={() => setShowFromPicker(true)}
-          >
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={16} color="#1976d2" />
-              <View style={styles.dateTextContainer}>
-                <Text style={styles.dateLabel}>From</Text>
-                <Text style={styles.dateValue}>{formatDate(fromDate)}</Text>
-              </View>
+      {/* Date Filter Toggle */}
+      <TouchableOpacity
+        style={styles.dateFilterToggleButton}
+        onPress={() => setShowDateFilter(!showDateFilter)}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon
+            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
+          />
+          <Text style={styles.filterToggleText}>
+            Date Filter
+          </Text>
+
+          {/* Badge to show active filters */}
+          {(fromDate || toDate) && (
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
             </View>
-          </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
 
-          <View style={styles.dateIconWrapper}>
-            <Icon name="arrow-forward" size={20} color="#666" />
+      {/* Collapsible Date Range Filters */}
+      {showDateFilter && (
+        <View style={styles.dateRangeContainer}>
+          <View style={styles.datePickerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                fromDate && {
+                  borderColor: '#3B82F6',
+                  backgroundColor: '#EFF6FF',
+                },
+              ]}
+              onPress={() => setShowFromPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <MaterialIcon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {fromDate ? formatDate(fromDate) : 'From Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <MaterialIcon
+              name="arrow-right"
+              size={20}
+              color="#6B7280"
+              style={styles.arrowIcon}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+              ]}
+              onPress={() => setShowToPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <MaterialIcon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {toDate ? formatDate(toDate) : 'To Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={() => setShowToPicker(true)}
-          >
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={16} color="#1976d2" />
-              <View style={styles.dateTextContainer}>
-                <Text style={styles.dateLabel}>To</Text>
-                <Text style={styles.dateValue}>{formatDate(toDate)}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
         </View>
-      </View>
+      )}
     </View>
   );
 
@@ -196,93 +257,212 @@ const LeaveReportScreen = ({ navigation }) => {
   };
 
   const renderCard = ({ item, index }) => {
-    const statusColor = item.status === 'Approved'
-      ? '#4caf50'
-      : item.status === 'Rejected'
-        ? '#f44336'
-        : '#f4b400';
-
     return (
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.cardHeader}>
-            <Text style={styles.statusDate}>
-              Apply Date: {item.createdDate ? formatDate(item.createdDate) : 'Processing'}
-            </Text>
-            <TouchableOpacity onPress={() => toggleCardExpansion(index)}>
-              <Icon
-                name={expandedCardIndex === index ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color="#1976d2"
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.datesContainer}>
-            <View style={styles.dateItem}>
-              <Text style={styles.dateLabel}>From Date</Text>
-              <Text style={styles.dateValue}>
-                {formatDate(item.fromLeaveDate)}
-              </Text>
-            </View>
-            <View style={styles.dateItem}>
-              <Text style={styles.dateLabel}>To Date</Text>
-              <Text style={styles.dateValue}>
-                {formatDate(item.toLeaveDate)}
-              </Text>
-            </View>
-            <View style={styles.dateItem}>
-              <Text style={styles.dateLabel}>Leave Days</Text>
-              <Text style={styles.dateValue}>
-                {item.leaveNo} {item.leaveNo > 1 ? 'days' : 'day'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailsContainer}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Leave Name</Text>
-              <Text style={styles.detailValue}>{item.leaveName}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Remarks</Text>
-              <Text style={styles.detailValue}>{item.remarks || 'N/A'}</Text>
-            </View>
-          </View>
-
-          {/* Animated Expanded Section */}
-          {expandedCardIndex === index && (
-            <Animated.View style={[styles.remarksContainer, { height: animationHeight }]}>
-              <View style={styles.remarkItem}>
-                <Text style={styles.remarkLabel}>Reporting Manager Remark</Text>
-                <Text style={styles.remarkValue}>
-                  {item.reportingManagerRemark || 'No remarks provided'}
-                </Text>
-              </View>
-              <View style={styles.remarkItem}>
-                <Text style={styles.remarkLabel}>Final Approval Manager Remark</Text>
-                <Text style={styles.remarkValue}>
-                  {item.finalApprovalManagerRemark || 'No remarks provided'}
-                </Text>
-              </View>
-            </Animated.View>
-          )}
-        </Card.Content>
-      </Card>
+      <StatusCard
+        key={item.id}
+        title={item.employeeName || 'Leave Request'}
+        subtitle={`${formatDate(item.fromLeaveDate)} to ${formatDate(item.toLeaveDate)} (${item.leaveNo} ${item.leaveNo > 1 ? 'days' : 'day'})`}
+        details={[
+          { icon: 'calendar-check', label: 'Applied On', value: formatDate(item.createdDate) },
+          { icon: 'medical-bag', label: 'Leave Type', value: item.leaveName || 'N/A' },
+          { icon: 'account-tie', label: 'Manager Remark', value: item.reportingManagerRemark || 'No remark' },
+          { icon: 'account-check', label: 'Approval Remark', value: item.finalApprovalManagerRemark || 'No remark' },
+        ]}
+        status={item.status || 'Pending'}
+        remarks={item.remarks}
+        onEdit={() => console.log('Edit leave request:', item)}
+        onDelete={() => console.log('Delete leave request:', item)}
+      />
     );
   };
 
   return (
     <AppSafeArea>
       {renderAppBar()}
-      <FlatList
-        data={filterData()}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderCard}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      
+      {/* Type Filters - Using TabFilter with toggle */}
+      <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowLeaveTypeFilter(!showLeaveTypeFilter)}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon
+            name={showLeaveTypeFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
+          />
+          <Text style={styles.filterToggleText}>
+            Leave Type Filters
+          </Text>
+          
+          {/* Badge to show active leave type filter */}
+          {selectedLeaveType !== 'All' && (
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+      
+      {/* Collapsible Leave Type Filter */}
+      {showLeaveTypeFilter && (
+        <View style={styles.tabFilterContainer}>
+          <TabFilter
+            tabs={[
+              {label: 'All', value: 'All'},
+              {label: 'Sick Leave', value: 'Sick Leave'},
+              {label: 'Casual Leave', value: 'Casual Leave'},
+              // Add more leave types as needed
+            ]}
+            activeTab={selectedLeaveType}
+            setActiveTab={setSelectedLeaveType}
+          />
+        </View>
+      )}
+      
+      {/* Status Filters - Using TabFilter with toggle */}
+      <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowStatusFilter(!showStatusFilter)}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon
+            name={showStatusFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
+          />
+          <Text style={styles.filterToggleText}>
+            Status Filters
+          </Text>
+          
+          {/* Badge to show active status filter */}
+          {selectedStatus !== 'All' && (
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+      
+      {/* Collapsible Status Filter */}
+      {showStatusFilter && (
+        <View style={styles.tabFilterContainer}>
+          <TabFilter
+            tabs={[
+              {label: 'All', value: 'All'},
+              {label: 'Pending', value: 'Pending'},
+              {label: 'Approved', value: 'Approved'},
+              {label: 'Rejected', value: 'Rejected'},
+            ]}
+            activeTab={selectedStatus}
+            setActiveTab={setSelectedStatus}
+          />
+        </View>
+      )}
+
+      {/* Date Filter Toggle - Existing code */}
+      <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowDateFilter(!showDateFilter)}>
+        <View style={styles.filterToggleContent}>
+          <MaterialIcon
+            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
+          />
+          <Text style={styles.filterToggleText}>
+            Date Filter
+          </Text>
+
+          {/* Badge to show active filters */}
+          {(fromDate || toDate) && (
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Collapsible Date Range Filters - Existing code */}
+      {showDateFilter && (
+        <View style={styles.dateRangeContainer}>
+          <View style={styles.datePickerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                fromDate && {
+                  borderColor: '#3B82F6',
+                  backgroundColor: '#EFF6FF',
+                },
+              ]}
+              onPress={() => setShowFromPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <MaterialIcon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {fromDate ? formatDate(fromDate) : 'From Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <MaterialIcon
+              name="arrow-right"
+              size={20}
+              color="#6B7280"
+              style={styles.arrowIcon}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+              ]}
+              onPress={() => setShowToPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <MaterialIcon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {toDate ? formatDate(toDate) : 'To Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Leave Report Cards */}
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2962ff" />
+          <Text style={styles.loaderText}>Loading leave data...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filterData()}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={renderCard}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2962ff']}
+              tintColor="#2962ff"
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <MaterialIcon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No leave records found</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={onRefresh}>
+                <MaterialIcon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
+      
+      {/* Date Pickers */}
       <DatePicker
         modal
         open={showFromPicker}
@@ -326,84 +506,82 @@ const styles = StyleSheet.create({
   headerContainer: {
     marginBottom: 16,
   },
-  filterContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 12,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingVertical: 8,
+  filterToggleButton: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  chipSelected: {
-    backgroundColor: '#1976d2',
-    borderColor: '#1976d2',
+  dateFilterToggleButton: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  chipText: {
-    fontSize: 14,
-    color: '#555',
+  filterToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterToggleText: {
+    fontSize: 15,
     fontWeight: '500',
+    color: '#3B82F6',
+    marginLeft: 8,
   },
-  chipTextSelected: {
-    color: '#fff',
+  activeDateFilterBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  activeDateFilterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '600',
-    
   },
-  dateRow: { 
-    flexDirection: 'row', 
+  filtersContainer: {
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+  },
+  dateRangeContainer: {
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   dateButton: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F3F4F6',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    borderColor: '#E5E7EB',
   },
   dateButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    
-  },
-  dateTextContainer: {
-    marginLeft: 10,
-    flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center'
   },
-  dateLabel: { 
-    fontSize: 16, 
-    color: '#666', 
-    fontWeight: '500' ,
+  dateButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111827',
   },
-  dateValue: { 
-    fontSize: 15, 
-    color: '#333', 
- 
-    fontWeight: '600' ,
-    margin: 2
-  },
-  dateIconWrapper: { 
-    paddingHorizontal: 10 
+  arrowIcon: {
+    marginHorizontal: 8,
   },
   card: {
     backgroundColor: '#fff',
@@ -492,6 +670,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
     marginTop: 4,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  refreshButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  tabFilterContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
 });
 

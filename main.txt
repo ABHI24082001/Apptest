@@ -6699,3 +6699,929 @@ const pickerSelectStyles = {
 };
 
 export default PaymentRequest;
+
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import { Appbar } from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
+import DatePicker from 'react-native-date-picker';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
+import TabFilter from '../components/TabFilter'; // Import the reusable TabFilter component
+import StatusCard from '../components/StatusCard'; // Import the reusable component
+
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+
+const ExpenseRequestStatusScreen = () => {
+  const navigation = useNavigation();
+  const employeeDetails = useFetchEmployeeDetails();
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+  const [expenseData, setExpenseData] = useState([]);
+  const [selectedType, setSelectedType] = useState('Expense'); // Default to 'Expense'
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false); // New state to toggle date filter visibility
+
+  // Updated fetch function with proper date filtering
+  const fetchExpenseData = useCallback(async () => {
+    if (!employeeDetails?.childCompanyId || !employeeDetails?.id) {
+      console.warn('Employee details are missing');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      // Format dates as expected by the API (YYYY-MM-DD)
+      const formatDateForApi = date => {
+        if (!date) return null;
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+
+      // Get API endpoint
+      const endpoint = `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`;
+
+      // Make the API call without query parameters
+      const response = await axios.get(endpoint);
+
+      // Then filter the results in JavaScript for more reliable filtering
+      let filteredResults = response.data;
+
+      // Only apply filters if needed
+      if (fromDate || toDate || selectedType) {
+        filteredResults = response.data.filter(item => {
+          // Type filter
+          const typeMatches = selectedType
+            ? item.requestType === selectedType
+            : true;
+
+          // Date filters
+          const itemDate = new Date(item.createdDate);
+          const fromMatches = fromDate
+            ? itemDate >= new Date(fromDate.setHours(0, 0, 0, 0))
+            : true;
+          const toMatches = toDate
+            ? itemDate <= new Date(toDate.setHours(23, 59, 59, 999))
+            : true;
+
+          return typeMatches && fromMatches && toMatches;
+        });
+      }
+
+      setExpenseData(filteredResults);
+      console.log('Data filtered successfully', filteredResults.length);
+    } catch (error) {
+      console.error('Error fetching expense data:', error);
+      Alert.alert('Error', 'Failed to fetch expense data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [employeeDetails, fromDate, toDate, selectedType]);
+
+  // Re-fetch data when employeeDetails change, but not filters
+  useEffect(() => {
+    if (employeeDetails?.id) {
+      fetchExpenseData();
+    }
+  }, [employeeDetails]);
+
+  // Apply date filter function - now explicitly called
+  const applyDateFilter = () => {
+    if (!fromDate && !toDate) {
+      Alert.alert('Filter Error', 'Please select at least one date to filter');
+      return;
+    }
+
+    // If fromDate is set but toDate is not, set toDate to today
+    if (fromDate && !toDate) {
+      const today = new Date();
+      setToDate(today);
+      // We'll fetch in the next useEffect call
+    } else {
+      setLoading(true);
+      fetchExpenseData();
+    }
+  };
+
+  // When fromDate or toDate changes due to datePicker
+  useEffect(() => {
+    if (fromDate && toDate) {
+      // Validate date range
+      if (fromDate > toDate) {
+        Alert.alert('Invalid Date Range', 'From Date cannot be after To Date', [
+          {
+            text: 'OK',
+            onPress: () => setFromDate(null),
+          },
+        ]);
+        return;
+      }
+    }
+  }, [fromDate, toDate]);
+
+  // Clear filters function
+  const clearFilters = () => {
+    setFromDate(null);
+    setToDate(null);
+    setLoading(true);
+    fetchExpenseData();
+  };
+
+  const formatDate = date => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const handleDeleteExpense = async (requestId, companyId) => {
+    try {
+      const response = await axios.get(
+        `${BASE_URL_PROD}/PaymentAdvanceRequest/DeletePaymentAdvanveRequest/${requestId}/${companyId}`,
+      );
+
+      if (response?.status === 200) {
+        setExpenseData(prevData =>
+          prevData.filter(item => item.requestId !== requestId),
+        ); // Remove deleted expense from state
+        Alert.alert('Success', 'Expense request deleted successfully');
+      } else {
+        Alert.alert('Error', 'Failed to delete expense request');
+      }
+    } catch (error) {
+      console.error('Error deleting expense request:', error);
+      Alert.alert('Error', 'Failed to delete expense request');
+    }
+  };
+
+  const handleEditExpense = expense => {
+    console.log('Selected ========== Data:', expense); // Log the selected expense for debugging
+    navigation.navigate('PaymentRequest', {
+      expence: expense, // Pass the selected expense data with the correct key 'expence'
+    });
+  };
+
+  const getStatusColor = status => {
+    const colors = {
+      Pending: '#FFA500',
+      Approved: '#00C851',
+      Rejected: '#ff4444',
+    };
+    return colors[status] || '#6B7280';
+  };
+
+  // Handle refresh - Fix the missing implementation
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Reset filters when refreshing
+    setFromDate(null);
+    setToDate(null);
+    fetchExpenseData();
+  }, [fetchExpenseData]);
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="  My Expense" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+
+      {/* Type Filter */}
+      <View style={styles.typeFilterContainer}>
+        <TabFilter
+          tabs={[
+            { label: 'Expense', value: 'Expense' },
+            { label: 'Advance', value: 'Advance' },
+          ]}
+          activeTab={selectedType}
+          setActiveTab={setSelectedType}
+        />
+      </View>
+
+      {/* Date Filter Toggle Button */}
+      <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowDateFilter(!showDateFilter)}>
+        <View style={styles.filterToggleContent}>
+          <Icon
+            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
+          />
+          <Text style={styles.filterToggleText}>
+            {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+          </Text>
+
+          {/* Badge to show active filters */}
+          {(fromDate || toDate) && (
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Collapsible Date Filter Section */}
+      {showDateFilter && (
+        <View style={styles.dateRangeContainer}>
+          <View style={styles.datePickerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                fromDate && {
+                  borderColor: '#3B82F6',
+                  backgroundColor: '#EFF6FF',
+                },
+              ]}
+              onPress={() => setShowFromPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {fromDate ? formatDate(fromDate) : 'From Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <Icon
+              name="arrow-right"
+              size={20}
+              color="#6B7280"
+              style={styles.arrowIcon}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+              ]}
+              onPress={() => setShowToPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {toDate ? formatDate(toDate) : 'To Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterActions}>
+            {(fromDate || toDate) && (
+              <TouchableOpacity
+                style={styles.clearFilterButton}
+                onPress={clearFilters}>
+                <Icon name="close" size={16} color="#EF4444" />
+                <Text style={styles.clearFilterText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.applyFilterButton,
+                !fromDate && !toDate && { opacity: 0.6 },
+              ]}
+              onPress={applyDateFilter}>
+              <Icon name="filter" size={16} color="#FFFFFF" />
+              <Text style={styles.applyFilterText}>Apply Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Date Pickers - show the date in the existing time zone */}
+      <DatePicker
+        modal
+        mode="date"
+        open={showFromPicker}
+        date={fromDate || new Date()}
+        onConfirm={date => {
+          setShowFromPicker(false);
+          // Set time to beginning of day
+          const startOfDay = new Date(date);
+          startOfDay.setHours(0, 0, 0, 0);
+          setFromDate(startOfDay);
+        }}
+        onCancel={() => setShowFromPicker(false)}
+      />
+      <DatePicker
+        modal
+        mode="date"
+        open={showToPicker}
+        date={toDate || new Date()}
+        onConfirm={date => {
+          setShowToPicker(false);
+          // Set time to end of day
+          const endOfDay = new Date(date);
+          endOfDay.setHours(23, 59, 59, 999);
+          setToDate(endOfDay);
+        }}
+        onCancel={() => setShowToPicker(false)}
+      />
+
+      {/* Expense Cards with Loading & RefreshControl */}
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2962ff" />
+          <Text style={styles.loaderText}>Loading expense data...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2962ff']}
+              tintColor="#2962ff"
+            />
+          }>
+          {expenseData.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No requests found</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={onRefresh}>
+                <Icon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            expenseData.map(item => (
+              <StatusCard
+                key={item.requestId}
+                title={item.employeeName}
+                subtitle={`${item.designation}, ${item.department}`}
+                details={[
+                  {
+                    icon: 'calendar-blank-outline',
+                    label: 'Applied On',
+                    value: formatDate(item.createdDate),
+                  },
+                  {
+                    icon: 'cash-multiple',
+                    label: 'Type',
+                    value: item.requestType,
+                  },
+                  {
+                    icon: 'currency-inr',
+                    label: 'Amount',
+                    value: `₹${item.totalAmount}`,
+                  },
+                ]}
+                status={item.status}
+                remarks={item.remarks}
+                onEdit={() => handleEditExpense(item)}
+                onDelete={() =>
+                  Alert.alert(
+                    'Delete',
+                    `Are you sure you want to delete the request for ${item.employeeName}?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () =>
+                          handleDeleteExpense(item.requestId, item.companyId),
+                      },
+                    ],
+                  )
+                }
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  typeFilterContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  typeFilterRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  filterToggleButton: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterToggleText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3B82F6',
+    marginLeft: 8,
+  },
+  activeDateFilterBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  activeDateFilterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateRangeContainer: {
+    padding: 16,
+    backgroundColor: '#F9FAFB', // Slightly different background to stand out
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  arrowIcon: { marginHorizontal: 8 },
+  clearButton: { marginLeft: 12, padding: 8 },
+
+  scrollContainer: { padding: 16, paddingBottom: 24 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardHeader: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cardFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  name: { fontWeight: '800', fontSize: 16, color: '#111827' },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 8 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  detailText: { fontSize: 15, color: '#4B5563', marginLeft: 8 },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: { fontSize: 16, color: '#6B7280', marginTop: 16 },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  refreshButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  clearFilterText: {
+    marginLeft: 4,
+    color: '#EF4444',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  applyFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  applyFilterText: {
+    marginLeft: 4,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+});
+
+export default ExpenseRequestStatusScreen;
+
+
+
+import React, { useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ScrollView,
+  Modal,
+  Text,
+  TextInput,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import { Appbar } from 'react-native-paper';
+import { useForm, Controller } from 'react-hook-form';
+import AppSafeArea from '../component/AppSafeArea';
+import LottieView from 'lottie-react-native';
+
+const ChangePasswordScreen = ({ navigation }) => {
+  const { control, handleSubmit, setError } = useForm();
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState('success');
+
+  const onSubmit = (data) => {
+    if (data.newPassword !== data.confirmPassword) {
+      setError('confirmPassword', {
+        type: 'manual',
+        message: 'Passwords do not match',
+      });
+      setModalType('failure');
+      setModalVisible(true);
+      return;
+    }
+
+    console.log('Password change data:', data);
+    setModalType('success');
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    if (modalType === 'success') {
+      navigation.navigate('PasswordChanged');
+    }
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPassword(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} color="#000" />
+        <Appbar.Content title="Change Password" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.formContainer}>
+          {/* Current Password */}
+          <Text style={styles.label}>Current Password</Text>
+          <View style={styles.inputWrapper}>
+            <Controller
+              control={control}
+              name="currentPassword"
+              rules={{ required: 'Current password is required' }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Enter current password"
+                    secureTextEntry={!showPassword.current}
+                    style={[styles.input, error && styles.inputError]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => togglePasswordVisibility('current')}
+                    style={styles.eyeButton}
+                  >
+                    <Icon name={showPassword.current ? 'eye' : 'eye-off'} size={20} color="#000" />
+                  </TouchableOpacity>
+                  {error && <Text style={styles.errorText}>{error.message}</Text>}
+                </>
+              )}
+            />
+          </View>
+
+          {/* New Password */}
+          <Text style={styles.label}>New Password</Text>
+          <View style={styles.inputWrapper}>
+            <Controller
+              control={control}
+              name="newPassword"
+              rules={{ required: 'New password is required' }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Enter new password"
+                    secureTextEntry={!showPassword.new}
+                    style={[styles.input, error && styles.inputError]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => togglePasswordVisibility('new')}
+                    style={styles.eyeButton}
+                  >
+                    <Icon name={showPassword.new ? 'eye' : 'eye-off'} size={20} color="#000" />
+                  </TouchableOpacity>
+                  {error && <Text style={styles.errorText}>{error.message}</Text>}
+                </>
+              )}
+            />
+          </View>
+
+          {/* Confirm Password */}
+          <Text style={styles.label}>Confirm New Password</Text>
+          <View style={styles.inputWrapper}>
+            <Controller
+              control={control}
+              name="confirmPassword"
+              rules={{ required: 'Confirm your new password' }}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Re-enter new password"
+                    secureTextEntry={!showPassword.confirm}
+                    style={[styles.input, error && styles.inputError]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => togglePasswordVisibility('confirm')}
+                    style={styles.eyeButton}
+                  >
+                    <Icon name={showPassword.confirm ? 'eye' : 'eye-off'} size={20} color="#000" />
+                  </TouchableOpacity>
+                  {error && <Text style={styles.errorText}>{error.message}</Text>}
+                </>
+              )}
+            />
+          </View>
+        </View>
+
+        <TouchableOpacity
+          onPress={handleSubmit(onSubmit)}
+          style={styles.submitButton}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.submitButtonText}>Update Password</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal */}
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <LottieView
+              source={
+                modalType === 'success'
+                  ? require('../lotti/Sucess.json')
+                  : require('../lotti/Fail.json')
+              }
+              autoPlay
+              loop={false}
+              style={styles.lottie}
+              onAnimationFinish={closeModal}
+            />
+            <Text style={styles.modalText}>
+              {modalType === 'success'
+                ? 'Password changed successfully!'
+                : 'Password change failed. Please try again.'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+    shadowColor: Platform.OS === 'ios' ? '#000' : undefined,
+    shadowOffset: Platform.OS === 'ios' ? { width: 0, height: 2 } : undefined,
+    shadowOpacity: Platform.OS === 'ios' ? 0.1 : undefined,
+    shadowRadius: Platform.OS === 'ios' ? 3 : undefined,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A2138',
+    marginLeft: -20,
+  },
+  container: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  formContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1A2138',
+    marginBottom: 6,
+  },
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#999',
+    paddingBottom: 6,
+  },
+  input: {
+    fontSize: 16,
+    color: '#1A2138',
+    paddingHorizontal: 0,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+  },
+  inputError: {
+    borderBottomColor: 'red',
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 0,
+    bottom: 10,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  submitButton: {
+    backgroundColor: '#3366FF',
+    borderRadius: 6,             // smaller radius
+    height: 36,                  // reduced height
+    alignSelf: 'center',     // align left if needed
+    paddingHorizontal: 16,       // less horizontal padding
+    paddingVertical: 6,          // optional, adds vertical spacing inside button
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,                // reduce space from inputs
+    shadowColor: '#3366FF',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  }, 
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,                // smaller text
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: 300,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  lottie: {
+    width: 100,
+    height: 100,
+  },
+  modalText: {
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#1A2138',
+  },
+});
+
+export default ChangePasswordScreen;

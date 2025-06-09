@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   ScrollView,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
@@ -15,7 +17,9 @@ import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
-import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
+import TabFilter from '../components/TabFilter'; // Import the reusable TabFilter component
+import StatusCard from '../components/StatusCard'; // Import the reusable component
+
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 const ExpenseRequestStatusScreen = () => {
@@ -26,33 +30,45 @@ const ExpenseRequestStatusScreen = () => {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
   const [expenseData, setExpenseData] = useState([]);
-  const [selectedType, setSelectedType] = useState(null); // 'Expense' | 'Advance' | null
-  const [feedbackVisible, setFeedbackVisible] = useState(false); // Feedback modal visibility
-  const [feedbackMessage, setFeedbackMessage] = useState(''); // Feedback message
-
+  const [selectedType, setSelectedType] = useState('Expense'); // Default to 'Expense'
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false); 
   // Fetch expense data from API
-  useEffect(() => {
-    const fetchExpenseData = async () => {
-      if (!employeeDetails?.childCompanyId || !employeeDetails?.id) {
-        console.warn('Employee details are missing'); // Log a warning instead of showing an alert
-        return;
-      }
+  const fetchExpenseData = useCallback(async () => {
+    if (!employeeDetails?.childCompanyId || !employeeDetails?.id) {
+      console.warn('Employee details are missing'); // Log a warning instead of showing an alert
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const response = await axios.get(
-          `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
-        );
-        setExpenseData(response.data);
+    try {
+      const response = await axios.get(
+        `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
+      );
+      setExpenseData(response.data);
 
-        console.log(response.data , 'ttttttytttttttttt'); // Log the fetched data for debugging
-      } catch (error) {
-        console.error('Error fetching expense data:', error);
-        Alert.alert('Error', 'Failed to fetch expense data');
-      }
-    };
-
-    fetchExpenseData();
+      console.log('Data fetched successfully', response.data.length);
+    } catch (error) {
+      console.error('Error fetching expense data:', error);
+      Alert.alert('Error', 'Failed to fetch expense data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [employeeDetails]);
+
+  // Initial data load
+  useEffect(() => {
+    setLoading(true);
+    fetchExpenseData();
+  }, [fetchExpenseData]);
+
+  // Handle refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchExpenseData();
+  }, [fetchExpenseData]);
 
   const filteredData = expenseData.filter(item => {
     const matchesType = selectedType ? item.requestType === selectedType : true;
@@ -66,13 +82,54 @@ const ExpenseRequestStatusScreen = () => {
     return matchesType && fromMatch && toMatch;
   });
 
+useEffect(() => {
+    if (fromDate && toDate) {
+      // Validate date range
+      if (fromDate > toDate) {
+        Alert.alert('Invalid Date Range', 'From Date cannot be after To Date', [
+          {
+            text: 'OK',
+            onPress: () => setFromDate(null),
+          },
+        ]);
+        return;
+      }
+    }
+  }, [fromDate, toDate]);
+
+  // Clear filters function
+  const clearFilters = () => {
+    setFromDate(null);
+    setToDate(null);
+    setLoading(true);
+    fetchExpenseData();
+  };
   const formatDate = date => {
+    if (!date) return '';
     return new Date(date).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
   };
+  // Apply date filter function - now explicitly called
+  const applyDateFilter = () => {
+    if (!fromDate && !toDate) {
+      Alert.alert('Filter Error', 'Please select at least one date to filter');
+      return;
+    }
+
+    // If fromDate is set but toDate is not, set toDate to today
+    if (fromDate && !toDate) {
+      const today = new Date();
+      setToDate(today);
+      // We'll fetch in the next useEffect call
+    } else {
+      setLoading(true);
+      fetchExpenseData();
+    }
+  };
+  
 
   const handleDeleteExpense = async (requestId, companyId) => {
     try {
@@ -82,8 +139,7 @@ const ExpenseRequestStatusScreen = () => {
 
       if (response?.status === 200) {
         setExpenseData(prevData => prevData.filter(item => item.requestId !== requestId)); // Remove deleted expense from state
-        setFeedbackMessage('Expense request deleted successfully'); // Set feedback message
-        setFeedbackVisible(true); // Show feedback modal
+        Alert.alert('Success', 'Expense request deleted successfully');
       } else {
         Alert.alert('Error', 'Failed to delete expense request');
       }
@@ -118,81 +174,105 @@ const ExpenseRequestStatusScreen = () => {
 
       {/* Type Filter */}
       <View style={styles.typeFilterContainer}>
-        <Text style={styles.filterTitle}>Filter by Type</Text>
-        <View style={styles.typeFilterRow}>
-          {['Expense', 'Advance'].map(type => {
-            const isActive = selectedType === type;
-            return (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.typeFilterButton,
-                  isActive && {
-                    backgroundColor: '#E0F2FE',
-                    borderColor: '#3B82F6',
-                  },
-                ]}
-                onPress={() =>
-                  setSelectedType(type === selectedType ? null : type)
-                }>
-                <Text
-                  style={[
-                    styles.typeFilterText,
-                    {color: isActive ? '#1D4ED8' : '#374151'},
-                  ]}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* <Text style={styles.filterTitle}>Filter by Type</Text> */}
+        <TabFilter
+          tabs={[
+            {label: 'Expense', value: 'Expense'},
+            {label: 'Advance', value: 'Advance'},
+          ]}
+          activeTab={selectedType}
+          setActiveTab={setSelectedType}
+        />
       </View>
 
-      {/* Date Filter */}
-      <View style={styles.dateRangeContainer}>
-        <Text style={styles.filterTitle}>Filter by Applied Date</Text>
-        <View style={styles.datePickerRow}>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowFromPicker(true)}>
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={18} color="#3B82F6" />
-              <Text style={styles.dateButtonText}>
-                {fromDate ? formatDate(fromDate) : 'From Date'}
-              </Text>
-            </View>
-          </TouchableOpacity>
 
+        <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowDateFilter(!showDateFilter)}>
+        <View style={styles.filterToggleContent}>
           <Icon
-            name="arrow-right"
-            size={20}
-            color="#6B7280"
-            style={styles.arrowIcon}
+            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
           />
+          <Text style={styles.filterToggleText}>
+            {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+          </Text>
 
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowToPicker(true)}>
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={18} color="#3B82F6" />
-              <Text style={styles.dateButtonText}>
-                {toDate ? formatDate(toDate) : 'To Date'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
+          {/* Badge to show active filters */}
           {(fromDate || toDate) && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => {
-                setFromDate(null);
-                setToDate(null);
-              }}>
-              <Icon name="close" size={18} color="#EF4444" />
-            </TouchableOpacity>
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
+
+      {/* Date Filter */}
+     {showDateFilter && (
+        <View style={styles.dateRangeContainer}>
+          <View style={styles.datePickerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                fromDate && {
+                  borderColor: '#3B82F6',
+                  backgroundColor: '#EFF6FF',
+                },
+              ]}
+              onPress={() => setShowFromPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {fromDate ? formatDate(fromDate) : 'From Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <Icon
+              name="arrow-right"
+              size={20}
+              color="#6B7280"
+              style={styles.arrowIcon}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+              ]}
+              onPress={() => setShowToPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {toDate ? formatDate(toDate) : 'To Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterActions}>
+            {(fromDate || toDate) && (
+              <TouchableOpacity
+                style={styles.clearFilterButton}
+                onPress={clearFilters}>
+                <Icon name="close" size={16} color="#EF4444" />
+                <Text style={styles.clearFilterText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.applyFilterButton,
+                !fromDate && !toDate && { opacity: 0.6 },
+              ]}
+              onPress={applyDateFilter}>
+              <Icon name="filter" size={16} color="#FFFFFF" />
+              <Text style={styles.applyFilterText}>Apply Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Date Pickers */}
       <DatePicker
@@ -202,7 +282,10 @@ const ExpenseRequestStatusScreen = () => {
         date={fromDate || new Date()}
         onConfirm={date => {
           setShowFromPicker(false);
-          setFromDate(date);
+          // Set time to beginning of day
+          const startOfDay = new Date(date);
+          startOfDay.setHours(0, 0, 0, 0);
+          setFromDate(startOfDay);
         }}
         onCancel={() => setShowFromPicker(false)}
       />
@@ -213,110 +296,76 @@ const ExpenseRequestStatusScreen = () => {
         date={toDate || new Date()}
         onConfirm={date => {
           setShowToPicker(false);
-          setToDate(date);
+          // Set time to end of day
+          const endOfDay = new Date(date);
+          endOfDay.setHours(23, 59, 59, 999);
+          setToDate(endOfDay);
         }}
         onCancel={() => setShowToPicker(false)}
       />
-
-      {/* Expense Cards */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {filteredData.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No requests found</Text>
-          </View>
-        ) : (
-          filteredData.map((item, index) => (
-            <View key={index} style={styles.card}>
-              <Text style={styles.name}>{item.employeeName}</Text>
-              <Text style={styles.subtitle}>
-                {item.designation}, {item.department}
-              </Text>
-
-              <View style={styles.detailRow}>
-                <Icon name="calendar-blank-outline" size={16} color="#6B7280" />
-                <Text style={styles.detailText}>
-                  Applied On: {formatDate(item.createdDate)}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Icon name="cash-multiple" size={16} color="#6B7280" />
-                <Text style={styles.detailText}>Type: {item.requestType}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Icon name="currency-inr" size={16} color="#6B7280" />
-                <Text style={styles.detailText}>
-                  Amount: ₹{item.totalAmount}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Icon name="message-outline" size={16} color="#6B7280" />
-                <Text style={styles.detailText}>Remarks: {item.remarks}</Text>
-              </View>
-
-              <View style={styles.cardFooter}>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: `${getStatusColor(item.status)}15`,
-                      borderColor: getStatusColor(item.status),
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {color: getStatusColor(item.status)},
-                    ]}>
-                    {item.status}
-                  </Text>
-                </View>
-
-                {/* Edit Button */}
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => handleEditExpense(item)}>
-                  <Icon name="pencil-outline" size={18} color="#3B82F6" />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
-
-                {/* Delete Button */}
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Delete',
-                      `Are you sure you want to delete the request for ${item.employeeName}?`,
-                      [
-                        {text: 'Cancel', style: 'cancel'},
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () =>
-                            handleDeleteExpense(item.requestId, item.companyId),
-                        },
-                      ],
-                    );
-                  }}>
-                  <Icon name="trash-can-outline" size={18} color="#EF4444" />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
+      {/* Expense Cards with Loading & RefreshControl */}
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2962ff" />
+          <Text style={styles.loaderText}>Loading expense data...</Text>
+        </View>
+      ) : (
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2962ff']}
+              tintColor="#2962ff"
+            />
+          }
+        >
+          {filteredData.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No requests found</Text>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={onRefresh}
+              >
+                <Icon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
-
-      {/* Feedback Modal */}
-      <FeedbackModal
-        visible={feedbackVisible}
-        onClose={() => setFeedbackVisible(false)}
-        type="deleted"
-        message={feedbackMessage}
-      />
+          ) : (
+            filteredData.map(item => (
+              <StatusCard
+                key={item.requestId}
+                title={item.employeeName}
+                subtitle={`${item.designation}, ${item.department}`}
+                details={[
+                  {icon: 'calendar-blank-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                  {icon: 'cash-multiple', label: 'Type', value: item.requestType},
+                  {icon: 'currency-inr', label: 'Amount', value: `₹${item.totalAmount}`},
+                ]}
+                status={item.status}
+                remarks={item.remarks}
+                onEdit={() => handleEditExpense(item)}
+                onDelete={() =>
+                  Alert.alert(
+                    'Delete',
+                    `Are you sure you want to delete the request for ${item.employeeName}?`,
+                    [
+                      {text: 'Cancel', style: 'cancel'},
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => handleDeleteExpense(item.requestId, item.companyId),
+                      },
+                    ],
+                  )
+                }
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
     </AppSafeArea>
   );
 };
@@ -341,21 +390,6 @@ const styles = StyleSheet.create({
   typeFilterRow: {
     flexDirection: 'row',
     marginTop: 8,
-  },
-  typeFilterButton: {
-    flex: 1,
-    paddingVertical: 10,
-    marginRight: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeFilterText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   dateRangeContainer: {
     padding: 16,
@@ -456,6 +490,131 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3B82F6',
     fontWeight: '600',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  refreshButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  filterToggleButton: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterToggleText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3B82F6',
+    marginLeft: 8,
+  },
+  activeDateFilterBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  activeDateFilterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateRangeContainer: {
+    padding: 16,
+    backgroundColor: '#F9FAFB', // Slightly different background to stand out
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  arrowIcon: { marginHorizontal: 8 },
+  clearButton: { marginLeft: 12, padding: 8 },
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  clearFilterText: {
+    marginLeft: 4,
+    color: '#EF4444',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  applyFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  applyFilterText: {
+    marginLeft: 4,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: 14,
   },
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -10,28 +10,56 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
 import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
-const exitRequestData = [
-  {
-    empId: 'AA_13',
-    name: 'Geoffrey Buckley',
-    role: 'Customer Service Manager',
-    dept: 'Customer Service',
-    appliedDate: '01-03-2025',
-    exitDate: '31-03-2025',
-    reason: 'JLSd',
-    accountStatus: 'Pending',
-    authorizedStatus: 'Pending',
-    status: 'Pending',
-  },
-];
+// Helper to format date string as DD-MM-YYYY
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+// Status badge color helper
+const getStatusColor = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'pending':
+      return '#FFA500';
+    case 'approved':
+      return '#00C851';
+    case 'rejected':
+      return '#ff4444';
+    default:
+      return '#6B7280';
+  }
+};
 
 const ExitRequestStatusScreen = () => {
   const navigation = useNavigation();
+  const employeeDetails = useFetchEmployeeDetails();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Show all requests (or filter here if needed)
-  const filteredData = exitRequestData;
+  useEffect(() => {
+    const fetchExitRequests = async () => {
+      if (!employeeDetails?.id) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`${BASE_URL_PROD}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`);
+        const data = await res.json();
+        setRequests(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setRequests([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExitRequests();
+  }, [employeeDetails?.id]);
 
+
+
+  
   return (
     <AppSafeArea>
       {/* Header */}
@@ -42,30 +70,54 @@ const ExitRequestStatusScreen = () => {
 
       {/* Exit Request Cards */}
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {filteredData.length === 0 ? (
+        {loading ? (
+          <Text style={{textAlign: 'center', marginTop: 32}}>Loading...</Text>
+        ) : requests.length === 0 ? (
           <View style={styles.emptyState}>
             <Icon name="file-document-outline" size={48} color="#D1D5DB" />
             <Text style={styles.emptyText}>No requests</Text>
           </View>
         ) : (
-          filteredData.map((item, index) => (
-            <TouchableOpacity key={index} activeOpacity={0.9}>
+          requests.map((item, index) => (
+            <TouchableOpacity key={index} activeOpacity={0.9} style={styles.cardTouchable}>
               <View style={styles.card}>
-                <InfoRow icon="calendar-edit" label={`Applied: ${item.appliedDate}`} />
-                <InfoRow icon="calendar-remove-outline" label={`Exit: ${item.exitDate}`} />
-                <InfoRow icon="information-outline" label={`Reason: ${item.reason}`} />
+               
+                <View style={styles.infoRow}>
+                  <Icon name="calendar-edit" size={20} color="#6B7280" />
+                  <Text style={styles.infoText}>Applied: {formatDate(item.appliedDt)}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Icon name="calendar-remove-outline" size={20} color="#6B7280" />
+                  <Text style={styles.infoText}>Exit: {formatDate(item.exitDt)}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Icon name="information-outline" size={20} color="#6B7280" />
+                  <Text style={styles.infoText}>Reason: {item.exitReasons}</Text>
+                </View>
+                {item.supervisorRemarks ? (
+                  <View style={styles.infoRow}>
+                    <Icon name="comment-account-outline" size={20} color="#6B7280" />
+                    <Text style={styles.infoText}>Supervisor Remarks: {item.supervisorRemarks}</Text>
+                  </View>
+                ) : null}
+                {item.hrremarks ? (
+                  <View style={styles.infoRow}>
+                    <Icon name="comment-account-outline" size={18} color="#6366F1" />
+                    <Text style={styles.infoText}>HR Remarks: <Text style={styles.remarksText}>{item.hrremarks}</Text></Text>
+                  </View>
+                ) : null}
 
-                <View style={styles.cardHeader}>
+                <View style={styles.cardFooterRow}>
                   <View
                     style={[
                       styles.statusBadge,
                       {
-                        backgroundColor: `${getStatusColor(item.status)}15`,
-                        borderColor: getStatusColor(item.status),
+                        backgroundColor: `${getStatusColor(item.applicationStatus)}22`,
+                        borderColor: getStatusColor(item.applicationStatus),
                       },
                     ]}>
-                    <Text style={[styles.statusText, {color: getStatusColor(item.status)}]}>
-                      {item.status}
+                    <Text style={[styles.statusText, {color: getStatusColor(item.applicationStatus)}]}>
+                      {item.applicationStatus}
                     </Text>
                   </View>
                 </View>
@@ -78,72 +130,90 @@ const ExitRequestStatusScreen = () => {
   );
 };
 
-const InfoRow = ({icon, label}: {icon: string; label: string}) => (
-  <View style={styles.detailRow}>
-    <Icon name={icon} size={26} color="#6B7280" />
-    <Text style={styles.detailText}>{label}</Text>
-  </View>
-);
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Pending':
-      return '#FFA500';
-    case 'Approved':
-      return '#00C851';
-    case 'Rejected':
-      return '#ff4444';
-    default:
-      return '#6B7280';
-  }
-};
-
 const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     elevation: 4,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: 0.2,
   },
-  scrollContainer: {padding: 16, paddingBottom: 24},
+  scrollContainer: {padding: 12, paddingBottom: 24},
+  cardTouchable: {
+    borderRadius: 16,
+    marginBottom: 18,
+    overflow: 'hidden',
+  },
   card: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: '#F8FAFC',
+    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 1,
+    borderColor: '#E0E7EF',
+    elevation: 3,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  detailText: {
-    fontSize: 17,
-    color: '#4B5563',
-    marginLeft: 8,
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  empName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: 0.1,
+  },
+  empDept: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
     fontWeight: '500',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 7,
+    marginBottom: 2,
+  },
+  infoText: {
+    fontSize: 15.5,
+    color: '#334155',
+    marginLeft: 10,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  remarksText: {
+    color: '#6366F1',
+    fontStyle: 'italic',
+    fontWeight: '400',
   },
   statusBadge: {
     paddingVertical: 7,
-    paddingHorizontal: 15,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    minWidth: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 15.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'capitalize',
   },
   emptyState: {
     alignItems: 'center',
@@ -154,6 +224,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     marginTop: 16,
+    fontWeight: '500',
+    letterSpacing: 0.1,
   },
 });
 

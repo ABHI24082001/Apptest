@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,6 +16,9 @@ import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
+import DateRangeFilter from '../components/DateRangeFilter'; // Import the reusable component
+import TabFilter from '../components/TabFilter'; // Import the reusable component
+import StatusCard from '../components/StatusCard'; // Import the reusable component
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 const AdvancePaymentReport = () => {
@@ -25,10 +30,12 @@ const AdvancePaymentReport = () => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [reports, setReports] = useState([]); // Updated to dynamic data
-  const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const endpoint =
@@ -46,6 +53,7 @@ const AdvancePaymentReport = () => {
 
       if (response.status === 200) {
         setReports(response.data);
+        console.log('Data fetched successfully:', response.data.length);
       } else {
         setReports([]);
       }
@@ -54,30 +62,70 @@ const AdvancePaymentReport = () => {
       setReports([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [activeTab, fromDate, toDate, employeeDetails]);
 
   useEffect(() => {
     if (employeeDetails?.id) {
       fetchReports();
     }
-  }, [activeTab, fromDate, toDate, employeeDetails]);
+  }, [activeTab, employeeDetails]); // Don't auto-fetch on date changes
 
-  const getStatusIcon = status => {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return {icon: 'check-circle', color: '#4CAF50'};
-      case 'pending':
-        return {icon: 'clock', color: '#FFA000'};
-      case 'rejected':
-        return {icon: 'close-circle', color: '#F44336'};
-      default:
-        return {icon: 'help-circle', color: '#9E9E9E'};
+  // Handle refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setFromDate(null);
+    setToDate(null);
+    fetchReports();
+  }, [fetchReports]);
+
+  // When fromDate or toDate changes due to datePicker
+  useEffect(() => {
+    if (fromDate && toDate) {
+      // Validate date range
+      if (fromDate > toDate) {
+        Alert.alert('Invalid Date Range', 'From Date cannot be after To Date', [
+          {
+            text: 'OK',
+            onPress: () => setFromDate(null),
+          },
+        ]);
+        return;
+      }
     }
+  }, [fromDate, toDate]);
+
+  // Apply date filter
+  const applyDateFilter = () => {
+    if (!fromDate && !toDate) {
+      Alert.alert('Filter Error', 'Please select at least one date to filter');
+      return;
+    }
+
+    // If fromDate is set but toDate is not, set toDate to today
+    if (fromDate && !toDate) {
+      const today = new Date();
+      setToDate(today);
+      // We'll fetch in the next useEffect call
+    }
+    fetchReports();
+  };
+
+  // Clear filters function
+  const clearFilters = () => {
+    setFromDate(null);
+    setToDate(null);
+    fetchReports();
   };
 
   const formatDate = date => {
-    return new Date(date).toLocaleDateString('en-GB');
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const isWithinDateRange = dateStr => {
@@ -94,25 +142,16 @@ const AdvancePaymentReport = () => {
   });
 
   const ListHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Date Range Filter */}
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          style={styles.dateBox}
-          onPress={() => setShowFromPicker(true)}>
-          <Text style={styles.dateText}>
-            {fromDate ? formatDate(fromDate) : 'From Date'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dateBox}
-          onPress={() => setShowToPicker(true)}>
-          <Text style={styles.dateText}>
-            {toDate ? formatDate(toDate) : 'To Date'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <DateRangeFilter
+      fromDate={fromDate}
+      toDate={toDate}
+      setFromDate={setFromDate}
+      setToDate={setToDate}
+      showFromPicker={showFromPicker}
+      setShowFromPicker={setShowFromPicker}
+      showToPicker={showToPicker}
+      setShowToPicker={setShowToPicker}
+    />
   );
 
   return (
@@ -125,155 +164,213 @@ const AdvancePaymentReport = () => {
         />
       </Appbar.Header>
 
-      <ScrollView style={styles.container}>
+      <ScrollView 
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2962ff']}
+            tintColor="#2962ff"
+          />
+        }
+      >
         {/* Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'expense' && styles.activeTabButton,
-            ]}
-            onPress={() => setActiveTab('expense')}>
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === 'expense' && styles.activeTabButtonText,
-              ]}>
-              Expense Report
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'advance' && styles.activeTabButton,
-            ]}
-            onPress={() => setActiveTab('advance')}>
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === 'advance' && styles.activeTabButtonText,
-              ]}>
-              Advance Report
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TabFilter
+          tabs={[
+            {label: 'Expense Report', value: 'expense'},
+            {label: 'Advance Report', value: 'advance'},
+          ]}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
-        <ListHeader />
+        {/* Date Filter Toggle Button */}
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowDateFilter(!showDateFilter)}>
+          <View style={styles.filterToggleContent}>
+            <Icon
+              name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+              size={22}
+              color="#3B82F6"
+            />
+            <Text style={styles.filterToggleText}>
+              {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+            </Text>
+
+            {/* Badge to show active filters */}
+            {(fromDate || toDate) && (
+              <View style={styles.activeDateFilterBadge}>
+                <Text style={styles.activeDateFilterText}>Active</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {/* Collapsible Date Filter Section */}
+        {showDateFilter && (
+          <View style={styles.dateRangeContainer}>
+            <View style={styles.datePickerRow}>
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  fromDate && {
+                    borderColor: '#3B82F6',
+                    backgroundColor: '#EFF6FF',
+                  },
+                ]}
+                onPress={() => setShowFromPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {fromDate ? formatDate(fromDate) : 'From Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <Icon
+                name="arrow-right"
+                size={20}
+                color="#6B7280"
+                style={styles.arrowIcon}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+                ]}
+                onPress={() => setShowToPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {toDate ? formatDate(toDate) : 'To Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterActions}>
+              {(fromDate || toDate) && (
+                <TouchableOpacity
+                  style={styles.clearFilterButton}
+                  onPress={clearFilters}>
+                  <Icon name="close" size={16} color="#EF4444" />
+                  <Text style={styles.clearFilterText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.applyFilterButton,
+                  !fromDate && !toDate && { opacity: 0.6 },
+                ]}
+                onPress={applyDateFilter}>
+                <Icon name="filter" size={16} color="#FFFFFF" />
+                <Text style={styles.applyFilterText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Date Pickers */}
         <DatePicker
           modal
+          mode="date"
           open={showFromPicker}
           date={fromDate || new Date()}
-          mode="date"
           onConfirm={date => {
             setShowFromPicker(false);
-            setFromDate(date);
-            setSelectedFilter('all'); // reset filter on date change
+            // Set time to beginning of day
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            setFromDate(startOfDay);
           }}
           onCancel={() => setShowFromPicker(false)}
         />
         <DatePicker
           modal
+          mode="date"
           open={showToPicker}
           date={toDate || new Date()}
-          mode="date"
           onConfirm={date => {
             setShowToPicker(false);
-            setToDate(date);
-            setSelectedFilter('all'); // reset filter on date change
+            // Set time to end of day
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+            setToDate(endOfDay);
           }}
           onCancel={() => setShowToPicker(false)}
         />
 
         {/* Report Cards */}
         {loading ? (
-          <Text style={{textAlign: 'center', marginTop: 40, color: '#999'}}>
-            Loading reports...
-          </Text>
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2962ff" />
+            <Text style={styles.loaderText}>Loading reports...</Text>
+          </View>
         ) : activeTab === 'advance' ? (
           filteredReports.length > 0 ? (
-            filteredReports.map(report => {
-              const statusIcon = getStatusIcon(report.status);
-              return (
-                <Card key={report.requestId} style={styles.card}>
-                  <View style={styles.cardContent}>
-                    <View style={styles.row}>
-                      <Icon name="calendar-check" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Date:</Text>
-                      <Text style={styles.value}>
-                        {formatDate(report.transactionDate || report.createdDate)}
-                      </Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Icon name="cash" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Request Amount:</Text>
-                      <Text style={styles.value}>₹{report.totalAmount}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Icon name="cash-check" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Approved Amount:</Text>
-                      <Text style={styles.value}>₹{report.approvalAmount}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Icon name="check" size={20} color="#6D75FF" />
-                      <Text style={styles.label}>Remarks:</Text>
-                      <Text style={styles.value}>
-                        {report.remarks || 'No Remark'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.statusRow}>
-                      <Icon
-                        name={statusIcon.icon}
-                        size={20}
-                        color={statusIcon.color}
-                      />
-                      <Text
-                        style={[styles.statusText, {color: statusIcon.color}]}>
-                        {report.status.charAt(0).toUpperCase() +
-                          report.status.slice(1)}
-                      </Text>
-                      <Text style={styles.statusDate}>
-                        {formatDate(report.createdDate)}
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
-              );
-            })
+            filteredReports.map(report => (
+              <StatusCard
+                key={report.requestId}
+                title={report.employeeName}
+                subtitle={`${report.designation}, ${report.department}`}
+                details={[
+                  {icon: 'calendar', label: 'Transaction Date', value: formatDate(report.transactionDate || report.createdDate)},
+                  {icon: 'cash', label: 'Amount', value: `₹${report.totalAmount}`},
+                ]}
+                status={report.status}
+                remarks={report.remarks}
+                onEdit={() => console.log('Edit:', report)} // Replace with actual edit logic
+                onDelete={() => console.log('Delete:', report)} // Replace with actual delete logic
+              />
+            ))
           ) : (
-            <Text style={{textAlign: 'center', marginTop: 40, color: '#999'}}>
-              No advance reports found
-            </Text>
+            <View style={styles.emptyState}>
+              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No advance reports found</Text>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={onRefresh}
+              >
+                <Icon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
           )
         ) : (
-          <Card style={styles.card}>
-            <View style={styles.cardContent}>
-              <View style={styles.row}>
-                <Icon name="calendar" size={20} color="#6D75FF" />
-                <Text style={styles.label}>Transaction Date:</Text>
-                <Text style={styles.value}>01/04/2025</Text>
-              </View>
-              <View style={styles.row}>
-                <Icon name="file-document" size={20} color="#6D75FF" />
-                <Text style={styles.label}>Expense:</Text>
-                <Text style={styles.value}>Travel</Text>
-              </View>
-              <View style={styles.row}>
-                <Icon name="currency-inr" size={20} color="#6D75FF" />
-                <Text style={styles.label}>Amount:</Text>
-                <Text style={styles.value}>₹2000</Text>
-              </View>
-              <View style={styles.statusRow}>
-                <Icon name="clock" size={20} color="#FFA000" />
-                <Text style={[styles.statusText, {color: '#FFA000'}]}>
-                  Pending
-                </Text>
-                <Text style={styles.statusDate}>05/04/2025</Text>
-              </View>
+          filteredReports.length > 0 ? (
+            filteredReports.map(report => (
+              <StatusCard
+                key={report.requestId}
+                title={report.employeeName || "Expense Report"}
+                subtitle={report.description || "Expense Details"}
+                details={[
+                  {icon: 'calendar', label: 'Transaction Date', value: formatDate(report.transactionDate || report.createdDate)},
+                  {icon: 'file-document', label: 'Expense Type', value: report.expenseType || 'N/A'},
+                  {icon: 'currency-inr', label: 'Amount', value: `₹${report.totalAmount}`},
+                ]}
+                status={report.status}
+                remarks={report.remarks}
+                onEdit={() => console.log('Edit:', report)} // Replace with actual edit logic
+                onDelete={() => console.log('Delete:', report)} // Replace with actual delete logic
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No expense reports found</Text>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={onRefresh}
+              >
+                <Icon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
             </View>
-          </Card>
+          )
         )}
       </ScrollView>
     </AppSafeArea>
@@ -346,6 +443,138 @@ const styles = StyleSheet.create({
   },
   statusText: {fontSize: 14, fontWeight: '600', marginLeft: 12},
   statusDate: {fontSize: 12, color: '#999', marginLeft: 'auto'},
+  
+  // New styles for the date filter toggle and UI
+  filterToggleButton: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginTop: 8,
+  },
+  filterToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterToggleText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3B82F6',
+    marginLeft: 8,
+  },
+  activeDateFilterBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  activeDateFilterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateRangeContainer: {
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dateButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  arrowIcon: {
+    marginHorizontal: 8,
+  },
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  clearFilterText: {
+    marginLeft: 4,
+    color: '#EF4444',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  applyFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  applyFilterText: {
+    marginLeft: 4,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  loaderContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    fontSize: 16, 
+    color: '#6B7280', 
+    marginTop: 16,
+  },
+  refreshButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
 });
 
 export default AdvancePaymentReport;

@@ -274,75 +274,125 @@ const PaymentRequest = ({navigation, route}) => {
     );
   }
   // Submit form handler
-  const onSubmit = async data => {
-    const isEditing = !!expenceData?.requestId; // Check if editing an existing request
-
-    const formData = {
-      PaymentRequest: {
-        RequestId: isEditing ? expenceData.requestId : 0,
-        RequestTypeId: data.RequestTypeId,
-        EmployeeId: employeeDetails?.id,
-        ProjectId: null,
-        ReportingMgrId: employeeDetails?.reportingEmpId,
-        TotalAmount: totalAmount,
-        CompanyId: employeeDetails?.childCompanyId,
-        Status: 'Pending',
-        Remarks: data.remarks,
-        IsDelete: 0,
-        Flag: 1,
-        CreatedBy: employeeDetails?.id ?? 0,
-        CreatedDate: formatDateForBackend(new Date()),
-        ModifiedBy: employeeDetails?.id ?? 0,
-        ModifiedDate: formatDateForBackend(new Date()),
-      },
-      tempPayments: expenseItems.map(item => ({
-        Id: item.id,
-        TransactionDate: formatDateForBackend(item.date),
-        ExpenseHeadId: item.headId,
-        ExpenseHead: item.head,
-        Amount: parseFloat(item.amount),
-        ApprovedAmount: 0,
-        RequestType: data.RequestTypeId,
-        DocumentPath: item.document?.uri || null,
-      })),
-    };
-
-    console.log(
-      `${isEditing ? 'Editing' : 'Submitting'} Payload:`,
-      JSON.stringify(formData, null, 2)
-    );
-
+  const onSubmit = async (data) => {
     try {
-      const response = await axios.post(
-        `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
-        formData
-      );
-      console.log(`${isEditing ? 'Edit' : 'Submission'} Response:`, response.data);
-      setFeedbackMessage(
-        isEditing
-          ? 'Payment request updated successfully'
-          : 'Payment request submitted successfully'
-      );
-      setFeedbackType('success');
-      setFeedbackVisible(true);
+      const isEditing = !!expenceData?.requestId; // Check if editing an existing request
 
-      // Delay navigation until the feedback modal is closed
-      setTimeout(() => {
-        setFeedbackVisible(false);
-        navigation.navigate('ExpenseRequestStatus'); // Navigate to Expense Request
-      }, 2000);
+      if (requestType === 'advance') {
+        // Prepare data for Advance submission or update
+        const formData = {
+          PaymentRequest: {
+            RequestId: isEditing ? expenceData.requestId : 0,
+            RequestTypeId: data.RequestTypeId,
+            EmployeeId: employeeDetails?.id,
+            ProjectId: null,
+            ReportingMgrId: employeeDetails?.reportingEmpId,
+            TotalAmount: totalAmount,
+            CompanyId: employeeDetails?.childCompanyId,
+            Status: 'Pending',
+            Remarks: data.remarks,
+            IsDelete: 0,
+            Flag: 1,
+            CreatedBy: employeeDetails?.id ?? 0,
+            CreatedDate: isEditing
+              ? expenceData?.createdDate
+              : formatDateForBackend(new Date()),
+            ModifiedBy: employeeDetails?.id ?? 0,
+            ModifiedDate: formatDateForBackend(new Date()),
+          },
+          tempPayments: [], // No expense items for Advance
+        };
+
+        console.log(`${isEditing ? 'Updating' : 'Submitting'} Advance Form Data:`, formData);
+
+        const response = await axios.post(
+          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          formData
+        );
+
+        console.log('API Response:', response.data);
+        Alert.alert(
+          'Success',
+          isEditing
+            ? 'Advance request updated successfully'
+            : 'Advance request submitted successfully'
+        );
+        reset();
+        setTotalAmount(0);
+        setUploadedFile(null);
+      } else if (requestType === 'expense') {
+        // Validate that at least one expense item is added
+        if (expenseItems.length === 0) {
+          Alert.alert('Error', 'Please add at least one expense item');
+          return;
+        }
+
+        // Validate that remarks are provided
+        if (!data.remarks) {
+          Alert.alert('Error', 'Please provide remarks');
+          return;
+        }
+
+        // Prepare data for Expense submission or update
+        const formData = {
+          PaymentRequest: {
+            RequestId: isEditing ? expenceData.requestId : 0,
+            RequestTypeId: data.RequestTypeId,
+            EmployeeId: employeeDetails?.id,
+            ProjectId: null,
+            ReportingMgrId: employeeDetails?.reportingEmpId,
+            TotalAmount: totalAmount,
+            CompanyId: employeeDetails?.childCompanyId,
+            Status: 'Pending',
+            Remarks: data.remarks,
+            IsDelete: 0,
+            Flag: 1,
+            CreatedBy: employeeDetails?.id ?? 0,
+            CreatedDate: isEditing
+              ? expenceData?.createdDate
+              : formatDateForBackend(new Date()),
+            ModifiedBy: employeeDetails?.id ?? 0,
+            ModifiedDate: formatDateForBackend(new Date()),
+          },
+          tempPayments: expenseItems.map((item) => ({
+            Id: isEditing ? item.id : 0,
+            TransactionDate: formatDateForBackend(item.date),
+            ExpenseHeadId: item.headId,
+            ExpenseHead: item.head,
+            Amount: parseFloat(item.amount),
+            ApprovedAmount: 0,
+            RequestType: data.RequestTypeId,
+            DocumentPath: item.document?.uri || null,
+          })),
+        };
+
+        console.log(`${isEditing ? 'Updating' : 'Submitting'} Expense Form Data:`, formData);
+
+        const response = await axios.post(
+          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          formData
+        );
+
+        console.log('API Response:', response.data);
+        Alert.alert(
+          'Success',
+          isEditing
+            ? 'Expense request updated successfully'
+            : 'Expense request submitted successfully'
+        );
+        reset();
+        setExpenseItems([]);
+        setUploadedFile(null);
+      }
     } catch (error) {
-      console.error(
-        `Error ${isEditing ? 'updating' : 'submitting'} payment request:`,
-        error
-      );
-      setFeedbackMessage(
-        isEditing
-          ? 'Failed to update payment request'
-          : 'Failed to submit payment request'
-      );
-      setFeedbackType('fail');
-      setFeedbackVisible(true);
+      console.error('Error submitting request:', error);
+
+      if (error.response) {
+        console.error('Response Data:', error.response.data);
+        console.error('Response Status:', error.response.status);
+      }
+
+      Alert.alert('Error', 'Failed to submit request. Please try again.');
     }
   };
 
@@ -376,10 +426,14 @@ const PaymentRequest = ({navigation, route}) => {
           const response = await axios.get(
             `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`
           );
+
           const expenseDetails = response.data;
+
+          console.log('Fetched Expense Details:', expenseDetails);
 
           // Populate form fields with fetched data
           setValue('remarks', expenseDetails?.remarks || '');
+          setValue('amount', expenseDetails?.totalAmount?.toString() || ''); // Bind amount
           setTotalAmount(expenseDetails?.totalAmount || 0);
 
           // Populate expense items if available
@@ -394,20 +448,26 @@ const PaymentRequest = ({navigation, route}) => {
                 amount: item.amount,
                 date: new Date(item.transactionDate),
                 document: item.documentPath
-                  ? { uri: item.documentPath, name: item.documentPath }
+                  ? { uri: item.documentPath, name: item.documentPath.split('/').pop() }
                   : null,
               }))
             );
           }
         } catch (error) {
           console.error('Error fetching expense details:', error);
-          Alert.alert('Error', 'Failed to fetch expense details');
+
+          if (error.response) {
+            console.error('Response Data:', error.response.data);
+            console.error('Response Status:', error.response.status);
+          }
+
+          Alert.alert('Error', 'Failed to fetch expense details. Please try again.');
         }
       }
     };
 
     fetchExpenseDetails();
-  }, [expenceData]);
+  }, [expenceData, setValue]);
 
   return (
     <AppSafeArea>

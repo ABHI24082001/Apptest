@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   ScrollView,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
@@ -15,6 +17,8 @@ import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
+import StatusCard from '../components/StatusCard'; // Import the StatusCard component
+
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
 ];
@@ -25,56 +29,108 @@ const LeaveRequestStatusScreen = () => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [leaveData, setLeaveData] = useState([]); // State for leave data
-  const [feedbackVisible, setFeedbackVisible] = useState(false); // State for FeedbackModal visibility
-  const [feedbackMessage, setFeedbackMessage] = useState(''); // State for FeedbackModal message
+  const [leaveData, setLeaveData] = useState([]);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   const employeeDetails = useFetchEmployeeDetails();
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
   const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
 
-  useEffect(() => {
-    const fetchLeaveData = async () => {
-      try {
-        if (employeeDetails?.id) {
-          const response = await axios.get(
-            `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
-          );
-          setLeaveData(response.data); // Set fetched data
-          console.log(
-            'Fetched ==============================leave data:',
-            response.data,
-          ); // Debug fetched data
-        }
-
-        console.log(
-          'Employee Details in LeaveRequestStatusScreen:',
-          employeeDetails,)
-      } catch (error) {
-        console.error('Error fetching leave data:', error);
+  // Updated fetch data function with callback
+  const fetchLeaveData = useCallback(async () => {
+    try {
+      setLoading(true);
+      if (employeeDetails?.id) {
+        const response = await axios.get(
+          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
+        );
+        setLeaveData(response.data);
+        console.log('Fetched leave data:', response.data.length);
       }
-    };
-
-    fetchLeaveData();
+    } catch (error) {
+      console.error('Error fetching leave data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [employeeDetails]);
 
-  console.log('Employee Details', employeeDetails);
+  // Initial data loading
+  useEffect(() => {
+    fetchLeaveData();
+  }, [fetchLeaveData]);
 
-  // Format date for display
+  // Handle refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setFromDate(null);
+    setToDate(null);
+    fetchLeaveData();
+  }, [fetchLeaveData]);
+
+  // Format date for display using the same format as ExpenseRequestStatus
   const formatDate = date => {
-    return date ? date.toLocaleDateString('en-GB') : 'Select';
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
-  // Filter data by date range
+  // Improved date filter function
   const filteredData = leaveData.filter(item => {
     if (!fromDate && !toDate) return true;
 
-    const itemDate = new Date(item.fromLeaveDate); // Corrected to use `fromLeaveDate`
+    const itemDate = new Date(item.createdDate || item.fromLeaveDate);
     const fromMatch = fromDate ? itemDate >= fromDate : true;
     const toMatch = toDate ? itemDate <= toDate : true;
 
     return fromMatch && toMatch;
   });
+
+  // When fromDate or toDate changes due to datePicker
+  useEffect(() => {
+    if (fromDate && toDate) {
+      // Validate date range
+      if (fromDate > toDate) {
+        Alert.alert('Invalid Date Range', 'From Date cannot be after To Date', [
+          {
+            text: 'OK',
+            onPress: () => setFromDate(null),
+          },
+        ]);
+        return;
+      }
+    }
+  }, [fromDate, toDate]);
+
+  // Apply date filter
+  const applyDateFilter = () => {
+    if (!fromDate && !toDate) {
+      Alert.alert('Filter Error', 'Please select at least one date to filter');
+      return;
+    }
+
+    // If fromDate is set but toDate is not, set toDate to today
+    if (fromDate && !toDate) {
+      const today = new Date();
+      setToDate(today);
+    } else {
+      setLoading(true);
+      setTimeout(() => setLoading(false), 500);
+    }
+  };
+
+  // Clear filters function
+  const clearFilters = () => {
+    setFromDate(null);
+    setToDate(null);
+  };
 
   const getStatusColor = status => {
     switch (status) {
@@ -92,7 +148,7 @@ const LeaveRequestStatusScreen = () => {
       console.log('Leave ID to delete:', id); // Log the ID being deleted
 
       const response = await axios.get(
-        `${BASE_URL_PROD}/ApplyLeave/DeleteApplyLeave/${id}`, 
+        `${BASE_URL_PROD}/ApplyLeave/DeleteApplyLeave/${id}`,
       );
 
       if (response?.status === 200) {
@@ -120,160 +176,190 @@ const LeaveRequestStatusScreen = () => {
         <Appbar.Content title="My Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
-      {/* Date Range Picker */}
-      <View style={styles.dateRangeContainer}>
-        <Text style={styles.filterTitle}>Filter by Applied Date</Text>
-        <View style={styles.datePickerRow}>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowFromPicker(true)}>
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={18} color="#3B82F6" />
-              <Text style={styles.dateButtonText}>
-                {fromDate ? formatDate(fromDate) : 'From Date'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
+      {/* Date Filter Toggle Button */}
+      <TouchableOpacity
+        style={styles.filterToggleButton}
+        onPress={() => setShowDateFilter(!showDateFilter)}>
+        <View style={styles.filterToggleContent}>
           <Icon
-            name="arrow-right"
-            size={20}
-            color="#6B7280"
-            style={styles.arrowIcon}
+            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color="#3B82F6"
           />
+          <Text style={styles.filterToggleText}>
+            {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+          </Text>
 
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowToPicker(true)}>
-            <View style={styles.dateButtonContent}>
-              <Icon name="calendar" size={18} color="#3B82F6" />
-              <Text style={styles.dateButtonText}>
-                {toDate ? formatDate(toDate) : 'To Date'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
+          {/* Badge to show active filters */}
           {(fromDate || toDate) && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => {
-                setFromDate(null);
-                setToDate(null);
-              }}>
-              <Icon name="close" size={18} color="#EF4444" />
-            </TouchableOpacity>
+            <View style={styles.activeDateFilterBadge}>
+              <Text style={styles.activeDateFilterText}>Active</Text>
+            </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {/* Leave Cards */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {filteredData.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No requests</Text>
-            {(fromDate || toDate) && (
-              <Text style={styles.emptySubText}>for selected date range</Text>
-            )}
-          </View>
-        ) : (
-          filteredData.map((item, index) => (
-            <TouchableOpacity key={index} activeOpacity={0.9}>
-              <View style={styles.card}>
-                {/* Leave Type */}
-                <View style={styles.detailRow}>
-                  <Icon name="briefcase-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Leave</Text>
-                  <Text style={styles.detailText}>
-                    : <Text>{item.leaveName || 'N/A'}</Text>
-                  </Text>
-                </View>
-
-                {/* Remarks */}
-                <View style={styles.detailRow}>
-                  <Icon name="comment-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>Remarks</Text>
-                  <Text style={styles.detailText}>
-                    : <Text>{item.remarks || 'N/A'}</Text>
-                  </Text>
-                </View>
-
-                {/* Applied Date */}
-                <View style={styles.detailRow}>
-                  <Icon name="clock-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailText}>
-                    Applied on:{' '}
-                    <Text>
-                      {item.createdDate
-                        ? new Date(item.createdDate).toLocaleDateString()
-                        : 'N/A'}
-                    </Text>
-                  </Text>
-                </View>
-
-                {/* Status, Cancel Button, and Edit/Delete Buttons */}
-                <View style={styles.cardFooter}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor: `${getStatusColor(item.status)}15`,
-                        borderColor: getStatusColor(item.status),
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.statusText,
-                        {color: getStatusColor(item.status)},
-                      ]}>
-                      {item.status}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => handleEditLeave(item)}>
-                    <Text style={styles.editText}>Edit</Text>
-                  </TouchableOpacity>
-
-                  {item.status === 'Pending' && (
-                    <TouchableOpacity
-                      style={styles.cancelBtn}
-                      onPress={() => handleDeleteLeave(item.id)}>
-                      <Text style={styles.cancelText}>Delete</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+      {/* Collapsible Date Filter Section */}
+      {showDateFilter && (
+        <View style={styles.dateRangeContainer}>
+          <View style={styles.datePickerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                fromDate && {
+                  borderColor: '#3B82F6',
+                  backgroundColor: '#EFF6FF',
+                },
+              ]}
+              onPress={() => setShowFromPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {fromDate ? formatDate(fromDate) : 'From Date'}
+                </Text>
               </View>
             </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+
+            <Icon
+              name="arrow-right"
+              size={20}
+              color="#6B7280"
+              style={styles.arrowIcon}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.dateButton,
+                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+              ]}
+              onPress={() => setShowToPicker(true)}>
+              <View style={styles.dateButtonContent}>
+                <Icon name="calendar" size={18} color="#3B82F6" />
+                <Text style={styles.dateButtonText}>
+                  {toDate ? formatDate(toDate) : 'To Date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterActions}>
+            {(fromDate || toDate) && (
+              <TouchableOpacity
+                style={styles.clearFilterButton}
+                onPress={clearFilters}>
+                <Icon name="close" size={16} color="#EF4444" />
+                <Text style={styles.clearFilterText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.applyFilterButton,
+                !fromDate && !toDate && { opacity: 0.6 },
+              ]}
+              onPress={applyDateFilter}>
+              <Icon name="filter" size={16} color="#FFFFFF" />
+              <Text style={styles.applyFilterText}>Apply Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Date Pickers */}
       <DatePicker
         modal
+        mode="date"
         open={showFromPicker}
         date={fromDate || new Date()}
-        mode="date"
         onConfirm={date => {
           setShowFromPicker(false);
-          setFromDate(date);
+          // Set time to beginning of day
+          const startOfDay = new Date(date);
+          startOfDay.setHours(0, 0, 0, 0);
+          setFromDate(startOfDay);
         }}
         onCancel={() => setShowFromPicker(false)}
       />
       <DatePicker
         modal
+        mode="date"
         open={showToPicker}
         date={toDate || new Date()}
-        mode="date"
-        minimumDate={fromDate}
         onConfirm={date => {
           setShowToPicker(false);
-          setToDate(date);
+          // Set time to end of day
+          const endOfDay = new Date(date);
+          endOfDay.setHours(23, 59, 59, 999);
+          setToDate(endOfDay);
         }}
         onCancel={() => setShowToPicker(false)}
       />
+
+      {/* Leave Cards with loading state and refresh control */}
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2962ff" />
+          <Text style={styles.loaderText}>Loading leave data...</Text>
+        </View>
+      ) : (
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2962ff']}
+              tintColor="#2962ff"
+            />
+          }>
+          {filteredData.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No requests</Text>
+              {(fromDate || toDate) && (
+                <Text style={styles.emptySubText}>for selected date range</Text>
+              )}
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={onRefresh}
+              >
+                <Icon name="refresh" size={18} color="#fff" />
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            filteredData.map(item => (
+              <StatusCard
+                key={item.id}
+                title={`${item.employeeName || 'Leave Request'}`}
+                subtitle={`${item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''} to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
+                details={[
+                  {icon: 'briefcase-outline', label: 'Leave Type', value: item.leaveName || 'N/A'},
+                  {icon: 'calendar-range', label: 'Leave Days', value: item.leaveDays || '0'},
+                  {icon: 'clock-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                ]}
+                status={item.status || 'Pending'}
+                remarks={item.remarks}
+                onEdit={() => handleEditLeave(item)}
+                onDelete={() => item.status === 'Pending' && 
+                  Alert.alert(
+                    'Delete Leave Request',
+                    'Are you sure you want to delete this leave request?',
+                    [
+                      {text: 'Cancel', style: 'cancel'},
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => handleDeleteLeave(item.id),
+                      },
+                    ],
+                  )
+                }
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
 
       {/* Feedback Modal */}
       <FeedbackModal
@@ -302,17 +388,74 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  dateRangeContainer: {
-    padding: 16,
+  filterToggleButton: {
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  filterTitle: {
-    fontSize: 14,
+  filterToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterToggleText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3B82F6',
+    marginLeft: 8,
+  },
+  activeDateFilterBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  activeDateFilterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
+  },
+  dateRangeContainer: {
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  clearFilterText: {
+    marginLeft: 4,
+    color: '#EF4444',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  applyFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  applyFilterText: {
+    marginLeft: 4,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: 14,
   },
   datePickerRow: {
     flexDirection: 'row',
@@ -340,10 +483,6 @@ const styles = StyleSheet.create({
   },
   arrowIcon: {
     marginHorizontal: 8,
-  },
-  clearButton: {
-    marginLeft: 12,
-    padding: 8,
   },
   emptySubText: {
     fontSize: 14,
@@ -500,6 +639,31 @@ const styles = StyleSheet.create({
   editText: {
     color: '#00796B',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  refreshButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 6,
     fontWeight: '600',
   },
 });
