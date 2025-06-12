@@ -20,11 +20,9 @@ import {useForm, Controller} from 'react-hook-form';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PaymentRequest = ({navigation, route}) => {
-  // Form handling with react-hook-form
-
-  // State management
   const [date, setDate] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -34,6 +32,7 @@ const PaymentRequest = ({navigation, route}) => {
   const [totalAmount, setTotalAmount] = useState(0);
   const [expenseHeads, setExpenseHeads] = useState([]);
 
+  // Extract data passed via route.params
   const expenceData = route?.params?.expence || null;
   console.log('PaymentRequest Routes:', expenceData);
 
@@ -54,9 +53,9 @@ const PaymentRequest = ({navigation, route}) => {
     getValues,
   } = useForm({
     defaultValues: {
-      RequestTypeId: 1, // Default value for RequestTypeId
-      requestType: 'expense', // Auto-select 'Expense' as default
-      EmployeeId: employeeDetails?.id || 0, // Use employee ID from fetched details'',
+      RequestTypeId: 1,
+      requestType: 'expense',
+      EmployeeId: employeeDetails?.id || 0,
       projectName: '',
       expenseHead: '',
       amount: '',
@@ -72,6 +71,32 @@ const PaymentRequest = ({navigation, route}) => {
     },
   });
 
+  // Initialize form with edit data if available
+  useEffect(() => {
+    if (expenceData) {
+      // Set the request type
+      setValue('requestType', expenceData.requestType?.toLowerCase() || 'expense');
+      setValue('RequestTypeId', expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1);
+      
+      // Set remarks if available
+      if (expenceData.remarks) {
+        setValue('remarks', expenceData.remarks);
+        console.log('Setting remarks:', expenceData.remarks);
+      }
+      
+      // Set total amount
+      if (expenceData.totalAmount) {
+        setTotalAmount(parseFloat(expenceData.totalAmount) || 0);
+        setValue('amount', expenceData.totalAmount.toString());
+      }
+
+      // Update UI to show we're in edit mode
+      navigation.setOptions({
+        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`
+      });
+    }
+  }, [expenceData, setValue, navigation]);
+
   // Watch the requestType value
   const requestType = watch('requestType');
 
@@ -83,6 +108,50 @@ const PaymentRequest = ({navigation, route}) => {
     );
     setTotalAmount(sum);
   }, [expenseItems]);
+
+  
+  useEffect(() => {
+    if (requestType === 'expense' || expenseItems.length > 0) {
+      // If we have expense items, force requestType to be 'expense'
+      if (expenseItems.length > 0 && requestType !== 'expense') {
+        setValue('requestType', 'expense');
+        setValue('RequestTypeId', 1);
+        console.log('Forced request type to expense because items exist');
+      }
+    }
+  }, [requestType, expenseItems.length, setValue]);
+
+  // Clear expense items when switching to Advance mode - add confirmation
+  useEffect(() => {
+    if (requestType === 'advance' && expenseItems.length > 0) {
+      Alert.alert(
+        'Change Request Type',
+        'Switching to Advance will clear your expense items. Continue?',
+        [
+          {
+            text: 'Cancel',
+            onPress: () => {
+              setValue('requestType', 'expense');
+              setValue('RequestTypeId', 1);
+            },
+            style: 'cancel',
+          },
+          {
+            text: 'Continue',
+            onPress: async () => {
+              setExpenseItems([]);
+              try {
+                await AsyncStorage.removeItem('stored_expense_items');
+                console.log('Cleared expense items due to type change');
+              } catch (error) {
+                console.error('Error clearing stored expense items:', error);
+              }
+            },
+          },
+        ]
+      );
+    }
+  }, [requestType, expenseItems.length, setValue]);
 
   // Reset modal form when opening
   const openAddExpenseModal = () => {
@@ -276,10 +345,8 @@ const PaymentRequest = ({navigation, route}) => {
   // Submit form handler
   const onSubmit = async (data) => {
     try {
-      const isEditing = !!expenceData?.requestId; // Check if editing an existing request
-
-      if (requestType === 'advance') {
-        // Prepare data for Advance submission or update
+      const isEditing = !!expenceData?.requestId;
+      if (requestType === 'advance') {       
         const formData = {
           PaymentRequest: {
             RequestId: isEditing ? expenceData.requestId : 0,
@@ -320,6 +387,11 @@ const PaymentRequest = ({navigation, route}) => {
         reset();
         setTotalAmount(0);
         setUploadedFile(null);
+        try {
+          await AsyncStorage.removeItem('stored_expense_items');
+        } catch (error) {
+          console.error('Error clearing stored expense items:', error);
+        }
       } else if (requestType === 'expense') {
         // Validate that at least one expense item is added
         if (expenseItems.length === 0) {
@@ -383,6 +455,11 @@ const PaymentRequest = ({navigation, route}) => {
         reset();
         setExpenseItems([]);
         setUploadedFile(null);
+        try {
+          await AsyncStorage.removeItem('stored_expense_items');
+        } catch (error) {
+          console.error('Error clearing stored expense items:', error);
+        }
       }
     } catch (error) {
       console.error('Error submitting request:', error);
@@ -432,9 +509,29 @@ const PaymentRequest = ({navigation, route}) => {
           console.log('Fetched Expense Details:', expenseDetails);
 
           // Populate form fields with fetched data
-          setValue('remarks', expenseDetails?.remarks || '');
-          setValue('amount', expenseDetails?.totalAmount?.toString() || ''); // Bind amount
-          setTotalAmount(expenseDetails?.totalAmount || 0);
+          if (expenseDetails?.remarks) {
+            console.log('Setting remarks:', expenseDetails.remarks);
+            setValue('remarks', expenseDetails.remarks);
+          }
+          
+          if (expenseDetails?.totalAmount) {
+            const amount = parseFloat(expenseDetails.totalAmount) || 0;
+            console.log('Setting total amount:', amount);
+            setValue('amount', amount.toString());
+            setTotalAmount(amount);
+          }
+
+          // Display success message with details
+          if (expenseDetails) {
+            setFeedbackVisible(true);
+            setFeedbackType('info');
+            setFeedbackMessage(`Loaded request: ${expenceData.requestType} - ₹${expenseDetails.totalAmount}`);
+            
+            // Show a summary of the loaded request
+            setTimeout(() => {
+              setFeedbackVisible(false);
+            }, 2000);
+          }
 
           // Populate expense items if available
           if (expenseDetails?.tempPayments) {
@@ -469,6 +566,56 @@ const PaymentRequest = ({navigation, route}) => {
     fetchExpenseDetails();
   }, [expenceData, setValue]);
 
+  // Enhance the UI when in edit mode
+  useEffect(() => {
+    if (expenceData) {
+      // Set the request type
+      setValue('requestType', expenceData.requestType?.toLowerCase() || 'expense');
+      setValue('RequestTypeId', expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1);
+      
+      // Set remarks if available
+      if (expenceData.remarks) {
+        setValue('remarks', expenceData.remarks);
+        console.log('Setting remarks:', expenceData.remarks);
+      }
+      
+      // Set total amount
+      if (expenceData.totalAmount) {
+        setTotalAmount(parseFloat(expenceData.totalAmount) || 0);
+        setValue('amount', expenceData.totalAmount.toString());
+      }
+
+      // Update UI to show we're in edit mode
+      navigation.setOptions({
+        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`
+      });
+    }
+  }, [expenceData, setValue, navigation]);
+
+
+  // Add a function to handle item selection for editing
+  const handleEditItem = (item) => {
+    console.log('Editing expense item:', item);
+    setEditingItemId(item.id);
+    setValue('expenseHead', item.head);
+    setValue('paymentTitle', item.title || '');
+    setValue('amount', item.amount.toString());
+    
+    // Set date
+    if (item.date) {
+      setDate(new Date(item.date));
+      setValue('date', new Date(item.date));
+    }
+    
+    // Set document if available
+    if (item.document) {
+      setUploadedFile(item.document);
+    }
+    
+    setIsModalVisible(true);
+  };
+
+  // Conditional rendering based on request type
   return (
     <AppSafeArea>
       {/* Feedback Modal */}
@@ -482,7 +629,7 @@ const PaymentRequest = ({navigation, route}) => {
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
-          title="Payment Request"
+          title={expenceData ? `Edit ${expenceData.requestType || 'Payment'} Request` : "Payment Request"}
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -491,13 +638,17 @@ const PaymentRequest = ({navigation, route}) => {
         {/* Header Section */}
         <View style={styles.headerSection}>
           <Icon name="credit-card-outline" size={40} color="#10B981" />
-          <Text style={styles.headerText}>Payment Request</Text>
+          <Text style={styles.headerText}>
+            {expenceData ? 'Edit Payment Request' : 'Payment Request'}
+          </Text>
           <Text style={styles.subHeaderText}>
-            Please fill in the details below to submit your payment request
+            {expenceData 
+              ? 'Update the details of your payment request' 
+              : 'Please fill in the details below to submit your payment request'}
           </Text>
         </View>
 
-        {/* Request Type */}
+       
         <Text style={styles.label}>
           Request Type <Text style={styles.required}>*</Text>
           {errors.requestType && (
@@ -511,36 +662,69 @@ const PaymentRequest = ({navigation, route}) => {
           render={({field: {onChange, value}}) => (
             <RNPickerSelect
               onValueChange={selectedValue => {
+                // Only allow changing to advance if no expense items exist
+                if (selectedValue === 'advance' && expenseItems.length > 0) {
+                  Alert.alert(
+                    'Cannot Change Request Type',
+                    'You have expense items added. Please remove all expense items before changing to Advance request type.',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
+                
+                // Otherwise allow the change
                 onChange(selectedValue);
-                setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2); // Set RequestTypeId based on selection
+                setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2);
+                console.log('Request type changed to:', selectedValue);
               }}
               value={value}
+              disabled={!!expenceData || (value === 'expense' && expenseItems.length > 0)} // Disable when editing or has items
               placeholder={{label: 'Select Request Type', value: null}}
               items={[
                 {label: 'Expense', value: 'expense'},
                 {label: 'Advance', value: 'advance'},
               ]}
-              style={pickerSelectStyles}
+              style={{
+                ...pickerSelectStyles,
+                inputIOS: {
+                  ...pickerSelectStyles.inputIOS,
+                  color: (expenceData || (value === 'expense' && expenseItems.length > 0)) ? '#666' : '#000',
+                },
+                inputAndroid: {
+                  ...pickerSelectStyles.inputAndroid,
+                  color: (expenceData || (value === 'expense' && expenseItems.length > 0)) ? '#666' : '#000',
+                },
+              }}
               useNativeAndroidPickerStyle={false}
               Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
             />
           )}
         />
 
-        {/* Expense Items Section */}
+        {/* Expense Items Section - Always show when request type is expense */}
         {requestType === 'expense' && (
           <View style={styles.expenseSection}>
             <View style={styles.expenseSectionHeader}>
-              <Text style={styles.expenseSectionTitle}>Expense Items</Text>
+              <Text style={styles.expenseSectionTitle}>
+                {expenceData ? 'Edit Expense Items' : 'Expense Items'}
+              </Text>
+              {expenseItems.length > 0 && (
+                <Text style={styles.itemsCountBadge}>
+                  {expenseItems.length} {expenseItems.length === 1 ? 'Item' : 'Items'}
+                </Text>
+              )}
             </View>
 
             <TouchableOpacity
               style={styles.addBtn}
               onPress={openAddExpenseModal}>
               <Icon name="plus" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>Add Expense</Text>
+              <Text style={styles.addBtnText}>
+                {expenceData ? 'Add/Edit Expense' : 'Add Expense'}
+              </Text>
             </TouchableOpacity>
 
+            {/* Always show the grid if there are expense items */}
             {expenseItems.length > 0 && (
               <View style={styles.gridContainer}>
                 {/* Grid Header */}
@@ -579,6 +763,11 @@ const PaymentRequest = ({navigation, route}) => {
                     </View>
                     <View style={[styles.gridCell, styles.actionsCell]}>
                       <TouchableOpacity
+                        style={[styles.gridActionBtn, {marginRight: 6}]}
+                        onPress={() => handleEditItem(item)}>
+                        <Icon name="pencil" size={18} color="#3B82F6" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         style={styles.gridActionBtn}
                         onPress={() => handleDeleteExpense(item.id)}>
                         <Icon name="trash-can" size={18} color="#EF4444" />
@@ -590,6 +779,7 @@ const PaymentRequest = ({navigation, route}) => {
             )}
           </View>
         )}
+
         {/* Total Amount Input Field */}
         <View style={styles.totalAmountContainer}>
           <Text style={styles.label}>Total Amount</Text>
@@ -598,15 +788,20 @@ const PaymentRequest = ({navigation, route}) => {
               requestType === 'advance'
                 ? totalAmount.toString()
                 : `₹${totalAmount.toFixed(2)}`
-            } // Editable for 'advance'
-            editable={requestType === 'advance'} // Allow editing only for 'advance'
+            }
+            editable={requestType === 'advance' && !expenceData?.status?.toLowerCase()?.includes('approved')} 
             onChangeText={value => {
               if (requestType === 'advance') {
-                const numericValue = parseFloat(value) || 0;
+                const numericValue = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
                 setTotalAmount(numericValue);
               }
             }}
-            style={[styles.input, styles.totalAmountInput]}
+            style={[
+              styles.input, 
+              styles.totalAmountInput,
+              {color: '#000'} // Ensure text is visible
+            ]}
+            keyboardType="numeric"
           />
         </View>
         {/* Remarks */}
@@ -622,7 +817,7 @@ const PaymentRequest = ({navigation, route}) => {
           rules={{required: 'Remarks are required'}}
           render={({field: {onChange, onBlur, value}}) => (
             <TextInput
-              value={value}
+              value={value || ''}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="Add Remarks"
@@ -638,10 +833,19 @@ const PaymentRequest = ({navigation, route}) => {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.submitBtn}
+          style={[styles.submitBtn, expenceData && {backgroundColor: '#0891B2'}]}
           onPress={handleSubmit(onSubmit)}>
-          <Text style={styles.submitText}>Submit</Text>
+          <Text style={styles.submitText}>{expenceData ? 'Update' : 'Submit'}</Text>
         </TouchableOpacity>
+
+        {/* Show a Cancel button when editing */}
+        {expenceData && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Add Expense Modal */}
@@ -713,7 +917,7 @@ const PaymentRequest = ({navigation, route}) => {
               />
 
               {/* Payment Title */}
-              <Text style={styles.label}>Payment Title</Text>
+              <Text style={styles.label}>Transaction Details</Text>
               <Controller
                 control={control}
                 name="paymentTitle"
@@ -722,7 +926,7 @@ const PaymentRequest = ({navigation, route}) => {
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    placeholder="Enter Payment Title"
+                    placeholder="Enter Transaction Details"
                     style={styles.input}
                   />
                 )}
@@ -802,6 +1006,9 @@ const PaymentRequest = ({navigation, route}) => {
           </View>
         </View>
       </Modal>
+
+
+
     </AppSafeArea>
   );
 };
@@ -1118,6 +1325,124 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontWeight: 'bold',
   },
+  summaryCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#4b5563',
+    width: 80,
+  },
+  summaryValue: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  expenseSummaryCard: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0f2fe',
+  },
+  expenseSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  expenseSummaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1e40af',
+    marginLeft: 8,
+  },
+  expenseSummaryContent: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0f2fe',
+  },
+  expenseSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  expenseSummaryLabel: {
+    fontSize: 14,
+    color: '#4b5563',
+    fontWeight: '500',
+  },
+  expenseSummaryValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: 'bold',
+  },
+  itemsCountBadge: {
+    backgroundColor: '#2962ff',
+    color: 'white',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  advanceSection: {
+    marginTop: 20,
+  },
+  advanceSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  advanceInfoCard: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  advanceInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E40AF',
+    lineHeight: 20,
+  },
+  advanceTotalAmountContainer: {
+    backgroundColor: '#F0FDF4',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  advanceLabel: {
+    color: '#047857',
+    marginTop: 0,
+  },
+  advanceAmountInput: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#10B981',
+    color: '#047857',
+    fontWeight: 'bold',
+    fontSize: 18,
+    textAlign: 'center',
+  },
 });
 
 const pickerSelectStyles = {
@@ -1148,5 +1473,7 @@ const pickerSelectStyles = {
     right: 10,
   },
 };
+
+
 
 export default PaymentRequest;

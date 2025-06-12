@@ -7625,3 +7625,402 @@ const styles = StyleSheet.create({
 });
 
 export default ChangePasswordScreen;
+
+
+
+
+import React, {useState} from 'react';
+import {ScrollView, Alert} from 'react-native';
+import {
+  Appbar,
+  Card,
+  ActivityIndicator,
+} from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
+import axios from 'axios';
+import {pick} from '@react-native-documents/picker';
+
+import AppSafeArea from '../component/AppSafeArea';
+import BASE_URL from '../constants/apiConfig';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import ProfileHeader from '../component/ProfileHeader';
+import ProfileSection from '../component/profile/ProfileSection';
+import CredentialsSection from '../component/profile/CredentialsSection';
+import EditActions from '../component/profile/EditActions';
+import styles from '../components/profile/profileStyles';
+
+const ProfileScreen = () => {
+  const navigation = useNavigation();
+  const employeeDetails = useFetchEmployeeDetails();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedFields, setEditedFields] = useState({});
+  const [uploading, setUploading] = useState(false);
+
+  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
+  const imageUrl = employeeDetails?.empImage
+    ? `${IMG_BASE_URL}${employeeDetails.empImage}`
+    : null;
+
+  function formatDateForBackend(date) {
+    if (!date || isNaN(new Date(date).getTime())) return null;
+    const d = new Date(date);
+    const pad = n => String(n).padStart(2, '0');
+    return (
+      d.getFullYear() +
+      '-' +
+      pad(d.getMonth() + 1) +
+      '-' +
+      pad(d.getDate()) +
+      'T' +
+      pad(d.getHours()) +
+      ':' +
+      pad(d.getMinutes()) +
+      ':' +
+      pad(d.getSeconds())
+    );
+  }
+
+  const handleUpdatePassword = async () => {
+    try {
+      const {currentPassword, newPassword, confirmPassword} = editedFields;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        Alert.alert('Error', 'All fields are required.');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        Alert.alert('Error', 'New Password and Confirm Password do not match.');
+        return;
+      }
+
+      const payload = {
+        Id: employeeDetails.id,
+        Password: newPassword,
+      };
+
+      const response = await axios.post(
+        `${BASE_URL}EmpRegistration/SaveEmpRegistration`,
+        payload,
+      );
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Password updated successfully!');
+        setEditedFields({});
+      } else {
+        throw new Error('Failed to update password.');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Something went wrong.',
+      );
+    }
+  };
+
+  const handleEdit = field => {
+    setIsEditing(true);
+    setEditedFields({...editedFields, [field]: employeeDetails[field]});
+  };
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        Id: employeeDetails.id,
+        EmployeeId: employeeDetails.employeeId ?? '',
+        EmployeeName: editedFields.EmployeeName || employeeDetails.employeeName,
+        Dob: editedFields.Dob || employeeDetails.dob,
+        Gender: editedFields.Gender || employeeDetails.gender,
+        BloodGroup: editedFields.BloodGroup || employeeDetails.bloodGroup,
+        MaritalStatus:
+          editedFields.MaritalStatus || employeeDetails.maritalStatus,
+        Religion: editedFields.Religion || employeeDetails.religion,
+        PcontactNo: editedFields.PcontactNo || employeeDetails.pcontactNo,
+        EmergencyContactNo:
+          editedFields.EmergencyContactNo || employeeDetails.emergencyContactNo,
+        EmailAddress: editedFields.EmailAddress || employeeDetails.emailAddress,
+        EmpImage: employeeDetails.empImage,
+        EmpFather: editedFields.EmpFather || employeeDetails.empFather,
+        EmpMother: editedFields.EmpMother || employeeDetails.empMother,
+        PoliceStation:
+          editedFields.PoliceStation || employeeDetails.policeStation,
+        ZipCode: editedFields.ZipCode || employeeDetails.zipCode,
+        CountryId: employeeDetails.countryId,
+        StateId: employeeDetails.stateId,
+        City: editedFields.City || employeeDetails.city,
+        EmployeeType: employeeDetails.employeeType,
+        ProvisionEndDt: employeeDetails.provisionEndDt,
+        PresentAddress:
+          editedFields.PresentAddress || employeeDetails.presentAddress,
+        PermaAddress: editedFields.PermaAddress || employeeDetails.permaAddress,
+        DateofJoin: employeeDetails.dateofJoin,
+        ChildCompanyId: employeeDetails.childCompanyId,
+        BranchId: employeeDetails.branchId,
+        DepartmentId: employeeDetails.departmentId,
+        CompanyVerticalId: employeeDetails.companyVerticalId,
+        DesigntionId: employeeDetails.designtionId,
+        ReportingEmpId: employeeDetails.reportingEmpId,
+        ExistingBank: editedFields.ExistingBank || employeeDetails.existingBank,
+        BankAcNo: editedFields.BankAcNo || employeeDetails.bankAcNo,
+        BankIfsc: editedFields.BankIfsc || employeeDetails.bankIfsc,
+        UploadResume: employeeDetails.uploadResume,
+        HighDegree: employeeDetails.highDegree,
+        YearPassing: employeeDetails.yearPassing,
+        Percentage: employeeDetails.percentage,
+        University: employeeDetails.university,
+        Uanno: employeeDetails.uanno,
+        Esino: employeeDetails.esino,
+        PanNo: employeeDetails.panNo,
+        AadhaarNo: employeeDetails.aadhaarNo,
+        Category: employeeDetails.category,
+        UploadPan: employeeDetails.uploadPan,
+        UploadAadhaar: employeeDetails.uploadAadhaar,
+        UploadSignature: employeeDetails.uploadSignature,
+        Username: employeeDetails.username,
+        Password: employeeDetails.password,
+        IsDelete: employeeDetails.isDelete,
+        Flag: employeeDetails.flag,
+        CreatedBy: employeeDetails?.id ?? '0',
+        CreatedDate: formatDateForBackend(employeeDetails.createdDate),
+        ModifiedBy: employeeDetails.id,
+        ModifiedDate: formatDateForBackend(new Date()),
+      };
+
+      const response = await axios.post(
+        `${BASE_URL}EmpRegistration/SaveEmpRegistration`,
+        payload,
+      );
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Profile updated successfully!');
+        setIsEditing(false);
+        setEditedFields({});
+      } else {
+        throw new Error('Failed to update profile.');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to update profile.',
+      );
+    }
+  };
+
+  const handleProfilePhotoUpdate = async () => {
+    try {
+      const result = await pick({
+        type: ['image/*'],
+        allowMultiSelection: false,
+      });
+      if (!result || !result[0]) return;
+
+      setUploading(true);
+
+      const photo = result[0];
+      const formData = new FormData();
+      formData.append('file', {
+        uri: photo.uri,
+        type: photo.type,
+        name: photo.name || 'profile.jpg',
+      });
+      formData.append('EmployeeId', employeeDetails.id);
+
+      const response = await axios.post(
+        `${BASE_URL}EmpRegistration/UploadProfilePhoto`,
+        formData,
+        {
+          headers: {'Content-Type': 'multipart/form-data'},
+        },
+      );
+
+      setUploading(false);
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Profile photo updated!');
+      } else {
+        throw new Error('Failed to update profile photo.');
+      }
+    } catch (error) {
+      setUploading(false);
+      Alert.alert('Error', 'Failed to update profile photo.');
+    }
+  };
+
+  if (!employeeDetails) {
+    return (
+      <AppSafeArea>
+        <Appbar.Header>
+          <Appbar.Content title="Profile" />
+        </Appbar.Header>
+        <Text style={{padding: 20, textAlign: 'center'}}>
+          Loading profile...
+        </Text>
+      </AppSafeArea>
+    );
+  }
+
+  const generalInfoData = [
+    {
+      icon: 'badge-account',
+      label: 'Employee ID',
+      value: employeeDetails.employeeId,
+    },
+    {icon: 'map-marker', label: 'Branch', value: employeeDetails.branchName},
+    {
+      icon: 'water',
+      label: 'Blood Group',
+      value: employeeDetails.bloodGroup,
+      editable: true,
+    },
+    {
+      icon: 'account-heart',
+      label: 'Marital Status',
+      value: employeeDetails.maritalStatus,
+      editable: true,
+    },
+    {
+      icon: 'bank',
+      label: 'Bank Name',
+      value: employeeDetails.existingBank,
+      editable: true,
+    },
+    {
+      icon: 'credit-card',
+      label: 'AC Number',
+      value: employeeDetails.bankAcNo,
+      editable: true,
+    },
+    {
+      icon: 'barcode',
+      label: 'IFSC Code',
+      value: employeeDetails.bankIfsc,
+      editable: true,
+    },
+  ];
+
+  const contactData = [
+    {
+      icon: 'email',
+      label: 'Email',
+      value: employeeDetails.emailAddress,
+      editable: true,
+    },
+    {
+      icon: 'phone',
+      label: 'Primary No',
+      value: employeeDetails.pcontactNo,
+      editable: true,
+    },
+    {
+      icon: 'cellphone',
+      label: 'Emergency No',
+      value: employeeDetails.emergencyContactNo,
+      editable: true,
+    },
+  ];
+
+  const credentialsData = [
+    {icon: 'email', label: 'Email', value: employeeDetails.emailAddress},
+    {icon: 'account', label: 'Username', value: employeeDetails.username},
+    {icon: 'id-card', label: 'User ID', value: employeeDetails.employeeId},
+  ];
+
+  const professionalData = [
+    {
+      icon: 'domain',
+      label: 'Vertical',
+      value: employeeDetails.companyVerticalId?.toString() ?? 'N/A',
+    },
+    {
+      icon: 'briefcase',
+      label: 'Branch Name',
+      value: employeeDetails.branchName,
+    },
+    {
+      icon: 'account-group',
+      label: 'Employee Type',
+      value: employeeDetails.employeeTypeName,
+    },
+    {
+      icon: 'account-supervisor',
+      label: 'Designation',
+      value: employeeDetails.designationName,
+    },
+    {
+      icon: 'account-supervisor',
+      label: 'Department',
+      value: employeeDetails.departmentName,
+    },
+  ];
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Profile" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}>
+        <Card style={styles.profileCard} elevation={2}>
+          <ProfileHeader
+            employeeDetails={employeeDetails}
+            handleProfilePhotoUpdate={handleProfilePhotoUpdate}
+            uploading={uploading}
+            imageUrl={imageUrl}
+          />
+        </Card>
+
+        <EditActions
+          isEditing={isEditing}
+          handleSave={handleSave}
+          setIsEditing={setIsEditing}
+        />
+
+        <ProfileSection
+          title="General Info"
+          icon="information-outline"
+          data={generalInfoData}
+          isEditing={isEditing}
+          editedFields={editedFields}
+          setEditedFields={setEditedFields}
+          onEdit={handleEdit}
+        />
+
+        <ProfileSection
+          title="Contact"
+          icon="phone-outline"
+          data={contactData}
+          isEditing={isEditing}
+          editedFields={editedFields}
+          setEditedFields={setEditedFields}
+          onEdit={handleEdit}
+        />
+
+        <CredentialsSection
+          credentialsData={credentialsData}
+          isEditing={isEditing}
+          editedFields={editedFields}
+          setEditedFields={setEditedFields}
+          onEdit={handleEdit}
+          handleUpdatePassword={handleUpdatePassword}
+        />
+
+        <ProfileSection
+          title="Professional Details"
+          icon="briefcase-outline"
+          data={professionalData}
+          isEditing={isEditing}
+          editedFields={editedFields}
+          setEditedFields={setEditedFields}
+          onEdit={handleEdit}
+        />
+      </ScrollView>
+    </AppSafeArea>
+  );
+};
+
+export default ProfileScreen;

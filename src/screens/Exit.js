@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {Appbar, Button} from 'react-native-paper';
 import DatePicker from 'react-native-date-picker';
@@ -17,13 +18,21 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
 import AppSafeArea from '../component/AppSafeArea';
 import axios from 'axios';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+
 const ExitApplyScreen = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+
+  // Calculate minimum allowed exit date (30 days from today)
+  const minimumExitDate = new Date();
+  minimumExitDate.setDate(minimumExitDate.getDate() + 30);
 
   const {
     control,
@@ -35,11 +44,58 @@ const ExitApplyScreen = ({navigation}) => {
   } = useForm({
     defaultValues: {
       EmployeeId: employeeDetails?.id ?? '',
-      exitDate: new Date(new Date().setDate(new Date().getDate() + 30)), // Default 30 days in future
-      appliedDate: new Date(), // Today as applied date
+      exitDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+      appliedDate: new Date(),
       reason: '',
     },
   });
+
+  // Check if user has any pending exit requests
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkExistingRequests = async () => {
+        if (!employeeDetails?.id) return;
+
+        setCheckingStatus(true);
+        try {
+          const response = await axios.get(
+            `${BASE_URL_PROD}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
+          );
+
+          const exitRequests = Array.isArray(response.data) ? response.data : [];
+          const hasPendingRequest = exitRequests.some(req =>
+            req.applicationStatus?.toLowerCase() === 'pending',
+          );
+
+          if (hasPendingRequest) {
+            setHasActiveRequest(true);
+            // If we have a pending request, show alert and navigate back
+            Alert.alert(
+              'Request Already Exists',
+              'You already have a pending exit application. Please withdraw it before submitting a new one.',
+              [
+                {
+                  text: 'View Requests',
+                  onPress: () => navigation.navigate('ExitRequestStatus'),
+                },
+              ],
+            );
+          } else {
+            setHasActiveRequest(false);
+          }
+        } catch (error) {
+          console.error('Error checking exit requests:', error);
+        } finally {
+          setCheckingStatus(false);
+        }
+      };
+
+      checkExistingRequests();
+
+      return () => {};
+    }, [employeeDetails?.id]),
+  );
+
   function formatDateForBackend(date) {
     if (!date || isNaN(new Date(date).getTime())) return null;
     const d = new Date(date);
@@ -66,8 +122,46 @@ const ExitApplyScreen = ({navigation}) => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showAppliedDatePicker, setShowAppliedDatePicker] = useState(false);
-  
+
+  // Validate the selected exit date is at least 30 days in the future
+  const validateExitDate = date => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 30);
+    minDate.setHours(0, 0, 0, 0);
+
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < minDate) {
+      Alert.alert(
+        'Invalid Exit Date',
+        'Your exit date must be at least 30 days from today as per company policy.',
+        [{text: 'OK'}],
+      );
+      return false;
+    }
+    return true;
+  };
+
   const onSubmit = async data => {
+    // Double check for active requests before submission
+    if (hasActiveRequest) {
+      Alert.alert(
+        'Request Already Exists',
+        'You already have a pending exit application. Please withdraw it before submitting a new one.',
+        [
+          {
+            text: 'View Requests',
+            onPress: () => navigation.navigate('ExitRequestStatus'),
+          },
+        ],
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Build payload with only the required fields and valid values (no null for required)
@@ -152,6 +246,59 @@ const ExitApplyScreen = ({navigation}) => {
   const exitDate = watch('exitDate');
   const appliedDate = watch('appliedDate');
 
+  // Show loading indicator while checking for existing requests
+  if (checkingStatus) {
+    return (
+      <AppSafeArea>
+        <Appbar.Header style={styles.header}>
+          <Appbar.BackAction
+            onPress={() => navigation.goBack()}
+            color="#4B5563"
+          />
+          <Appbar.Content
+            title="Exit Application"
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Checking application status...</Text>
+        </View>
+      </AppSafeArea>
+    );
+  }
+
+  // If there's an active request, redirect to status screen
+  if (hasActiveRequest) {
+    return (
+      <AppSafeArea>
+        <Appbar.Header style={styles.header}>
+          <Appbar.BackAction
+            onPress={() => navigation.goBack()}
+            color="#4B5563"
+          />
+          <Appbar.Content
+            title="Exit Application"
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+        <View style={styles.redirectContainer}>
+          <Icon name="alert-circle-outline" size={48} color="#EF4444" />
+          <Text style={styles.redirectTitle}>Application In Progress</Text>
+          <Text style={styles.redirectText}>
+            You already have a pending exit application. Please withdraw it before submitting a new one.
+          </Text>
+          <Button
+            mode="contained"
+            onPress={() => navigation.navigate('ExitRequestStatus')}
+            style={styles.redirectButton}>
+            View My Requests
+          </Button>
+        </View>
+      </AppSafeArea>
+    );
+  }
+
   return (
     <AppSafeArea>
       <Appbar.Header style={styles.header}>
@@ -207,7 +354,7 @@ const ExitApplyScreen = ({navigation}) => {
             </View> */}
 
             {/* Applied Date */}
-            <View style={styles.inputContainer}>
+            {/* <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Applied Date <Text style={{color: 'red'}}>*</Text>
               </Text>
@@ -230,12 +377,13 @@ const ExitApplyScreen = ({navigation}) => {
               {errors.appliedDate && (
                 <Text style={styles.errorText}>Applied Date is required</Text>
               )}
-            </View>
+            </View> */}
 
             {/* Exit Date */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Exit Date <Text style={{color: 'red'}}>*</Text>
+                <Text style={styles.dateHintText}> (must be at least 30 days from today)</Text>
               </Text>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -291,13 +439,13 @@ const ExitApplyScreen = ({navigation}) => {
             <Button
               mode="contained"
               onPress={handleSubmit(onSubmit)}
-              style={styles.submitButton}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
+              style={styles.submitButtonSmall}
+              contentStyle={styles.buttonContentSmall}
+              labelStyle={styles.buttonLabelSmall}
               icon="send-check"
               disabled={isSubmitting}
               loading={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+              {isSubmitting ? 'Submitting...' : 'Submit'}
             </Button>
           </View>
         </ScrollView>
@@ -309,10 +457,15 @@ const ExitApplyScreen = ({navigation}) => {
         open={showDatePicker}
         date={exitDate || new Date()}
         mode="date"
-        minimumDate={new Date()}
+        minimumDate={minimumExitDate}
         onConfirm={date => {
           setShowDatePicker(false);
-          setValue('exitDate', date, {shouldValidate: true});
+          if (validateExitDate(date)) {
+            setValue('exitDate', date, {shouldValidate: true});
+          } else {
+            // If validation fails, set to minimum acceptable date
+            setValue('exitDate', new Date(minimumExitDate), {shouldValidate: true});
+          }
         }}
         onCancel={() => setShowDatePicker(false)}
         theme="light"
@@ -446,6 +599,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  // --- Add these for small button ---
+  submitButtonSmall: {
+    marginTop: 8,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    alignSelf: 'flex-end',
+    minWidth: 110,
+    paddingHorizontal: 0,
+    elevation: 2,
+  },
+  buttonContentSmall: {
+    height: 36,
+    paddingHorizontal: 8,
+  },
+  buttonLabelSmall: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
   employeeInfoCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
@@ -479,6 +652,45 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 12,
     marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  redirectContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  redirectTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  redirectText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  redirectButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  dateHintText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#9CA3AF',
   },
 });
 

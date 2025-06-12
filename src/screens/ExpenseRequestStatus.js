@@ -152,7 +152,15 @@ useEffect(() => {
   const handleEditExpense = (expense) => {
     console.log('Selected ========== Data:', expense); // Log the selected expense for debugging
     navigation.navigate('PaymentRequest', {
-      expence: expense, // Pass the selected expense data with the correct key 'expence'
+      expence: {
+        ...expense,
+        // Ensure these fields are passed correctly for editing
+        requestId: expense.requestId,
+        companyId: expense.companyId,
+        requestType: expense.requestType?.toLowerCase(),
+        totalAmount: expense.totalAmount,
+        remarks: expense.remarks || '',
+      }
     });
   };
 
@@ -169,7 +177,7 @@ useEffect(() => {
     <AppSafeArea>
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="  My Expense" titleStyle={styles.headerTitle} />
+        <Appbar.Content title="My Expense" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
       {/* Type Filter */}
