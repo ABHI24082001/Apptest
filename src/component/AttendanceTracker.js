@@ -1,139 +1,253 @@
-// components/AttendanceTracker.js
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, Platform } from 'react-native';
-import { Button, Card, IconButton, ActivityIndicator } from 'react-native-paper';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Button, Card, Snackbar } from 'react-native-paper';
 import Geolocation from '@react-native-community/geolocation';
-import { Camera, useCameraDevices } from 'react-native-vision-camera';
-import FaceDetector from '@react-native-ml-kit/face-detection';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import GeofencingCamera from './GeofencingCamera';
+import axios from 'axios';
+
+const API_URL = 'http://192.168.29.2:90/api/';
+
+// API service for attendance
+const attendanceApi = {
+  checkIn: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-in`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+  
+  checkOut: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-out`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  }
+};
 
 const AttendanceTracker = ({
   checkedIn,
   elapsedTime,
-  progress,
   progressPercentage,
   shiftHours,
   shiftCompleted,
   onCheckIn,
   onCheckOut,
 }) => {
-  // Modal state
-  const [modalVisible, setModalVisible] = useState(false);
-  const [location, setLocation] = useState(null);
-  const [loadingLocation, setLoadingLocation] = useState(false);
-  const [faceStep, setFaceStep] = useState(false);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
-  const cameraRef = useRef(null);
-  const devices = useCameraDevices();
-  const device = devices.front;
+  // Employee details from custom hook
+  const employeeDetails = useFetchEmployeeDetails();
+  
+  // State for geo-fencing
+  const [geoFenceDetails, setGeoFenceDetails] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [geofencingModalVisible, setGeofencingModalVisible] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // Get current location
-  const getCurrentLocation = () => {
-    setLoadingLocation(true);
-    Geolocation.getCurrentPosition(
-      pos => {
-        setLocation({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        });
-        setLoadingLocation(false);
-      },
-      err => {
-        Alert.alert('Location Error', err.message);
-        setLoadingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
-  };
-
-  // Open modal and fetch location
-  const handleOpenModal = () => {
-    setModalVisible(true);
-    setFaceStep(false);
-    setFaceDetected(false);
-    setCameraActive(false);
-    getCurrentLocation();
-  };
-
-  // Face detection logic
-  const handleFaceId = async () => {
-    setCameraActive(true);
-    setFaceStep(true);
-  };
-
-  const handleTakePicture = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePhoto({
-        flash: 'off',
-      });
-      // Use ML Kit to detect face
-      try {
-        const faces = await FaceDetector.detectFromFile(photo.path);
-        if (faces && faces.length > 0) {
-          setFaceDetected(true);
-          setCameraActive(false);
-          Alert.alert('Success', 'Face detected. Check In successful!');
-          setModalVisible(false);
-          if (onCheckIn) onCheckIn();
-        } else {
-          Alert.alert('No Face Detected', 'Please try again.');
+  // Toast function that works on both platforms
+  const showToast = useCallback((message) => {
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+  }, []);
+  
+  // Fetch geo-fence details when needed
+  const fetchGeoFenceDetails = useCallback(async () => {
+    if (!employeeDetails?.id) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Fetch assigned geo locations for the employee
+      const response = await axios.get(
+        `${API_URL}GeoFencing/getAssignedGeoLocationIdsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`
+      );
+      
+      if (response.data && response.data.length > 0) {
+        const fetchedGeoDetails = [];
+        
+        for (const assignedGeo of response.data) {
+          const geoId = assignedGeo.geoLocationId;
+          try {
+            const geoDetailsResponse = await axios.get(
+              `${API_URL}GeoFencing/GetGeoFenceDetails/${geoId}`
+            );
+            
+            fetchedGeoDetails.push(geoDetailsResponse.data);
+          } catch (error) {
+            console.error(`Error fetching geo fence details for ID ${geoId}:`, error);
+          }
         }
-      } catch (e) {
-        Alert.alert('Error', 'Face detection failed.');
+        
+        setGeoFenceDetails(fetchedGeoDetails);
+      } else {
+        // If no assigned locations, fetch a default one (ID: 2)
+        try {
+          const geoDetailsResponse = await axios.get(
+            `${API_URL}GeoFencing/GetGeoFenceDetails/2`
+          );
+          setGeoFenceDetails([geoDetailsResponse.data]);
+        } catch (error) {
+          console.error('Error fetching default geo fence details:', error);
+        }
       }
+    } catch (error) {
+      console.error('Error fetching assigned geo locations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [employeeDetails?.id, employeeDetails?.childCompanyId]);
+
+  // Handle check-in process
+  const handleStartCheckIn = async () => {
+    // Fetch geo fence details if not already loaded
+    if (geoFenceDetails.length === 0) {
+      await fetchGeoFenceDetails();
+    }
+    
+    // Open the geofencing and camera modal
+    setGeofencingModalVisible(true);
+  };
+
+  // Handle successful verification from GeofencingCamera
+  const handleGeofencingSuccess = async (data) => {
+    try {
+      setIsLoading(true);
+      
+      const { userLocation, nearestOffice, photoPath, photoBase64, faceBounds } = data;
+      
+      // Prepare check-in data
+      const checkInData = {
+        employeeId: employeeDetails.id,
+        employeeCode: employeeDetails.employeeId,
+        companyId: employeeDetails.childCompanyId,
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
+        officeTitle: nearestOffice?.title,
+        officeLatitude: nearestOffice?.latitude,
+        officeLongitude: nearestOffice?.longitude,
+        distance: nearestOffice?.distance,
+        photoPath: photoPath || null,
+        photoBase64: photoBase64 || null,
+        timestamp: new Date().toISOString(),
+        faceDetected: true,
+        faceBounds: faceBounds,
+        geoLocationId: nearestOffice?.geoLocationId || null,
+        areaType: nearestOffice?.areaType || null
+      };
+      
+      // Make API call to check in
+      const result = await attendanceApi.checkIn(checkInData);
+      
+      if (result.success) {
+        setGeofencingModalVisible(false);
+        if (onCheckIn) onCheckIn();
+        showToast('Check-in successful');
+      } else {
+        throw new Error(result.error || 'API check-in failed');
+      }
+      
+    } catch (error) {
+      showToast('Failed to submit check-in: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const animatedProgressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
+  // Handle check-out process
+  const handleStartCheckOut = () => {
+    // Directly submit check-out
+    submitCheckOut();
+  };
+
+  // Check-out submission function
+  const submitCheckOut = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Build check-out data
+          const checkOutData = {
+            employeeId: employeeDetails?.id,
+            employeeCode: employeeDetails?.employeeId,
+            companyId: employeeDetails?.childCompanyId,
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            timestamp: new Date().toISOString(),
+            checkOutTime: new Date().toISOString(),
+          };
+          
+          // Send check-out data to API
+          const result = await attendanceApi.checkOut(checkOutData);
+          
+          if (result.success) {
+            if (onCheckOut) onCheckOut();
+            showToast('Check-out successful');
+          } else {
+            throw new Error(result.error || 'API check-out failed');
+          }
+        },
+        err => {
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      showToast('Failed to submit check-out: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusBox,
-                checkedIn ? styles.active : styles.inactive,
-              ]}
-            >
-              <Text style={styles.statusText}>Check In {elapsedTime}</Text>
+            <View style={[styles.statusBox, checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check In {elapsedTime || '00:00:00'}</Text>
             </View>
-            <View
-              style={[
-                styles.statusBox,
-                !checkedIn ? styles.active : styles.inactive,
-              ]}
-            >
+            <View style={[styles.statusBox, !checkedIn ? styles.active : styles.inactive]}>
               <Text style={styles.statusText}>Check Out 00:00:00</Text>
             </View>
           </View>
+          
           <View style={styles.progressContainer}>
             <View style={styles.progressBarBg}>
-              <Animated.View style={[styles.progressBarFill, animatedProgressStyle]} />
+              <View style={[styles.progressBarFill, { width: `${progressPercentage || 0}%` }]} />
             </View>
-            <Text style={styles.progressText}>{progressPercentage}%</Text>
+            <Text style={styles.progressText}>{progressPercentage || 0}%</Text>
           </View>
-          <Text style={styles.shiftTime}>Shift: {shiftHours}</Text>
+          
+          <Text style={styles.shiftTime}>Shift: {shiftHours || '00:00'}</Text>
           {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
+          
           <View style={styles.buttonRow}>
             <Button
               mode="contained"
-              onPress={handleOpenModal}
-              disabled={checkedIn}
+              onPress={handleStartCheckIn}
+              disabled={checkedIn || isLoading}
               style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+              loading={isLoading}
             >
               Check In
             </Button>
             <Button
               mode="contained"
-              onPress={onCheckOut}
-              disabled={!checkedIn}
+              onPress={handleStartCheckOut}
+              disabled={!checkedIn || isLoading}
               style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+              loading={isLoading}
             >
               Check Out
             </Button>
@@ -141,102 +255,23 @@ const AttendanceTracker = ({
         </Card.Content>
       </Card>
 
-      {/* Modal for Check In */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+      {/* Geofencing & Camera Modal */}
+      <GeofencingCamera
+        visible={geofencingModalVisible}
+        onClose={() => setGeofencingModalVisible(false)}
+        onSuccess={handleGeofencingSuccess}
+        employeeDetails={employeeDetails}
+        geoFenceDetails={geoFenceDetails}
+      />
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {!faceStep ? (
-              <>
-                <Text style={styles.modalTitle}>Check In Location</Text>
-                {loadingLocation ? (
-                  <ActivityIndicator size="large" color="#2196F3" />
-                ) : location ? (
-                  <MapView
-                    style={styles.map}
-                    provider={PROVIDER_GOOGLE}
-                    region={{
-                      latitude: location.latitude,
-                      longitude: location.longitude,
-                      latitudeDelta: 0.005,
-                      longitudeDelta: 0.005,
-                    }}
-                  >
-                    <Marker
-                      coordinate={location}
-                      title="Your Location"
-                      pinColor="#2196F3"
-                    />
-                  </MapView>
-                ) : (
-                  <Text>No location found</Text>
-                )}
-                <View style={{ flexDirection: 'row', marginTop: 16 }}>
-                  <Button
-                    mode="outlined"
-                    onPress={getCurrentLocation}
-                    style={{ flex: 1, marginRight: 8 }}
-                  >
-                    Refresh
-                  </Button>
-                  <Button
-                    mode="contained"
-                    onPress={handleFaceId}
-                    style={{ flex: 1, marginLeft: 8 }}
-                    disabled={!location}
-                  >
-                    Face ID
-                  </Button>
-                </View>
-                <Button
-                  mode="text"
-                  onPress={() => setModalVisible(false)}
-                  style={{ marginTop: 12 }}
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalTitle}>Face Verification</Text>
-                {device && cameraActive ? (
-                  <Camera
-                    ref={cameraRef}
-                    style={styles.camera}
-                    device={device}
-                    isActive={cameraActive}
-                    photo={true}
-                  />
-                ) : (
-                  <ActivityIndicator size="large" color="#2196F3" />
-                )}
-                <Button
-                  mode="contained"
-                  onPress={handleTakePicture}
-                  style={{ marginTop: 16 }}
-                  disabled={!cameraActive}
-                >
-                  Take Face Photo
-                </Button>
-                <Button
-                  mode="text"
-                  onPress={() => {
-                    setCameraActive(false);
-                    setFaceStep(false);
-                  }}
-                  style={{ marginTop: 12 }}
-                >
-                  Back
-                </Button>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+        {snackbarMessage}
+      </Snackbar>
     </>
   );
 };
@@ -324,39 +359,8 @@ const styles = StyleSheet.create({
   disabled: {
     backgroundColor: '#BDBDBD',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '92%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    elevation: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#222',
-  },
-  map: {
-    width: 280,
-    height: 180,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  camera: {
-    width: 280,
-    height: 320,
-    borderRadius: 10,
-    marginBottom: 12,
-    backgroundColor: '#000',
-  },
 });
 
 export default AttendanceTracker;
+
+

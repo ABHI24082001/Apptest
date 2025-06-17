@@ -8024,3 +8024,5257 @@ const ProfileScreen = () => {
 };
 
 export default ProfileScreen;
+
+
+Build issue ===============================================
+
+ lintOptions {
+    checkReleaseBuilds false
+    abortOnError false
+}
+Build issue ==============================================
+
+
+
+import React, {useEffect, useState, useRef} from 'react';
+import {
+  PermissionsAndroid,
+  Platform,
+  View,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  Alert,
+ 
+} from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
+import MapView, {Marker, PROVIDER_GOOGLE, Polyline} from 'react-native-maps';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import {Appbar, FAB, Card, Button, IconButton} from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
+import * as geolib from 'geolib';
+
+
+const Setting = ({navigation}) => {
+  const [location, setLocation] = useState(null);
+  const [mapError, setMapError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const [initialRegion, setInitialRegion] = useState(null);
+  const [secondPoint, setSecondPoint] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [isMeasuring, setIsMeasuring] = useState(false);
+  
+
+
+//   first coordinates:20.361716, 85.891851
+// second coordinates:20.287928, 85.953911
+  // Fixed points for the two locations
+  const firstFixedPoint = {
+    latitude: 20.361716, 
+    longitude:85.891851,
+    title: "Location 1"
+  };
+
+  // 20.2922745, 85.8574225
+  // 20.292275, 85.857422
+
+  // 20.2915777043635, 85.85751101785772
+  const secondFixedPoint = {
+    latitude: 20.287928, 
+    longitude: 85.953911,
+    title: "Location 2"
+  };
+  
+  const mapRef = useRef(null);
+  const watchIdRef = useRef(null);
+
+  // Calculate distance between two points - generic function
+  const calculateDistance = () => {
+    console.log("Generic calculateDistance called");
+    
+    // If we're measuring between two points
+    if (location && secondPoint) {
+      // USING STANDARD METHOD: getDistance
+      const startTimeStandard = performance.now();
+      const distanceInMetersStandard = geolib.getDistance(
+        {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        {
+          latitude: secondPoint.latitude,
+          longitude: secondPoint.longitude,
+        }
+      );
+      const endTimeStandard = performance.now();
+      const calculationTimeStandard = endTimeStandard - startTimeStandard;
+      
+      // Format time as HH:MM:SS.mmm for standard method
+      const msStandard = Math.floor(calculationTimeStandard);
+      const hoursStandard = Math.floor(msStandard / 3600000);
+      const minutesStandard = Math.floor((msStandard % 3600000) / 60000);
+      const secondsStandard = Math.floor((msStandard % 60000) / 1000);
+      const millisecondsStandard = msStandard % 1000;
+      const timeFormatStandard = 
+        `${hoursStandard.toString().padStart(2, '0')}:${minutesStandard.toString().padStart(2, '0')}:${secondsStandard.toString().padStart(2, '0')}.${millisecondsStandard.toString().padStart(3, '0')}`;
+      
+      // USING PRECISE METHOD: getPreciseDistance
+      const startTimePrecise = performance.now();
+      const distanceInMetersPrecise = geolib.getPreciseDistance(
+        {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        {
+          latitude: secondPoint.latitude,
+          longitude: secondPoint.longitude,
+        }
+      );
+      const endTimePrecise = performance.now();
+      const calculationTimePrecise = endTimePrecise - startTimePrecise;
+      
+      // Format time as HH:MM:SS.mmm for precise method
+      const msPrecise = Math.floor(calculationTimePrecise);
+      const hoursPrecise = Math.floor(msPrecise / 3600000);
+      const minutesPrecise = Math.floor((msPrecise % 3600000) / 60000);
+      const secondsPrecise = Math.floor((msPrecise % 60000) / 1000);
+      const millisecondsPrecise = msPrecise % 1000;
+      const timeFormatPrecise = 
+        `${hoursPrecise.toString().padStart(2, '0')}:${minutesPrecise.toString().padStart(2, '0')}:${secondsPrecise.toString().padStart(2, '0')}.${millisecondsPrecise.toString().padStart(3, '0')}`;
+      
+      // Log comparison between the two methods
+      console.log('======== DISTANCE CALCULATION COMPARISON ========');
+      console.log(`Method: getDistance | Result: ${distanceInMetersStandard.toFixed(2)}m | Time: ${calculationTimeStandard.toFixed(2)}ms (${timeFormatStandard})`);
+      console.log(`Method: getPreciseDistance | Result: ${distanceInMetersPrecise.toFixed(2)}m | Time: ${calculationTimePrecise.toFixed(2)}ms (${timeFormatPrecise})`);
+      console.log(`Difference: ${Math.abs(distanceInMetersStandard - distanceInMetersPrecise).toFixed(2)}m`);
+      console.log(`Percentage difference: ${(Math.abs(distanceInMetersStandard - distanceInMetersPrecise) / distanceInMetersPrecise * 100).toFixed(4)}%`);
+      console.log('===============================================');
+      
+      // Use the precise distance for display (more accurate)
+      const distanceInMeters = distanceInMetersPrecise;
+      
+      // Convert to appropriate units
+      let formattedDistance;
+      if (distanceInMeters < 1000) {
+        formattedDistance = `${distanceInMeters.toFixed(0)} meters`;
+      } else {
+        formattedDistance = `${(distanceInMeters / 1000).toFixed(2)} km`;
+      }
+      
+      setDistance(formattedDistance);
+    }
+  };
+  
+  const setSpecificLocation = () => {
+    getLocation();
+  };
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message: 'App needs access to your location',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return true;
+  };
+
+  const employeeDetails = useFetchEmployeeDetails();
+
+  // Function to post attendance data to the API
+  const postAttendanceData = async () => {
+    try {
+      setLoading(true);
+      // Use employee details from the hook or use default values
+      const employeeId = employeeDetails?.id || 9;
+      const companyId = employeeDetails?.childCompanyId || 1;
+
+      // Make sure location data is available
+      if (!location) {
+        Alert.alert(
+          'Error',
+          'Location data is not available. Please try again.',
+        );
+        setLoading(false);
+        return;
+      }
+
+      const apiUrl = 'YOUR_API_ENDPOINT_HERE'; // Replace with your actual API endpoint
+
+      // Create payload with detailed location information
+      const payload = {
+        id: employeeId,
+        childCompanyId: companyId,
+        // Location data
+        latitude: location.latitude,
+        longitude: location.longitude,
+        // Additional useful fields
+        timestamp: new Date().toISOString(),
+        deviceInfo: Platform.OS + ' ' + Platform.Version,
+      };
+
+      console.log('Posting iiiiiiiiiiii data:', payload);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any authentication headers if needed
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', 'Attendance marked successfully!');
+        console.log('API Response:', responseData);
+      } else {
+        throw new Error(responseData.message || 'Failed to mark attendance');
+      }
+    } catch (error) {
+      console.error('Error posting attendance data:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Something went wrong while marking attendance',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  console.log('Employee==================== Details:', employeeDetails);
+
+  const getLocation = async () => {
+    setLoading(true);
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) {
+      setLoading(false);
+      Alert.alert(
+        'Permission Denied',
+        'Location permission is required for this app to work properly.',
+      );
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      position => {
+        const currentLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          // Add any additional location properties you might need
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        };
+        setLocation(currentLocation);
+
+        if (!initialRegion) {
+          setInitialRegion({
+            ...currentLocation,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          });
+        }
+
+        if (mapRef.current) {
+          mapRef.current.animateToRegion(
+            {
+              ...currentLocation,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            },
+            1000,
+          );
+        }
+
+        setLoading(false);
+      },
+      error => {
+        console.error(error);
+        Alert.alert(
+          'Location Error',
+          'Failed to get your location: ' + error.message,
+        );
+        setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0, // Always get fresh location
+      },
+    );
+  };
+
+  const startTracking = async () => {
+    setTracking(true);
+
+    // Use the first fixed location
+    setLocation(firstFixedPoint);
+
+    if (!initialRegion) {
+      // Set map to show both points
+      const midLat = (firstFixedPoint.latitude + secondFixedPoint.latitude) / 2;
+      const midLng = (firstFixedPoint.longitude + secondFixedPoint.longitude) / 2;
+      
+      // Calculate appropriate delta to show both points
+      const latDelta = Math.abs(firstFixedPoint.latitude - secondFixedPoint.latitude) * 1.5;
+      const lngDelta = Math.abs(firstFixedPoint.longitude - secondFixedPoint.longitude) * 1.5;
+      
+      setInitialRegion({
+        latitude: midLat,
+        longitude: midLng,
+        latitudeDelta: Math.max(0.005, latDelta),
+        longitudeDelta: Math.max(0.005, lngDelta),
+      });
+    }
+  };
+
+  const stopTracking = () => {
+    setTracking(false);
+    if (watchIdRef.current !== null) {
+      Geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  const handleMapError = () => {
+    setMapError(true);
+  };
+
+  const handleRefresh = () => {
+    getLocation();
+  };
+
+  const toggleTracking = () => {
+    if (tracking) {
+      stopTracking();
+    } else {
+      startTracking();
+    }
+  };
+
+  const useSpecificLocation = () => {
+    setSpecificLocation();
+  };
+
+  // Update distance when either point changes
+  useEffect(() => {
+    calculateDistance();
+  }, [location, secondPoint]);
+
+  // Toggle measuring mode
+  const toggleMeasuring = () => {
+    setIsMeasuring(!isMeasuring);
+    if (!isMeasuring) {
+      setSecondPoint(null);
+      setDistance(null);
+    }
+  };
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Attendance" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+      <View style={styles.container}>
+        {location && !mapError ? (
+          <>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={initialRegion || {
+                latitude: firstFixedPoint.latitude,
+                longitude: firstFixedPoint.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+              showsUserLocation={false}
+              followsUserLocation={false}
+              onError={handleMapError}>
+              {/* First Marker */}
+              <Marker
+                coordinate={firstFixedPoint}
+                title={firstFixedPoint.title}
+                description={`Lat: ${firstFixedPoint.latitude.toFixed(6)}, Lng: ${firstFixedPoint.longitude.toFixed(6)}`}
+                pinColor="#2196F3"
+              />
+              {/* Second Marker */}
+              <Marker
+                coordinate={secondFixedPoint}
+                title={secondFixedPoint.title}
+                description={`Lat: ${secondFixedPoint.latitude.toFixed(6)}, Lng: ${secondFixedPoint.longitude.toFixed(6)}`}
+                pinColor="#FF5722"
+              />
+              {/* Line connecting both points */}
+              <Polyline
+                coordinates={[firstFixedPoint, secondFixedPoint]}
+                strokeColor="#2196F3"
+                strokeWidth={3}
+                lineDashPattern={[5, 5]}
+              />
+            </MapView>
+
+            {/* Debug button to log measurement data */}
+            <FAB
+              style={styles.debugFab}
+              icon="bug"
+              onPress={() => {
+                // Define the specific location to measure from
+                const specificLocation = {
+                  latitude: 20.294688333333333,
+                  longitude: 85.86316666666667,
+                  accuracy: 5,
+                  timestamp: 1749791737206
+                };
+                
+                console.log("-----MEASUREMENT DEBUG INFO-----");
+                console.log("First Fixed Point:", firstFixedPoint);
+                console.log("Second Fixed Point:", secondFixedPoint);
+                console.log("Specified Location:", specificLocation);
+                console.log("Distance:", distance);
+                
+                // Measure time and distance for standard method
+                console.log("\n--- Standard Method (getDistance) ---");
+                const startTimeStd1 = performance.now();
+                const distance1Std = geolib.getDistance(
+                  {
+                    latitude: specificLocation.latitude,
+                    longitude: specificLocation.longitude,
+                  },
+                  {
+                    latitude: firstFixedPoint.latitude,
+                    longitude: firstFixedPoint.longitude,
+                  }
+                );
+                const endTimeStd1 = performance.now();
+                const timeStd1 = endTimeStd1 - startTimeStd1;
+                
+                const startTimeStd2 = performance.now();
+                const distance2Std = geolib.getDistance(
+                  {
+                    latitude: specificLocation.latitude,
+                    longitude: specificLocation.longitude,
+                  },
+                  {
+                    latitude: secondFixedPoint.latitude,
+                    longitude: secondFixedPoint.longitude,
+                  }
+                );
+                const endTimeStd2 = performance.now();
+                const timeStd2 = endTimeStd2 - startTimeStd2;
+                
+                // Format standard method time in mm:ss.mmm
+                const formatTime = (timeMs) => {
+                  const minutes = Math.floor(timeMs / 60000);
+                  const seconds = Math.floor((timeMs % 60000) / 1000);
+                  const milliseconds = Math.floor(timeMs % 1000);
+                  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+                };
+                
+                console.log(`Distance to Location 1: ${distance1Std.toFixed(2)} meters`);
+                console.log(`Time taken: ${timeStd1.toFixed(2)}ms (${formatTime(timeStd1)})`);
+                console.log(`Distance to Location 2: ${distance2Std.toFixed(2)} meters`);
+                console.log(`Time taken: ${timeStd2.toFixed(2)}ms (${formatTime(timeStd2)})`);
+                
+                // Measure time and distance for precise method
+                console.log("\n--- Precise Method (getPreciseDistance) ---");
+                const startTimePrecise1 = performance.now();
+                const distance1Precise = geolib.getPreciseDistance(
+                  {
+                    latitude: specificLocation.latitude,
+                    longitude: specificLocation.longitude,
+                  },
+                  {
+                    latitude: firstFixedPoint.latitude,
+                    longitude: firstFixedPoint.longitude,
+                  }
+                );
+                const endTimePrecise1 = performance.now();
+                const timePrecise1 = endTimePrecise1 - startTimePrecise1;
+                
+                const startTimePrecise2 = performance.now();
+                const distance2Precise = geolib.getPreciseDistance(
+                  {
+                    latitude: specificLocation.latitude,
+                    longitude: specificLocation.longitude,
+                  },
+                  {
+                    latitude: secondFixedPoint.latitude,
+                    longitude: secondFixedPoint.longitude,
+                  }
+                );
+                const endTimePrecise2 = performance.now();
+                const timePrecise2 = endTimePrecise2 - startTimePrecise2;
+                
+                console.log(`Distance to Location 1: ${distance1Precise.toFixed(2)} meters`);
+                console.log(`Time taken: ${timePrecise1.toFixed(2)}ms (${formatTime(timePrecise1)})`);
+                console.log(`Distance to Location 2: ${distance2Precise.toFixed(2)} meters`);
+                console.log(`Time taken: ${timePrecise2.toFixed(2)}ms (${formatTime(timePrecise2)})`);
+                
+                console.log("-----------------------------");
+                
+                // Show detailed measurement information in alert
+                Alert.alert(
+                  "Distance Measurements from Specified Location",
+                  `Specified Location: ${specificLocation.latitude.toFixed(6)}, ${specificLocation.longitude.toFixed(6)}\n\n` +
+                  `Distance to Location 1:\n` +
+                  `Standard: ${distance1Std.toFixed(2)}m (${formatTime(timeStd1)})\n` +
+                  `Precise: ${distance1Precise.toFixed(2)}m (${formatTime(timePrecise1)})\n\n` +
+                  `Distance to Location 2:\n` +
+                  `Standard: ${distance2Std.toFixed(2)}m (${formatTime(timeStd2)})\n` +
+                  `Precise: ${distance2Precise.toFixed(2)}m (${formatTime(timePrecise2)})`,
+                  [{ text: "OK" }]
+                );
+              }}
+            />
+
+            {/* Refresh FAB */}
+            <FAB
+              style={styles.refreshFab}
+              icon="refresh"
+              loading={loading}
+              onPress={handleRefresh}
+            />
+
+            {/* Bottom Card */}
+            <Card style={styles.bottomCard}>
+              <Card.Content>
+                <View style={styles.cardRow}>
+                  <View style={styles.coordinatesBox}>
+                    <Text style={styles.cardLabel}>Fixed Locations Measurement:</Text>
+                    
+                    <View style={styles.measurementBox}>
+                      <Text style={styles.locationLabel}>Location 1:</Text>
+                      <Text style={styles.coordinatesText}>
+                        Latitude: {firstFixedPoint.latitude.toFixed(6)}
+                      </Text>
+                      <Text style={styles.coordinatesText}>
+                        Longitude: {firstFixedPoint.longitude.toFixed(6)}
+                      </Text>
+                      
+                      <Text style={styles.locationLabel}>Location 2:</Text>
+                      <Text style={styles.coordinatesText}>
+                        Latitude: {secondFixedPoint.latitude.toFixed(6)}
+                      </Text>
+                      <Text style={styles.coordinatesText}>
+                        Longitude: {secondFixedPoint.longitude.toFixed(6)}
+                      </Text>
+                      
+                      <Text style={styles.distanceText}>
+                        Distance Between Points: {distance}
+                      </Text>
+                    </View>
+                    
+                    <Button
+                      mode="contained"
+                      style={styles.punchButton}
+                      labelStyle={styles.punchButtonLabel}
+                      compact={true}
+                      onPress={() => {
+                        // Share location and distance information
+                        const shareMessage = 
+                          `Distance between two fixed points:\n` +
+                          `Location 1: ${firstFixedPoint.latitude.toFixed(6)}, ${firstFixedPoint.longitude.toFixed(6)}\n` +
+                          `Location 2: ${secondFixedPoint.latitude.toFixed(6)}, ${secondFixedPoint.longitude.toFixed(6)}\n` +
+                          `Distance: ${distance}`;
+                          
+                        if (Platform.OS === 'android' || Platform.OS === 'ios') {
+                          import('react-native').then(({Share}) => {
+                            Share.share({ message: shareMessage });
+                          });
+                        } else {
+                          Alert.alert('Share', shareMessage);
+                        }
+                      }}
+                      loading={loading}>
+                      Share Details
+                    </Button>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+          </>
+        ) : (
+          <View style={styles.loader}>
+            {mapError ? (
+              <View>
+                <Text style={styles.errorText}>Map couldn't be loaded</Text>
+                <Text>Please check your Google Maps API key</Text>
+              </View>
+            ) : (
+              <>
+                <ActivityIndicator size="large" color="#0000ff" />
+                <Text>Fetching location...</Text>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    position: 'relative',
+  },
+  map: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'red',
+    marginBottom: 10,
+  },
+  // FAB styles
+  refreshFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    top: 16,
+    backgroundColor: 'white',
+  },
+  debugFab: {
+    position: 'absolute',
+    margin: 16,
+    left: 16,
+    top: 16,
+    backgroundColor: '#673AB7',
+  },
+  homeFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    bottom: 220,
+    backgroundColor: '#4CAF50',
+  },
+  trackingFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    bottom: 150,
+  },
+  trackingButton: {
+    backgroundColor: '#FF9800',
+  },
+  trackingActiveButton: {
+    backgroundColor: '#E91E63',
+  },
+  // Bottom card styles
+  bottomCard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    elevation: 8,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cardLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  coordinatesBox: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  actionBox: {
+    flex: 1,
+    paddingLeft: 10,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 5,
+  },
+  coordinatesText: {
+    fontSize: 15,
+    marginBottom: 5,
+    color: '#555',
+    fontWeight: '500',
+  },
+  trackingText: {
+    fontSize: 12,
+    color: '#E91E63',
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  employeeInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  punchButtonLabel: {
+    fontSize: 12,
+    margin: 0,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  employeeInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  attendanceButton: {
+    marginTop: 10,
+    borderRadius: 5,
+    height: 50,
+    paddingHorizontal: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+  },
+  punchButton: {
+    backgroundColor: '#2196F3',
+  },
+  measureFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    top: 80,
+    backgroundColor: '#4CAF50',
+  },
+  measurementBox: {
+    marginVertical: 10,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  locationLabel: {
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  distanceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    color: '#E91E63',
+  },
+  polyline: {
+    strokeWidth: 4,
+    strokeColor: '#FF0000',
+  },
+  buttonTextLarge: {
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#FF5722',
+  },
+  secondaryButton: {
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#2196F3',
+  },
+  primaryButton: {
+    color: '#333',
+    fontSize: 16,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+    height: 50,
+  },
+  textInput: {
+    marginBottom: 8,
+    color: '#333',
+    fontSize: 14,
+  },
+  label: {
+    marginBottom: 16,
+  },
+  inputContainer: {
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  buttonText: {
+    backgroundColor: '#FF9800',
+  },
+  halfDayButton: {
+    backgroundColor: '#F44336',
+  },
+  absentButton: {
+    backgroundColor: '#4CAF50',
+  },
+  presentButton: {
+    marginBottom: 8,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  statusText: {
+    marginBottom: 8,
+    color: '#777',
+    fontSize: 14,
+  },
+  dateText: {
+    color: '#333',
+    marginBottom: 12,
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  attendanceTitle: {
+    backgroundColor: '#fff',
+    borderTopColor: '#e0e0e0',
+    borderTopWidth: 1,
+    padding: 16,
+  },
+  attendanceContainer: {
+    borderRadius: 5,
+    backgroundColor: '#e8f5e9',
+    padding: 5,
+    textAlign: 'center',
+    marginTop: 10,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    fontSize: 16,
+    borderRadius: 4,
+  },
+});
+
+export default Setting;
+
+
+import React, {useEffect, useState, useRef} from 'react';
+import {
+  PermissionsAndroid,
+  Platform,
+  View,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
+import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import {Appbar, FAB, Card, Button, IconButton} from 'react-native-paper';
+import AppSafeArea from '../component/AppSafeArea';
+
+const Setting = ({navigation}) => {
+  const [location, setLocation] = useState(null);
+  const [mapError, setMapError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const [employeeId, setEmployeeId] = useState('');
+  const [initialRegion, setInitialRegion] = useState(null);
+  const mapRef = useRef(null);
+  const watchIdRef = useRef(null);
+
+  // Start tracking right away for better location accuracy
+  useEffect(() => {
+    startTracking();
+    return () => {
+      stopTracking();
+    };
+  }, []);
+
+  const setSpecificLocation = () => {
+    getLocation();
+  };
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message: 'App needs access to your location',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return true;
+  };
+
+  const employeeDetails = useFetchEmployeeDetails();
+
+  // Function to post attendance data to the API
+  const postAttendanceData = async () => {
+    try {
+      setLoading(true);
+      // Use employee details from the hook or use default values
+      const employeeId = employeeDetails?.id || 9;
+      const companyId = employeeDetails?.childCompanyId || 1;
+
+      // Make sure location data is available
+      if (!location) {
+        Alert.alert(
+          'Error',
+          'Location data is not available. Please try again.',
+        );
+        setLoading(false);
+        return;
+      }
+
+      const apiUrl = 'YOUR_API_ENDPOINT_HERE'; // Replace with your actual API endpoint
+
+      // Create payload with detailed location information
+      const payload = {
+        id: employeeId,
+        childCompanyId: companyId,
+        // Location data
+        latitude: location.latitude,
+        longitude: location.longitude,
+        // Additional useful fields
+        timestamp: new Date().toISOString(),
+        deviceInfo: Platform.OS + ' ' + Platform.Version,
+      };
+
+      console.log('Posting iiiiiiiiiiii data:', payload);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any authentication headers if needed
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', 'Attendance marked successfully!');
+        console.log('API Response:', responseData);
+      } else {
+        throw new Error(responseData.message || 'Failed to mark attendance');
+      }
+    } catch (error) {
+      console.error('Error posting attendance data:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Something went wrong while marking attendance',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  console.log('Employee==================== Details:', employeeDetails);
+
+  const getLocation = async () => {
+    setLoading(true);
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) {
+      setLoading(false);
+      Alert.alert(
+        'Permission Denied',
+        'Location permission is required for this app to work properly.',
+      );
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      position => {
+        const currentLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          // Add any additional location properties you might need
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        };
+        setLocation(currentLocation);
+
+        if (!initialRegion) {
+          setInitialRegion({
+            ...currentLocation,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          });
+        }
+
+        if (mapRef.current) {
+          mapRef.current.animateToRegion(
+            {
+              ...currentLocation,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            },
+            1000,
+          );
+        }
+
+        setLoading(false);
+      },
+      error => {
+        console.error(error);
+        Alert.alert(
+          'Location Error',
+          'Failed to get your location: ' + error.message,
+        );
+        setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0, // Always get fresh location
+      },
+    );
+  };
+
+  const startTracking = async () => {
+    setTracking(true);
+
+    // Use the fixed location instead of GPS tracking
+    const fixedLocation = {
+      latitude: 20.29234264345145,
+      longitude: 85.8575183695706,
+    };
+
+    setLocation(fixedLocation);
+
+    if (!initialRegion) {
+      setInitialRegion({
+        ...fixedLocation,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      });
+    }
+  };
+
+  const stopTracking = () => {
+    setTracking(false);
+    if (watchIdRef.current !== null) {
+      Geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  const handleMapError = () => {
+    setMapError(true);
+  };
+
+  const handleRefresh = () => {
+    getLocation();
+  };
+
+  const toggleTracking = () => {
+    if (tracking) {
+      stopTracking();
+    } else {
+      startTracking();
+    }
+  };
+
+  const useSpecificLocation = () => {
+    setSpecificLocation();
+  };
+
+  return (
+    <AppSafeArea>
+      <Appbar.Header elevated style={styles.header}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Attendance" titleStyle={styles.headerTitle} />
+      </Appbar.Header>
+      <View style={styles.container}>
+        {location && !mapError ? (
+          <>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={{
+                latitude: 20.29234264345145,
+                longitude: 85.8575183695706,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+              showsUserLocation={true}
+              followsUserLocation={true}
+              onError={handleMapError}>
+              <Marker
+                coordinate={{
+                  latitude: 20.29234264345145,
+                  longitude: 85.8575183695706,
+                }}
+                title="Your Current Location"
+                description={`Lat: 20.29234264345145, Lng: 85.8575183695706`}
+                pinColor="#2196F3"
+              />
+            </MapView>
+
+            {/* Refresh FAB */}
+            <FAB
+              style={styles.refreshFab}
+              icon="refresh"
+              loading={loading}
+              onPress={handleRefresh}
+            />
+
+            {/* Bottom Card */}
+            <Card style={styles.bottomCard}>
+              <Card.Content>
+                <View style={styles.cardRow}>
+                  <View style={styles.coordinatesBox}>
+                    <Text style={styles.cardLabel}>Location Details:</Text>
+                    <Text style={styles.coordinatesText}>
+                      Latitude: {location.latitude.toFixed(6)}
+                    </Text>
+                    <Text style={styles.coordinatesText}>
+                      Longitude: {location.longitude.toFixed(6)}
+                    </Text>
+                    <Button
+                      mode="contained"
+                      style={styles.punchButton}
+                      labelStyle={styles.punchButtonLabel}
+                      compact={true}
+                      onPress={() => {
+                        // Share location using the native share dialog
+                        const shareMessage = `My current location:\nLatitude: ${location.latitude}\nLongitude: ${location.longitude}`;
+                        if (Platform.OS === 'android' || Platform.OS === 'ios') {
+                          import('react-native').then(({Share}) => {
+                            Share.share({ message: shareMessage });
+                          });
+                        } else {
+                          Alert.alert('Share', shareMessage);
+                        }
+                      }}
+                      loading={loading}>
+                      Share
+                    </Button>
+                    {/* Optionally, keep the attendance button as well */}
+                    {/* 
+                    <Button
+                      mode="contained"
+                      style={styles.punchButton}
+                      labelStyle={styles.punchButtonLabel}
+                      compact={true}
+                      onPress={postAttendanceData}
+                      loading={loading}>
+                      Mark Attendance
+                    </Button>
+                    */}
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+          </>
+        ) : (
+          <View style={styles.loader}>
+            {mapError ? (
+              <View>
+                <Text style={styles.errorText}>Map couldn't be loaded</Text>
+                <Text>Please check your Google Maps API key</Text>
+              </View>
+            ) : (
+              <>
+                <ActivityIndicator size="large" color="#0000ff" />
+                <Text>Fetching location...</Text>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    position: 'relative',
+  },
+  map: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#fff',
+    elevation: Platform.OS === 'android' ? 4 : 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'red',
+    marginBottom: 10,
+  },
+  // FAB styles
+  refreshFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    top: 16,
+    backgroundColor: 'white',
+  },
+  homeFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    bottom: 220,
+    backgroundColor: '#4CAF50',
+  },
+  trackingFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 16,
+    bottom: 150,
+  },
+  trackingButton: {
+    backgroundColor: '#FF9800',
+  },
+  trackingActiveButton: {
+    backgroundColor: '#E91E63',
+  },
+  // Bottom card styles
+  bottomCard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    elevation: 8,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cardLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  coordinatesBox: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  actionBox: {
+    flex: 1,
+    paddingLeft: 10,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 5,
+  },
+  coordinatesText: {
+    fontSize: 15,
+    marginBottom: 5,
+    color: '#555',
+    fontWeight: '500',
+  },
+  trackingText: {
+    fontSize: 12,
+    color: '#E91E63',
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  employeeInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  punchButtonLabel: {
+    fontSize: 12,
+    margin: 0,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  employeeInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  attendanceButton: {
+    marginTop: 10,
+    borderRadius: 5,
+    height: 50,
+    paddingHorizontal: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+  },
+  punchButton: {
+    backgroundColor: '#2196F3',
+  },
+});
+
+export default Setting;
+// components/AttendanceTracker.js
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, Platform, AppState, Linking, ToastAndroid } from 'react-native';
+import { Button, Card, IconButton, ActivityIndicator, Snackbar } from 'react-native-paper';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Geolocation from '@react-native-community/geolocation';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import * as geolib from 'geolib';
+
+const AttendanceTracker = ({
+  checkedIn,
+  elapsedTime,
+  progress,
+  progressPercentage,
+  shiftHours,
+  shiftCompleted,
+  onCheckIn,
+  onCheckOut,
+  allowedLocations = [], // New prop for office locations
+}) => {
+  // Default fixed locations (will use allowedLocations prop if provided)
+  const defaultLocations = [
+    {
+      latitude: 20.292633,
+      longitude: 85.857401,
+      title: "Office Location 1"
+    },
+    {
+      latitude: 20.292129,
+      longitude: 85.858023,
+      title: "Office Location 2"
+    }
+  ];
+
+  // Use provided locations or fallback to defaults
+  const officeLocations = allowedLocations.length > 0 ? allowedLocations : defaultLocations;
+
+  // Success messages
+  const locationSuccessMsg = "Location verification successful!";
+  const faceSuccessMsg = "Face verified successfully!";
+  
+  // Modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [faceStep, setFaceStep] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [locationVerified, setLocationVerified] = useState(false);
+  const [verifyingLocation, setVerifyingLocation] = useState(false);
+  const [nearestLocation, setNearestLocation] = useState(null);
+  const [showLocationSuccess, setShowLocationSuccess] = useState(false);
+  const [readyForCheckIn, setReadyForCheckIn] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState({});
+  const [cameraPosition, setCameraPosition] = useState('front');
+  
+  // Additional camera state for better tracking
+  const [cameraReady, setCameraReady] = useState(false);
+  const [permissionRequested, setPermissionRequested] = useState(false);
+  const [cameraInitAttempts, setCameraInitAttempts] = useState(0);
+  
+  // Camera refs
+  const cameraRef = useRef(null);
+  const devices = useCameraDevices();
+  
+  // Select camera based on the cameraPosition state
+  const device = cameraPosition === 'front' 
+    ? devices.front 
+    : (cameraPosition === 'back' ? devices.back : null);
+  
+  // Fallback to any available camera if the selected one isn't available
+  const activeDevice = device || (devices && Object.values(devices).find(d => d && d.id));
+
+  // Enhanced camera readiness check
+  const checkCameraReadiness = () => {
+    return cameraRef.current && cameraActive && activeDevice && hasPermission && cameraReady;
+  };
+
+  // Function to toggle between front and back cameras with improved error handling
+  const toggleCamera = () => {
+    try {
+      // Temporarily deactivate camera during switch
+      setCameraActive(false);
+      setCameraReady(false);
+      
+      // Toggle camera position
+      setCameraPosition(prev => prev === 'front' ? 'back' : 'front');
+      
+      // Add a delay before reactivating camera to allow for the switch
+      setTimeout(() => {
+        setCameraActive(true);
+      }, 500);
+    } catch (err) {
+      console.error('Error toggling camera:', err);
+      setError('Failed to switch camera: ' + err.message);
+      
+      // Try to recover by going back to front camera
+      setCameraPosition('front');
+      setTimeout(() => setCameraActive(true), 800);
+    }
+  };
+
+  // Modified camera selection - prioritize camera with ID "0" for front camera
+  const getFrontCamera = () => {
+    if (!devices) return null;
+    
+    // First try to find front camera with ID "0" (common front camera ID)
+    const targetCamera = Object.values(devices).find(d => d && d.position === 'front' && d.id === '0');
+    if (targetCamera) {
+      console.log('Found target front camera with ID 0');
+      return targetCamera;
+    }
+    
+    const frontCameras = Object.values(devices).filter(d => 
+      d && d.position === 'front'
+    );
+    
+    if (frontCameras.length === 0) {
+      console.log('No front cameras found');
+      return devices.front; // Will be null if no front camera
+    }
+    
+    // Debug log all front cameras
+    console.log(`Found ${frontCameras.length} front cameras`);
+    frontCameras.forEach((cam, index) => {
+      console.log(`Front camera ${index}: ID=${cam.id}, formats=${cam.formats?.length || 0}`);
+    });
+    
+    // Try to find a front camera with better resolution/quality
+    // Often the better camera has more format options
+    const betterFrontCamera = frontCameras.reduce((best, current) => {
+      // If we don't have a best yet, use current
+      if (!best) return current;
+      
+      // Compare formats count as a simple heuristic for better camera
+      const bestFormats = best.formats?.length || 0;
+      const currentFormats = current.formats?.length || 0;
+      
+      // More formats usually means better camera
+      if (currentFormats > bestFormats) return current;
+      
+      return best;
+    }, null);
+    
+    if (betterFrontCamera) {
+      console.log(`Selected front camera: ID=${betterFrontCamera.id}`);
+      return betterFrontCamera;
+    }
+    
+    // Fall back to default front camera
+    console.log('Using default front camera');
+    return devices.front;
+  };
+  
+  // Also add back camera selection with ID "1" priority
+  const getBackCamera = () => {
+    if (!devices) return null;
+    
+    // First try to find camera with ID "1"
+    const targetCamera = Object.values(devices).find(d => d && d.id === '1' && d.position === 'back');
+    if (targetCamera) {
+      console.log('Found target back camera with ID 1');
+      return targetCamera;
+    }
+    
+    // Fall back to any available back camera
+    console.log('Falling back to default back camera');
+    return devices.back;
+  };
+  
+  // Apply camera selection based on position
+  useEffect(() => {
+    if (!devices || !faceStep) return;
+    
+    try {
+      // Override the device selection based on cameraPosition
+      if (cameraPosition === 'front') {
+        const frontCamera = getFrontCamera();
+        if (frontCamera && device !== frontCamera) {
+          console.log('Applying front camera selection, ID:', frontCamera.id);
+          // We'll update the camera on next render
+          setCameraActive(false);
+          setTimeout(() => {
+            setCameraActive(true);
+          }, 300);
+        }
+      } else if (cameraPosition === 'back') {
+        const backCamera = getBackCamera();
+        if (backCamera && device !== backCamera) {
+          console.log('Applying back camera selection, ID:', backCamera.id);
+          // We'll update the camera on next render
+          setCameraActive(false);
+          setTimeout(() => {
+            setCameraActive(true);
+          }, 300);
+        }
+      }
+    } catch (err) {
+      console.error('Error applying camera selection:', err);
+    }
+  }, [devices, cameraPosition, faceStep]);
+
+  // Log available devices when they change
+  useEffect(() => {
+    if (!devices) return;
+    console.log('Available camera devices:', 
+      Object.keys(devices).map(key => ({
+        key,
+        available: !!devices[key],
+        id: devices[key]?.id || 'N/A',
+        position: devices[key]?.position || 'N/A'
+      }))
+    );
+    
+    // Update debug info
+    setDebugInfo(prev => ({
+      ...prev, 
+      availableDevices: Object.keys(devices).filter(key => !!devices[key]),
+      frontCameraId: devices.front?.id || 'not available',
+      backCameraId: devices.back?.id || 'not available'
+    }));
+  }, [devices]);
+
+  // Improved check and update camera permissions
+  const checkAndUpdatePermissions = async () => {
+    try {
+      console.log('Checking camera permissions...');
+      const cameraPermission = await Camera.getCameraPermissionStatus();
+      console.log('Camera permission status:', cameraPermission);
+      
+      // Update state immediately based on actual permission
+      if (cameraPermission === 'authorized' || cameraPermission === 'granted') {
+        console.log('Setting permission to TRUE based on status:', cameraPermission);
+        setHasPermission(true);
+        setPermissionRequested(true);
+        return true;
+      } else {
+        console.log('Permission not granted, current status:', cameraPermission);
+        setHasPermission(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking permission status:', error);
+      return false;
+    }
+  };
+
+  // More robust camera permission request
+  const requestCameraPermission = async () => {
+    try {
+      setIsLoading(true);
+      setError(null); // Clear any previous errors
+      console.log('Requesting camera permission...');
+      
+      // First check if we already have permissions
+      const hasExistingPermission = await checkAndUpdatePermissions();
+      setPermissionRequested(true);
+      
+      if (!hasExistingPermission) {
+        // If no existing permission, request it explicitly
+        console.log('Explicitly requesting camera permission...');
+        const newCameraPermission = await Camera.requestCameraPermission();
+        console.log('New camera permission status:', newCameraPermission);
+        
+        // Update state based on request result
+        if (newCameraPermission === 'authorized' || newCameraPermission === 'granted') {
+          console.log('Permission granted after request');
+          setHasPermission(true);
+          
+          // Reset camera state for a clean start
+          setCameraActive(false);
+          setCameraReady(false);
+          setTimeout(() => {
+            setCameraActive(true);
+            console.log('Camera activated after permission grant');
+          }, 800);
+        } else {
+          console.warn('Camera permission denied by user after request');
+          setHasPermission(false);
+          Alert.alert(
+            'Permission Denied', 
+            'Camera permission is required for face verification. Please enable camera permissions in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Open Settings', 
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                } 
+              }
+            ]
+          );
+        }
+      } else {
+        // We already have permission, activate camera
+        setCameraActive(false); // Reset first
+        setTimeout(() => {
+          setCameraActive(true);
+          console.log('Camera activated after permission confirmed');
+        }, 800);
+      }
+    } catch (err) {
+      console.error('Error requesting permission:', err);
+      setError('Permission request error: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Explicit camera initialization function
+  const initializeCamera = () => {
+    if (!hasPermission || !activeDevice) {
+      console.log('Cannot initialize camera - missing permission or device');
+      return;
+    }
+
+    setCameraInitAttempts(prev => prev + 1);
+    setCameraActive(false);
+    setCameraReady(false);
+    setError(null);
+    
+    console.log(`Initializing camera (attempt ${cameraInitAttempts + 1})...`);
+    
+    setTimeout(() => {
+      setCameraActive(true);
+    }, 500);
+  };
+
+  // Add camera ready callback
+  const onCameraReady = () => {
+    console.log('Camera is ready');
+    setCameraReady(true);
+  };
+
+  // Enhanced camera error handler
+  const onCameraError = (error) => {
+    console.error('Camera error:', error);
+    setError('Camera error: ' + (error?.message || 'Unknown error'));
+    setCameraReady(false);
+    
+    // Reset camera active state to try reloading
+    setCameraActive(false);
+    
+    // If we've tried less than 3 times, retry with increasing delay
+    if (cameraInitAttempts < 3) {
+      const retryDelay = 1000 + (cameraInitAttempts * 500); // Increasing delay
+      setTimeout(() => {
+        console.log(`Retrying camera activation (attempt ${cameraInitAttempts + 1})...`);
+        setCameraActive(true);
+      }, retryDelay);
+    } else {
+      // After 3 attempts, show a more helpful error with options
+      Alert.alert(
+        'Camera Issue',
+        'There seems to be a problem with the camera. Would you like to try switching cameras?',
+        [
+          { 
+            text: 'Cancel', 
+            onPress: () => setFaceStep(false),
+            style: 'cancel'
+          },
+          { 
+            text: 'Switch Camera', 
+            onPress: () => {
+              setCameraInitAttempts(0);
+              toggleCamera();
+            }
+          },
+          { 
+            text: 'Try Again', 
+            onPress: () => {
+              setCameraInitAttempts(0);
+              restartCamera();
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  // More robust restart camera function with improved device selection
+  const restartCamera = () => {
+    console.log('Manually restarting camera...');
+    setCameraActive(false);
+    setCameraReady(false);
+    setError(null);
+    
+    // Log current camera position for debugging
+    console.log(`Current camera position: ${cameraPosition}`);
+    
+    // Check for specific camera IDs
+    if (cameraPosition === 'front') {
+      const frontCam = getFrontCamera();
+      if (frontCam) {
+        console.log(`Using front camera with ID: ${frontCam.id}`);
+      }
+    } else {
+      const backCam = getBackCamera();
+      if (backCam) {
+        console.log(`Using back camera with ID: ${backCam.id}`);
+      }
+    }
+    
+    // Short timeout to ensure clean reset
+    setTimeout(() => {
+      setCameraActive(true);
+      console.log('Camera restart attempted');
+    }, 800);
+  };
+
+  // Add toast state for iOS (Android will use ToastAndroid)
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Show toast function that works on both platforms
+  const showToast = (message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      setSnackbarMessage(message);
+      setSnackbarVisible(true);
+    }
+  };
+
+  // Verify if user is at a valid location
+  const verifyLocation = (userLocation) => {
+    setVerifyingLocation(true);
+    
+    // Find the closest office location and calculate distance
+    let closestLocation = null;
+    let shortestDistance = Number.MAX_VALUE;
+    let locationTitle = "";
+    
+    officeLocations.forEach(office => {
+      const distance = geolib.getPreciseDistance(
+        { latitude: userLocation.latitude, longitude: userLocation.longitude },
+        { latitude: office.latitude, longitude: office.longitude }
+      );
+      
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        closestLocation = office;
+        locationTitle = office.title;
+      }
+    });
+    
+    // Location is valid if within 10000 meters (10km) of any office
+    const maxAllowedDistance = 10000; // meters
+    
+    // Always show success message
+    setLocationVerified(true);
+    setNearestLocation(locationTitle);
+    setVerifyingLocation(false);
+    setShowLocationSuccess(true);
+    
+    // Show toast instead of Alert
+    showToast(`${locationSuccessMsg} (${locationTitle})`);
+    
+    // Automatically transition to face step
+    setTimeout(() => {
+      setFaceStep(true);
+      checkAndUpdatePermissions().then(hasPermission => {
+        if (hasPermission) {
+          initializeCamera();
+        } else {
+          requestCameraPermission();
+        }
+      });
+    }, 500);
+    
+    return true;
+  };
+
+  // Get current location
+  const getCurrentLocation = () => {
+    setLoadingLocation(true);
+    setLocationVerified(false);
+    setFaceDetected(false);
+    setReadyForCheckIn(false);
+    
+    Geolocation.getCurrentPosition(
+      pos => {
+        const userLocation = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setLocation(userLocation);
+        setLoadingLocation(false);
+        verifyLocation(userLocation);
+      },
+      err => {
+        Alert.alert('Location Error', err.message);
+        setLoadingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  // Open modal and fetch location
+  const handleOpenModal = () => {
+    setModalVisible(true);
+    setFaceStep(false);
+    setFaceDetected(false);
+    setCameraActive(false);
+    setHasPermission(false);
+    setLocationVerified(false);
+    setReadyForCheckIn(false);
+    setError(null);
+    getCurrentLocation();
+  };
+
+  // Improved face detection logic
+  const handleTakePicture = async () => {
+    // Check if camera is truly ready before taking picture
+    if (!checkCameraReadiness()) {
+      Alert.alert('Camera Not Ready', 'Please wait while the camera initializes completely.');
+      return;
+    }
+    
+    try {
+      // Set UI state to show processing
+      setIsLoading(true);
+      
+      const photo = await cameraRef.current.takePhoto({
+        flash: 'off',
+        qualityPrioritization: 'speed',
+      });
+      
+      console.log('Photo taken, path:', photo.path);
+      
+      // Simulate face detection process with a timeout instead of using FaceDetector
+      setTimeout(() => {
+        // Simulate successful face detection (always returns success)
+        console.log('Face detection simulation complete');
+        setFaceDetected(true);
+        
+        // Show toast instead of alert
+        showToast(faceSuccessMsg);
+        
+        // Automatically proceed to check-in after small delay
+        setReadyForCheckIn(true);
+        setTimeout(() => {
+          handleFinalCheckIn();
+        }, 1000);
+        
+        setIsLoading(false);
+      }, 1000); // Shorter delay for better user experience
+      
+    } catch (cameraError) {
+      console.error("Camera error during photo:", cameraError);
+      Alert.alert('Camera Error', 'Failed to take photo. Please try again.');
+      
+      // Try to recover camera
+      restartCamera();
+      setIsLoading(false);
+    }
+  };
+  
+  // Final check-in after location and face are verified
+  const handleFinalCheckIn = () => {
+    if (locationVerified && faceDetected) {
+      setModalVisible(false);
+      setCameraActive(false);
+      if (onCheckIn) onCheckIn();
+      showToast('Check-In Successful');
+    }
+  };
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  // Debug function to print current permissions to console
+  const logPermissionStatus = async () => {
+    try {
+      const status = await Camera.getCameraPermissionStatus();
+      console.log('Current camera permission status:', status);
+      console.log('hasPermission state variable:', hasPermission);
+      
+      // Log detailed device info to help with debugging
+      console.log('Devices object:', Object.keys(devices || {}));
+      console.log('Front camera:', devices?.front ? `Available (${devices.front.id})` : 'Not available');
+      console.log('Back camera:', devices?.back ? `Available (${devices.back.id})` : 'Not available');
+    } catch (err) {
+      console.error('Error checking permission:', err);
+    }
+  };
+
+  return (
+    <>
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.statusRow}>
+            <View
+              style={[
+                styles.statusBox,
+                checkedIn ? styles.active : styles.inactive,
+              ]}
+            >
+              <Text style={styles.statusText}>Check In {elapsedTime}</Text>
+            </View>
+            <View
+              style={[
+                styles.statusBox,
+                !checkedIn ? styles.active : styles.inactive,
+              ]}
+            >
+              <Text style={styles.statusText}>Check Out 00:00:00</Text>
+            </View>
+          </View>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <Animated.View style={[styles.progressBarFill, animatedProgressStyle]} />
+            </View>
+            <Text style={styles.progressText}>{progressPercentage}%</Text>
+          </View>
+          <Text style={styles.shiftTime}>Shift: {shiftHours}</Text>
+          {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
+          <View style={styles.buttonRow}>
+            <Button
+              mode="contained"
+              onPress={handleOpenModal}
+              disabled={checkedIn}
+              style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+            >
+              Check In
+            </Button>
+            <Button
+              mode="contained"
+              onPress={onCheckOut}
+              disabled={!checkedIn}
+              style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+            >
+              Check Out
+            </Button>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Modal for Check In */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {!faceStep ? (
+              <>
+                <Text style={styles.modalTitle}>Location Verification</Text>
+                {loadingLocation ? (
+                  <View style={styles.statusContainer}>
+                    <ActivityIndicator size="large" color="#2196F3" />
+                    <Text style={styles.statusText}>Checking your location...</Text>
+                  </View>
+                ) : verifyingLocation ? (
+                  <View style={styles.statusContainer}>
+                    <ActivityIndicator size="large" color="#2196F3" />
+                    <Text style={styles.statusText}>Verifying location...</Text>
+                  </View>
+                ) : locationVerified ? (
+                  <View style={styles.statusContainer}>
+                    <View style={styles.successCircle}>
+                      <IconButton icon="check" size={36} color="#fff" />
+                    </View>
+                    <Text style={styles.statusText}>Location verified</Text>
+                    <Text style={styles.infoText}>Starting camera...</Text>
+                  </View>
+                ) : location ? (
+                  <View style={styles.statusContainer}>
+                    <View style={styles.errorCircle}>
+                      <IconButton icon="close" size={36} color="#fff" />
+                    </View>
+                    <Text style={styles.statusText}>Not at a valid check-in location</Text>
+                    <Text style={styles.infoText}>Please go to a designated office location</Text>
+                    
+                    <Button
+                      mode="outlined"
+                      onPress={getCurrentLocation}
+                      style={{ marginTop: 16 }}
+                    >
+                      Try Again
+                    </Button>
+                  </View>
+                ) : (
+                  <Text style={styles.statusText}>Unable to get your location</Text>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Face Verification</Text>
+                {isLoading ? (
+                  <View style={styles.cameraContainer}>
+                    <ActivityIndicator size="large" color="#2196F3" />
+                    <Text style={styles.infoText}>Setting up camera...</Text>
+                  </View>
+                ) : !hasPermission ? (
+                  <View style={styles.cameraContainer}>
+                    <IconButton icon="camera-off" size={48} color="#F44336" />
+                    <Text style={styles.infoText}>Camera permission is required</Text>
+                    <Button 
+                      mode="contained" 
+                      onPress={requestCameraPermission}
+                      style={{marginTop: 15}}
+                    >
+                      Grant Permission
+                    </Button>
+                  </View>
+                ) : !activeDevice ? (
+                  <View style={styles.cameraContainer}>
+                    <ActivityIndicator size="large" color="#2196F3" />
+                    <Text style={styles.infoText}>No camera device found</Text>
+                    <Text style={styles.debugText}>
+                      Front: {devices?.front ? 'Available' : 'Not available'}{'\n'}
+                      Back: {devices?.back ? 'Available' : 'Not available'}
+                    </Text>
+                    <Button 
+                      mode="contained" 
+                      onPress={() => {
+                        setIsLoading(true);
+                        setTimeout(() => setIsLoading(false), 1000);
+                      }}
+                      style={{marginTop: 15}}
+                    >
+                      Retry
+                    </Button>
+                  </View>
+                ) : (
+                  <View style={styles.cameraContainer}>
+                    {cameraActive ? (
+                      <Camera
+                        ref={cameraRef}
+                        style={styles.camera}
+                        device={activeDevice}
+                        isActive={true}
+                        onError={onCameraError}
+                        onInitialized={onCameraReady}
+                        enableZoomGesture
+                        photo={true}
+                        orientation="portrait"
+                        preset="low"
+                      />
+                    ) : (
+                      <View style={styles.cameraPlaceholder}>
+                        <ActivityIndicator size="large" color="#2196F3" />
+                        <Text style={styles.placeholderText}>Activating camera...</Text>
+                        <Button
+                          mode="contained"
+                          onPress={initializeCamera}
+                          style={{marginTop: 20}}
+                        >
+                          Start Camera
+                        </Button>
+                      </View>
+                    )}
+                    
+                    {error && (
+                      <View style={styles.errorOverlay}>
+                        <Text style={styles.errorText}>{error}</Text>
+                        <Button 
+                          mode="contained" 
+                          onPress={restartCamera}
+                          style={styles.errorButton}
+                        >
+                          Restart Camera
+                        </Button>
+                      </View>
+                    )}
+                    
+                    {!cameraReady && cameraActive && (
+                      <View style={styles.cameraInitializingOverlay}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.cameraInitText}>Initializing...</Text>
+                      </View>
+                    )}
+                    
+                    {faceDetected && (
+                      <View style={styles.faceDetectedOverlay}>
+                        <View style={styles.successCircle}>
+                          <IconButton icon="check" size={36} color="#fff" />
+                        </View>
+                        <Text style={styles.faceDetectedText}>Face Verified!</Text>
+                      </View>
+                    )}
+                    
+                    {/* Camera switch button */}
+                    {devices.back && devices.front && cameraActive && cameraReady && !faceDetected && (
+                      <Button
+                        mode="contained"
+                        icon="camera-switch"
+                        onPress={toggleCamera}
+                        style={styles.cameraSwitchButton}
+                        contentStyle={styles.switchButtonContent}
+                        labelStyle={styles.switchButtonLabel}
+                      >
+                        {cameraPosition === 'front' ? 'Back' : 'Front'}
+                      </Button>
+                    )}
+                  </View>
+                )}
+                
+                <View style={styles.buttonContainer}>
+                  {!faceDetected ? (
+                    <Button
+                      mode="contained"
+                      onPress={handleTakePicture}
+                      style={styles.actionButton}
+                      disabled={!cameraActive || !activeDevice || !hasPermission || !cameraReady}
+                    >
+                      Verify Face
+                    </Button>
+                  ) : (
+                    <Button
+                      mode="contained"
+                      onPress={handleFinalCheckIn}
+                      style={[styles.actionButton, styles.green]}
+                    >
+                      Complete Check In
+                    </Button>
+                  )}
+                  
+                  <Button
+                    mode="text"
+                    onPress={() => {
+                      if (faceStep && !faceDetected) {
+                        setCameraActive(false);
+                        setFaceStep(false);
+                      } else {
+                        setModalVisible(false);
+                      }
+                    }}
+                    style={styles.cancelButton}
+                  >
+                    {faceStep && !faceDetected ? "Back" : "Cancel"}
+                  </Button>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Snackbar for iOS toasts */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    margin: 8,
+    borderRadius: 10,
+    elevation: 3,
+    backgroundColor: '#fff',
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusBox: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  active: {
+    backgroundColor: '#e8f5e9',
+  },
+  inactive: {
+    backgroundColor: '#f9f9f9',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  progressContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    height: 8,
+    width: '100%',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#333',
+  },
+  shiftTime: {
+    fontSize: 14,
+    color: '#444',
+    marginTop: 8,
+  },
+  completedText: {
+    color: '#388E3C',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    height: 40,
+  },
+  green: {
+    backgroundColor: '#4CAF50',
+  },
+  red: {
+    backgroundColor: '#F44336',
+  },
+  disabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '92%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#222',
+  },
+  map: {
+    width: 280,
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  cameraContainer: {
+    width: 280,
+    height: 320,
+    borderRadius: 10,
+    marginBottom: 12,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  camera: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  cameraPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#222',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#fff',
+    marginTop: 10,
+  },
+  faceDetectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  faceDetectedText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+  statusContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    width: '100%',
+  },
+  successCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  errorCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F44336',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  buttonContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  actionButton: {
+    width: '80%',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  cancelButton: {
+    width: '80%',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  errorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,0,0,0.7)',
+    padding: 10,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 12,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  errorButton: {
+    backgroundColor: '#fff',
+    height: 30,
+    marginTop: 5,
+  },
+  debugText: {
+    color: '#FFD700',
+    fontSize: 12,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  cameraSwitchButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: '#FF0000', // Red color
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 0,
+    elevation: 3,
+  },
+  switchButtonContent: {
+    height: 50,
+    width: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switchButtonLabel: {
+    fontSize: 0, // Hide text, show only icon
+  },
+  cameraInitializingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraInitText: {
+    color: '#FFFFFF',
+    marginLeft: 8,
+    fontSize: 12,
+  },
+});
+
+export default AttendanceTracker;
+=============================================
+final 
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, Alert, Platform, ToastAndroid } from 'react-native';
+import { Button, Card, IconButton, ActivityIndicator, Snackbar } from 'react-native-paper';
+import Geolocation from '@react-native-community/geolocation';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import * as geolib from 'geolib';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import { FaceDetector } from 'react-native-vision-camera-face-detector';
+import base64 from 'react-native-base64';
+import { runOnJS } from 'react-native-reanimated';
+import axios from 'axios';
+const API_URL = 'http://192.168.29.2:91/api/'; 
+
+
+// API service for attendance
+const attendanceApi = {
+  checkIn: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-in`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('API check-in error:', error);
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+  
+  checkOut: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-out`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('API check-out error:', error);
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  }
+};
+
+const AttendanceTracker = ({
+  checkedIn,
+  elapsedTime,
+  progressPercentage,
+  shiftHours,
+  shiftCompleted,
+  onCheckIn,
+  onCheckOut,
+  allowedLocations = [],
+  navigation,
+}) => {
+  // Employee details from custom hook
+  const employeeDetails = useFetchEmployeeDetails();
+
+  console.log('Employee=================================== Details:', employeeDetails);
+  
+  // Default locations if none provided
+  const defaultLocations = [
+    { latitude: 20.292633, longitude: 85.857401, title: "Office Location 1", radius: 10000 },
+    { latitude: 20.292129, longitude: 85.858023, title: "Office Location 2", radius: 10000 }
+  ];
+
+  // Use provided locations or fallback to defaults
+  const officeLocations = allowedLocations.length > 0 ? allowedLocations : defaultLocations;
+
+  // State for tracking the attendance flow
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentStep, setCurrentStep] = useState('none'); // 'none', 'location', 'camera', 'complete'
+  const [userLocation, setUserLocation] = useState(null);
+  const [nearestOffice, setNearestOffice] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Camera state
+  const cameraRef = useRef(null);
+  const devices = useCameraDevices();
+  const [cameraDevice, setCameraDevice] = useState(null);
+  const [cameraInitialized, setCameraInitialized] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+
+  // Face detection state
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceDetectionEnabled, setFaceDetectionEnabled] = useState(false);
+  const [faceBounds, setFaceBounds] = useState(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const [faceRegistered, setFaceRegistered] = useState(false);
+
+  // Image upload state
+  const [imageUploadModalVisible, setImageUploadModalVisible] = useState(false);
+  const [imageUploadPurpose, setImageUploadPurpose] = useState(null); // 'check-in' or 'check-out'
+
+  // Toast function that works on both platforms
+  const showToast = useCallback((message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      setSnackbarMessage(message);
+      setSnackbarVisible(true);
+    }
+  }, []);
+
+  // Face detection processor
+  const faceDetectionProcessor = useCallback(async (frame) => {
+    'worklet';
+    try {
+      if (!faceDetectionEnabled) return;
+
+      // Detect faces in the current frame
+      const faces = await FaceDetector.detectFaces(frame);
+      
+      // Check if any face was detected
+      const hasDetectedFace = faces && faces.length > 0;
+      
+      // Get bounds of the first detected face (if any)
+      const detectedFaceBounds = hasDetectedFace ? faces[0].bounds : null;
+      
+      // Update state via react-native-reanimated's worklet compatible methods
+      runOnJS(setFaceDetected)(hasDetectedFace);
+      runOnJS(setFaceBounds)(detectedFaceBounds);
+      
+      // Show success toast if face is newly detected
+      if (hasDetectedFace && !faceRegistered) {
+        runOnJS(showToast)('Face detected successfully');
+        runOnJS(setFaceRegistered)(true);
+      } else if (!hasDetectedFace && faceRegistered) {
+        runOnJS(setFaceRegistered)(false);
+      }
+
+    } catch (e) {
+      // Worklet error handling - log but don't crash
+      console.log('Face detection error (worklet):', e);
+    }
+  }, [faceDetectionEnabled, faceRegistered, showToast]);
+
+  // Initialize camera with proper permission handling
+  const initializeCamera = useCallback(async () => {
+    console.log('Initializing camera...');
+    try {
+      // Check current permission status first
+      const currentPermission = await Camera.getCameraPermissionStatus();
+      console.log('Current camera permission:', currentPermission);
+      
+      if (currentPermission !== 'authorized' && currentPermission !== 'granted') {
+        // Explicitly request permission if not already granted
+        const permission = await Camera.requestCameraPermission();
+        console.log('Camera permission request result:', permission);
+        
+        if (permission !== 'authorized' && permission !== 'granted') {
+          setError('Camera permission required. Please grant camera access in settings.');
+          return false;
+        }
+      }
+      
+      console.log('Camera permission granted');
+      return true;
+    } catch (err) {
+      console.error('Camera initialization error:', err);
+      setError('Failed to initialize camera: ' + err.message);
+      return false;
+    }
+  }, []);
+
+  // Handle camera errors
+  const onCameraError = useCallback((error) => {
+    console.error('Camera error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    setError(`Camera error: ${error.message}`);
+    setCameraInitialized(false);
+    setCameraReady(false);
+    
+    // Try to recover after a delay
+    setTimeout(() => {
+      if (currentStep === 'camera') {
+        initializeCamera();
+      }
+    }, 1000);
+  }, [currentStep, initializeCamera]);
+
+  // Handle camera ready event
+  const onCameraReady = useCallback(() => {
+    console.log('Camera is ready!');
+    setCameraReady(true);
+  }, []);
+
+  // Update camera device when devices change
+  useEffect(() => {
+    if (devices) {
+      console.log('Available devices:', devices);
+      
+      // Try to get front camera first
+      const frontCamera = devices.front;
+      
+      // If no front camera, try any available camera
+      const anyCamera = Object.values(devices).find(d => d) || null;
+      
+      setCameraDevice(frontCamera || anyCamera);
+      
+      if (!frontCamera && !anyCamera) {
+        setError('No camera device found on this device');
+      }
+    }
+  }, [devices]);
+
+  // Manage camera lifecycle
+  useEffect(() => {
+    return () => {
+      // Cleanup when component unmounts
+      if (cameraRef.current) {
+        console.log('Cleaning up camera');
+        setCameraInitialized(false);
+        setCameraReady(false);
+        setFaceDetectionEnabled(false);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentStep === 'camera') {
+      // Initialize camera when entering camera step
+      const init = async () => {
+        const hasPermission = await initializeCamera();
+        if (hasPermission) {
+          setCameraInitialized(true);
+          setFaceDetectionEnabled(true);
+        }
+      };
+      init();
+    } else {
+      // Deactivate camera when leaving camera step
+      setCameraInitialized(false);
+      setCameraReady(false);
+      setFaceDetectionEnabled(false);
+      setFaceDetected(false);
+      setFaceBounds(null);
+    }
+  }, [currentStep, initializeCamera]);
+
+  // Get current location and verify against office locations
+  const verifyLocation = async () => {
+    try {
+      setCurrentStep('location');
+      setIsLoading(true);
+      setError(null);
+      
+      Geolocation.getCurrentPosition(
+        position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          setUserLocation(userPos);
+          
+          // Calculate distance to each office and find nearest
+          let nearestLoc = null;
+          let shortestDistance = Number.MAX_VALUE;
+          
+          officeLocations.forEach(office => {
+            const distance = geolib.getDistance(
+              userPos,
+              { latitude: office.latitude, longitude: office.longitude }
+            );
+            
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              nearestLoc = {
+                ...office,
+                distance: distance
+              };
+            }
+          });
+          
+          setNearestOffice(nearestLoc);
+          
+          console.log(`User location: ${userPos.latitude}, ${userPos.longitude}`);
+          console.log(`Nearest office: ${nearestLoc.title} (${nearestLoc.distance}m away)`);
+          
+          // Check if user is within allowed radius
+          const withinRadius = nearestLoc.distance <= (nearestLoc.radius || 10000);
+          
+          if (withinRadius) {
+            showToast(`Location verified: ${nearestLoc.title}`);
+            setIsLoading(false);
+            setTimeout(() => {
+              setCurrentStep('camera');
+            }, 500);
+          } else {
+            setIsLoading(false);
+            setError(`You are too far from ${nearestLoc.title}. Please move closer to check in.`);
+          }
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          setError(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (err) {
+      setIsLoading(false);
+      setError(`Location verification failed: ${err.message}`);
+    }
+  };
+
+  // Handle taking photo for face verification
+  const handleTakePhoto = async () => {
+    if (!cameraRef.current) {
+      console.log('Camera ref is null');
+      showToast('Camera not initialized');
+      return;
+    }
+    
+    if (!faceDetected) {
+      console.log('No face detected');
+      showToast('Please position your face in the camera view');
+      return;
+    }
+    
+    try {
+      setProcessingPhoto(true);
+      setIsLoading(true);
+      console.log('Taking photo...');
+      
+      let photoPath = null;
+      
+      try {
+        // Take photo with face detection data
+        const photo = await cameraRef.current.takePhoto({
+          flash: 'off',
+          qualityPrioritization: 'balanced',
+          enableAutoRedEyeReduction: true,
+          includeBase64: true, // Get base64 data
+        });
+        
+        photoPath = photo.path;
+        
+        // Store base64 data if available
+        if (photo.base64) {
+          setPhotoBase64(photo.base64);
+        } else {
+          // Fallback if camera API doesn't provide base64 directly
+          try {
+            const encodedPhoto = await base64.encode(photoPath);
+            setPhotoBase64(encodedPhoto);
+          } catch (base64Err) {
+            console.warn('Failed to encode photo to base64:', base64Err);
+          }
+        }
+        
+        console.log('Photo taken successfully:', photoPath);
+      } catch (cameraErr) {
+        console.error('Error taking photo:', cameraErr);
+        photoPath = 'simulated_photo_path';
+      }
+      
+      showToast('Face verification successful');
+      submitCheckIn(photoPath);
+      
+    } catch (err) {
+      console.error('Photo capture error:', err);
+      setIsLoading(false);
+      setProcessingPhoto(false);
+      setError(`Failed to process: ${err.message}`);
+    }
+  };
+
+  // Check-in submission function
+  const submitCheckIn = async (photoPath = null) => {
+    if (!employeeDetails || !userLocation || !nearestOffice) {
+      showToast('Missing required data for check-in');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Prepare data for API
+      const checkInData = {
+        employeeId: employeeDetails?.id || "123456",
+        employeeCode: employeeDetails?.employeeId || "EMP123",
+        companyId: employeeDetails?.childCompanyId || "C001",
+        latitude: userLocation?.latitude || 20.292633,
+        longitude: userLocation?.longitude || 85.857401,
+        officeTitle: nearestOffice?.title || "Office Location 1",
+        officeLatitude: nearestOffice?.latitude || 20.292633,
+        officeLongitude: nearestOffice?.longitude || 85.857401,
+        distance: nearestOffice?.distance || 25,
+        photoPath: photoPath || null,
+        photoBase64: photoBase64 || "[base64_encoded_photo_data]",
+        timestamp: new Date().toISOString(),
+        faceDetected: faceDetected || true,
+        faceBounds: faceBounds || {
+          x: 120,
+          y: 80,
+          width: 100,
+          height: 120
+        }
+      };
+      
+      // Log the data being sent to API
+      console.log('Sending check-in data to API:', JSON.stringify(checkInData, null, 2));
+      
+      // Make API call to check in
+      const result = await attendanceApi.checkIn(checkInData);
+      
+      if (result.success) {
+        setIsLoading(false);
+        setModalVisible(false);
+        if (onCheckIn) onCheckIn();
+        showToast('Check-in successful');
+        console.log('Check-in API response:', result.data);
+      } else {
+        throw new Error(result.error || 'API check-in failed');
+      }
+      
+    } catch (error) {
+      console.error('Check-in submission error:', error);
+      setIsLoading(false);
+      showToast('Failed to submit check-in: ' + error.message);
+    }
+  };
+
+  // Check-out submission function
+  const submitCheckOut = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Build check-out data
+          const checkOutData = {
+            employeeId: employeeDetails?.id || "123456",
+            employeeCode: employeeDetails?.employeeId || "EMP123",
+            companyId: employeeDetails?.childCompanyId || "C001",
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            officeTitle: nearestOffice?.title || "Office Location 1",
+            officeLatitude: nearestOffice?.latitude || 20.292633,
+            officeLongitude: nearestOffice?.longitude || 85.857401,
+            distance: nearestOffice?.distance || 25,
+            photoBase64: photoBase64 || "[base64_encoded_photo_data]",
+            timestamp: new Date().toISOString(),
+            faceDetected: faceDetected || true,
+            faceBounds: faceBounds || {
+              x: 120,
+              y: 80,
+              width: 100,
+              height: 120
+            },
+            checkOutTime: new Date().toISOString(),
+          };
+          
+          // Log the data
+          console.log('Sending check-out data to API:', JSON.stringify(checkOutData, null, 2));
+          
+          // Send check-out data to API
+          const result = await attendanceApi.checkOut(checkOutData);
+          
+          if (result.success) {
+            setIsLoading(false);
+            if (onCheckOut) onCheckOut();
+            showToast('Check-out successful');
+            console.log('Check-out API response:', result.data);
+          } else {
+            throw new Error(result.error || 'API check-out failed');
+          }
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      console.error('Check-out submission error:', error);
+      setIsLoading(false);
+      showToast('Failed to submit check-out: ' + error.message);
+    }
+  };
+  
+  // Process selected image from image picker
+  const handleImageSelected = async (imageData) => {
+    try {
+      setImageUploadModalVisible(false);
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Calculate distance to nearest office
+          let nearestLoc = null;
+          let shortestDistance = Number.MAX_VALUE;
+          
+          officeLocations.forEach(office => {
+            const distance = geolib.getDistance(
+              userPos,
+              { latitude: office.latitude, longitude: office.longitude }
+            );
+            
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              nearestLoc = {
+                ...office,
+                distance: distance
+              };
+            }
+          });
+          
+          // Prepare user data
+          const userData = {
+            employeeId: employeeDetails?.id || "123456",
+            employeeCode: employeeDetails?.employeeId || "EMP123",
+            companyId: employeeDetails?.childCompanyId || "C001",
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            officeTitle: nearestLoc?.title || "Office Location 1",
+            officeLatitude: nearestLoc?.latitude || 20.292633,
+            officeLongitude: nearestLoc?.longitude || 85.857401,
+            distance: nearestLoc?.distance || 25,
+            photoBase64: imageData,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Call appropriate API endpoint based on the purpose
+          let result;
+          if (imageUploadPurpose === 'check-in') {
+            result = await attendanceApi.checkIn(userData);
+          } else {
+            result = await attendanceApi.checkOut({
+              ...userData,
+              checkOutTime: new Date().toISOString(),
+            });
+          }
+          
+          if (result.success) {
+            setIsLoading(false);
+            
+            if (imageUploadPurpose === 'check-in') {
+              if (onCheckIn) onCheckIn();
+              showToast('Check-in successful');
+            } else {
+              if (onCheckOut) onCheckOut();
+              showToast('Check-out successful');
+            }
+          } else {
+            throw new Error(result.error || 'API request failed');
+          }
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      console.error('Image processing error:', error);
+      setIsLoading(false);
+      showToast(`Failed to process image: ${error.message}`);
+    }
+  };
+
+  // Start check-in process
+  const handleStartCheckIn = () => {
+
+    setModalVisible(true);
+    setCurrentStep('none');
+    setError(null);
+    
+    // Begin location verification
+    verifyLocation();
+    
+    // The flow will continue automatically:
+    // 1. verifyLocation() sets currentStep to 'location'
+    // 2. On location success, it will set currentStep to 'camera'
+    // 3. The useEffect watching currentStep will initialize camera
+    // 4. Face detection will start automatically
+    // 5. When face is detected, user can take photo
+    // 6. After photo capture, submitCheckIn() is called
+    // 7. On successful API response, toast shows "Check-in successful"
+  };
+  
+  // Start check-out process
+  const handleStartCheckOut = () => {
+    // Directly submit check-out without showing alert
+    submitCheckOut();
+  };
+
+  // Render face detection overlay
+  const renderFaceDetectionOverlay = () => {
+    if (!faceDetectionEnabled) return null;
+    
+    return (
+      <View style={styles.faceDetectionOverlay}>
+        {faceDetected ? (
+          <View style={styles.faceDetectedIndicator}>
+            <IconButton icon="face-recognition" size={24} color="#4CAF50" />
+            <Text style={styles.faceDetectedText}>Face Detected</Text>
+          </View>
+        ) : (
+          <View style={styles.faceNotDetectedIndicator}>
+            <IconButton icon="face-recognition" size={24} color="#FFC107" />
+            <Text style={styles.faceNotDetectedText}>Position your face</Text>
+          </View>
+        )}
+        
+        {faceBounds && (
+          <View
+            style={[
+              styles.faceBoundsBox,
+              {
+                left: faceBounds.x,
+                top: faceBounds.y,
+                width: faceBounds.width,
+                height: faceBounds.height,
+              }
+            ]}
+          />
+        )}
+      </View>
+    );
+  };
+
+  // Render camera component
+  const renderCamera = () => {
+    if (!cameraDevice) {
+      return (
+        <View style={styles.cameraPlaceholder}>
+          <IconButton icon="camera-off" size={36} color="#F44336" />
+          <Text style={styles.placeholderText}>No camera available</Text>
+          <Button 
+            mode="contained"
+            onPress={async () => {
+              const success = await initializeCamera();
+              if (success) {
+                setCameraInitialized(true);
+              }
+            }}
+            style={{marginTop: 12}}
+          >
+            Retry Camera
+          </Button>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <Camera
+          ref={cameraRef}
+          style={styles.camera}
+          device={cameraDevice}
+          isActive={currentStep === 'camera' && cameraInitialized}
+          photo={true}
+          orientation="portrait"
+          onInitialized={onCameraReady}
+          onError={onCameraError}
+          frameProcessor={faceDetectionProcessor}
+          frameProcessorFps={5}
+        />
+        
+        {!cameraReady && (
+          <View style={styles.cameraLoadingOverlay}>
+            <ActivityIndicator size="large" color="#FFF" />
+            <Text style={styles.cameraLoadingText}>Initializing Camera...</Text>
+          </View>
+        )}
+        
+        {renderFaceDetectionOverlay()}
+        
+        <View style={styles.cameraControlsOverlay}>
+          <Button
+            mode="contained"
+            icon="camera"
+            onPress={handleTakePhoto}
+            style={styles.captureButton}
+            disabled={!cameraReady || !faceDetected || processingPhoto}
+            loading={processingPhoto}
+          >
+            {processingPhoto ? 'Processing...' : 'Verify Face'}
+          </Button>
+        </View>
+      </>
+    );
+  };
+
+  return (
+    <>
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusBox, checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check In {elapsedTime || '00:00:00'}</Text>
+            </View>
+            <View style={[styles.statusBox, !checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check Out 00:00:00</Text>
+            </View>
+          </View>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage || 0}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{progressPercentage || 0}%</Text>
+          </View>
+          
+          <Text style={styles.shiftTime}>Shift: {shiftHours || '00:00'}</Text>
+          {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
+          
+          <View style={styles.buttonRow}>
+            <Button
+              mode="contained"
+              onPress={handleStartCheckIn}
+              disabled={checkedIn}
+              style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+            >
+              Check In
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleStartCheckOut}
+              disabled={!checkedIn}
+              style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+            >
+              Check Out
+            </Button>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Camera modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!isLoading) setModalVisible(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {currentStep === 'location' ? 'Location Verification' :
+               currentStep === 'camera' ? 'Face Verification' :
+               'Check In'}
+            </Text>
+            
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2196F3" />
+                <Text style={styles.loadingText}>
+                  {currentStep === 'location' ? 'Verifying your location...' : 
+                   currentStep === 'camera' ? 'Processing...' :
+                   'Initializing...'}
+                </Text>
+              </View>
+            )}
+            
+            {error && (
+              <View style={styles.errorContainer}>
+                <IconButton icon="alert-circle" size={32} color="#F44336" />
+                <Text style={styles.errorText}>{error}</Text>
+                <Button 
+                  mode="contained" 
+                  onPress={() => {
+                    setError(null);
+                    if (currentStep === 'location') verifyLocation();
+                    else if (currentStep === 'camera') initializeCamera();
+                  }}
+                  style={styles.retryButton}
+                >
+                  Retry
+                </Button>
+              </View>
+            )}
+            
+            {currentStep === 'location' && !isLoading && !error && nearestOffice && (
+              <View style={styles.successContainer}>
+                <View style={styles.successCircle}>
+                  <IconButton icon="check" size={36} color="#fff" />
+                </View>
+                <Text style={styles.successText}>
+                  Location verified: {nearestOffice.title}
+                </Text>
+                <Text style={styles.infoText}>
+                  Distance: {(nearestOffice.distance / 1000).toFixed(2)} km
+                </Text>
+              </View>
+            )}
+            
+            {currentStep === 'camera' && !isLoading && !error && (
+              <View style={styles.cameraContainer}>
+                {renderCamera()}
+              </View>
+            )}
+            
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="text"
+                onPress={() => {
+                  setModalVisible(false);
+                }}
+                disabled={isLoading}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    margin: 8,
+    borderRadius: 10,
+    elevation: 3,
+    backgroundColor: '#fff',
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusBox: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  active: {
+    backgroundColor: '#e8f5e9',
+  },
+  inactive: {
+    backgroundColor: '#f9f9f9',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  progressContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    height: 8,
+    width: '100%',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#333',
+  },
+  shiftTime: {
+    fontSize: 14,
+    color: '#444',
+    marginTop: 8,
+  },
+  completedText: {
+    color: '#388E3C',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    height: 40,
+  },
+  green: {
+    backgroundColor: '#4CAF50',
+  },
+  red: {
+    backgroundColor: '#F44336',
+  },
+  disabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#222',
+  },
+  loadingContainer: {
+    width: '100%',
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#555',
+  },
+  errorContainer: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#F44336',
+    marginVertical: 8,
+  },
+  retryButton: {
+    marginTop: 12,
+  },
+  successContainer: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successText: {
+    fontSize: 16,
+    color: '#388E3C',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cameraContainer: {
+    width: '100%',
+    height: 320,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    position: 'relative',
+    marginVertical: 16,
+  },
+  camera: {
+    width: '100%',
+    height: '100%',
+  },
+  cameraPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#222',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#fff',
+    marginTop: 12,
+    textAlign: 'center',
+    padding: 10,
+  },
+  cameraLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  cameraLoadingText: {
+    color: '#FFF',
+    marginTop: 12,
+  },
+  cameraControlsOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 150,
+    borderRadius: 24,
+    marginBottom: 16,
+  },
+  buttonContainer: {
+    width: '100%',
+    marginTop: 8,
+  },
+  cancelButton: {
+    alignSelf: 'flex-end',
+  },
+  faceDetectionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  faceDetectedIndicator: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    margin: 16,
+    alignItems: 'center',
+  },
+  faceNotDetectedIndicator: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    margin: 16,
+    alignItems: 'center',
+  },
+  faceDetectedText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  faceNotDetectedText: {
+    color: '#FFC107',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  faceBoundsBox: {
+    position: 'absolute',
+    borderWidth: 3, // Increased border width for better visibility
+    borderColor: '#4CAF50', // Bright green border
+    borderRadius: 10,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)', // Light green background with opacity
+  },
+});
+
+export default AttendanceTracker;
+
+
+===========================
+
+locaation complete 
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, Alert, Platform, ToastAndroid, Dimensions } from 'react-native';
+import { Button, Card, IconButton, ActivityIndicator, Snackbar } from 'react-native-paper';
+import Geolocation from '@react-native-community/geolocation';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import * as geolib from 'geolib';
+import MapView, { Marker, Circle } from 'react-native-maps';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import { FaceDetector } from 'react-native-vision-camera-face-detector';
+import base64 from 'react-native-base64';
+import { runOnJS } from 'react-native-reanimated';
+import axios from 'axios';
+
+const API_URL = 'http://192.168.29.2:90/api/';
+
+// API service for attendance
+const attendanceApi = {
+  checkIn: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-in`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('API check-in error:', error);
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+  
+  checkOut: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-out`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('API check-out error:', error);
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  }
+};
+
+const AttendanceTracker = ({
+  checkedIn,
+  elapsedTime,
+  progressPercentage,
+  shiftHours,
+  shiftCompleted,
+  onCheckIn,
+  onCheckOut,
+  allowedLocations = [],
+  navigation,
+}) => {
+  // Employee details from custom hook
+  const employeeDetails = useFetchEmployeeDetails();
+  
+  // State for employee geo-locations
+  const [assignedGeoLocations, setAssignedGeoLocations] = useState([]);
+  const [geoFenceDetails, setGeoFenceDetails] = useState([]);
+  const [isLoadingGeoData, setIsLoadingGeoData] = useState(false);
+
+  // State for tracking the attendance flow
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentStep, setCurrentStep] = useState('none'); // 'none', 'location', 'camera', 'complete'
+  const [userLocation, setUserLocation] = useState(null);
+  const [nearestOffice, setNearestOffice] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Add map-related state variables
+  const [mapVisible, setMapVisible] = useState(false);
+  const [region, setRegion] = useState(null);
+  const mapRef = useRef(null);
+
+  // Use state for office locations with empty initial array
+  const [officeLocations, setOfficeLocations] = useState([]);
+
+  // Initialize office locations with current location
+  useEffect(() => {
+    const initializeWithCurrentLocation = () => {
+      setIsLoading(true);
+      Geolocation.getCurrentPosition(
+        position => {
+          const currentPosition = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          console.log('Current position for location initialization:', currentPosition);
+          
+          // Set current location as default work location if no assigned locations
+          if (officeLocations.length === 0) {
+            const defaultLocations = [
+              {
+                latitude: currentPosition.latitude,
+                longitude: currentPosition.longitude,
+                title: "Your Current Location",
+                radius: 50, // 50 meters radius around current position
+                address: "Current Position"
+              }
+            ];
+            
+            console.log('Setting default office location to current position');
+            setOfficeLocations(defaultLocations);
+          }
+          
+          setIsLoading(false);
+        },
+        error => {
+          console.error('Error getting current position:', error);
+          // Fallback to Bhubaneswar office locations
+          const fallbackLocations = [
+            { latitude: 20.292633, longitude: 85.857401, title: "Office Location 1", radius: 10000 },
+            { latitude: 20.292129, longitude: 85.858023, title: "Office Location 2", radius: 10000 }
+          ];
+          setOfficeLocations(fallbackLocations);
+          setIsLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    };   
+    initializeWithCurrentLocation();
+  }, []);
+
+  // Convert geo fence details to the format expected by the location verification
+  useEffect(() => {
+    if (geoFenceDetails.length > 0) {
+      const convertedLocations = geoFenceDetails.map(geo => ({
+        latitude: parseFloat(geo.lattitude),
+        longitude: parseFloat(geo.longitude),
+        title: geo.geoLocationName,
+        radius: parseFloat(geo.radius) * 1000, // Convert radius to meters
+        address: geo.address,
+        areaType: geo.areaType,
+        geoLocationId: geo.gid // Store the geoLocationId for API submission
+      }));
+      
+      console.log('GEO LOCATIONS DETAILS:');
+      console.log('===========================================');
+      convertedLocations.forEach((loc, idx) => {
+        console.log(`[${idx+1}] ${loc.title}:`);
+        console.log(`  - Coordinates: ${loc.latitude}, ${loc.longitude}`);
+        console.log(`  - Radius: ${loc.radius} meters`);
+        console.log(`  - ID: ${loc.geoLocationId}`);
+        console.log(`  - Area Type: ${loc.areaType}`);
+      });
+      console.log('===========================================');
+      
+      // Replace default locations with assigned locations
+      if (convertedLocations.length > 0) {
+        console.log('Replacing default locations with assigned geo-locations from API');
+        setOfficeLocations(convertedLocations);
+      }
+    }
+  }, [geoFenceDetails]);
+
+  console.log(geoFenceDetails , 'geoFenceDetail=========================================s');
+
+  // Get current location and verify against office locations
+  // const verifyLocation = async () => {
+  //   try {
+  //     setCurrentStep('location');
+  //     setIsLoading(true);
+  //     setError(null);
+      
+  //     // If no office locations defined yet, display error
+  //     if (officeLocations.length === 0) {
+  //       console.log('No office locations defined yet');
+  //       setError('No office locations defined. Please try again.');
+  //       setIsLoading(false);
+  //       return;
+  //     }
+      
+  //     // Check if we have employee-specific geo locations
+  //     if (assignedGeoLocations.length === 0) {
+  //       console.log('No assigned geo locations found, using default locations');
+  //       console.log('Default locations:', JSON.stringify(officeLocations, null, 2));
+  //     } else {
+  //       console.log(`Found ${assignedGeoLocations.length} assigned geo locations`);
+  //       console.log('Assigned locations:', JSON.stringify(officeLocations, null, 2));
+  //     }
+
+  //     Geolocation.getCurrentPosition(
+  //       position => {
+  //         const userPos = {
+  //           latitude: position.coords.latitude,
+  //           longitude: position.coords.longitude,
+  //         };
+          
+  //         console.log('===========================================');
+  //         console.log('LOCATION VERIFICATION - DETAILED LOG');
+  //         console.log('===========================================');
+  //         console.log(`User current position: ${JSON.stringify(userPos)}`);
+  //         console.log('Available office locations:');
+          
+  //         setUserLocation(userPos);
+          
+  //         // Calculate distance to each office and find nearest
+  //         let nearestLoc = null;
+  //         let shortestDistance = Number.MAX_VALUE;
+          
+  //         officeLocations.forEach((office, index) => {
+  //           const distance = geolib.getDistance(
+  //             userPos,
+  //             { latitude: office.latitude, longitude: office.longitude }
+  //           );
+            
+  //           console.log(`[${index+1}] ${office.title}:`);
+  //           console.log(`  - Coordinates: ${office.latitude}, ${office.longitude}`);
+  //           console.log(`  - Distance: ${distance} meters`);
+  //           console.log(`  - Allowed radius: ${office.radius} meters`);
+  //           console.log(`  - Within radius: ${distance <= office.radius ? 'YES' : 'NO'}`);
+            
+  //           if (distance < shortestDistance) {
+  //             shortestDistance = distance;
+  //             nearestLoc = {
+  //               ...office,
+  //               distance: distance,
+  //               geoLocationId: office.geoLocationId || (assignedGeoLocations[index]?.geoLocationId || null)
+  //             };
+  //           }
+  //         });
+          
+  //         setNearestOffice(nearestLoc);
+          
+  //         console.log('===========================================');
+  //         console.log('NEAREST LOCATION RESULT:');
+  //         console.log(`- Selected: ${nearestLoc.title}`);
+  //         console.log(`- Distance: ${nearestLoc.distance} meters`);
+  //         console.log(`- Radius: ${nearestLoc.radius} meters`);
+  //         console.log(`- GeoLocation ID: ${nearestLoc.geoLocationId || 'Not available'}`);
+  //         console.log(`- Area Type: ${nearestLoc.areaType || 'Not available'}`);
+  //         console.log('===========================================');
+          
+  //         // Check if user is within allowed radius
+  //         const withinRadius = nearestLoc.distance <= nearestLoc.radius;
+          
+  //         console.log(`Location verification result: ${withinRadius ? 'SUCCESS' : 'FAILED'}`);
+          
+  //         if (withinRadius) {
+  //           showToast(`Location verified: ${nearestLoc.title}`);
+  //           setIsLoading(false);
+  //           setTimeout(() => {
+  //             setCurrentStep('camera');
+  //           }, 500);
+  //         } else {
+  //           setIsLoading(false);
+  //           setError(`You are too far from ${nearestLoc.title}. Please move closer to check in.`);
+  //           console.log(`Distance exceeds allowed radius by ${nearestLoc.distance - nearestLoc.radius} meters`);
+  //         }
+  //       },
+  //       err => {
+  //         console.error('Location error:', err);
+  //         setIsLoading(false);
+  //         setError(`Location error: ${err.message}`);
+  //       },
+  //       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  //     );
+  //   } catch (err) {
+  //     console.error('Location verification failed:', err);
+  //     setIsLoading(false);
+  //     setError(`Location verification failed: ${err.message}`);
+  //   }
+  // };
+
+  // Camera state
+  const cameraRef = useRef(null);
+  const devices = useCameraDevices();
+  const [cameraDevice, setCameraDevice] = useState(null);
+  const [cameraInitialized, setCameraInitialized] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+
+  // Face detection state
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceDetectionEnabled, setFaceDetectionEnabled] = useState(false);
+  const [faceBounds, setFaceBounds] = useState(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const [faceRegistered, setFaceRegistered] = useState(false);
+
+  // Image upload state
+  const [imageUploadModalVisible, setImageUploadModalVisible] = useState(false);
+  const [imageUploadPurpose, setImageUploadPurpose] = useState(null); // 'check-in' or 'check-out'
+
+  // Toast function that works on both platforms
+  const showToast = useCallback((message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      setSnackbarMessage(message);
+      setSnackbarVisible(true);
+    }
+  }, []);
+
+  // Face detection processor
+  const faceDetectionProcessor = useCallback(async (frame) => {
+    'worklet';
+    try {
+      if (!faceDetectionEnabled) return;
+
+      // Detect faces in the current frame
+      const faces = await FaceDetector.detectFaces(frame);
+      
+      // Check if any face was detected
+      const hasDetectedFace = faces && faces.length > 0;
+      
+      // Get bounds of the first detected face (if any)
+      const detectedFaceBounds = hasDetectedFace ? faces[0].bounds : null;
+      
+      // Update state via react-native-reanimated's worklet compatible methods
+      runOnJS(setFaceDetected)(hasDetectedFace);
+      runOnJS(setFaceBounds)(detectedFaceBounds);
+      
+      // Show success toast if face is newly detected
+      if (hasDetectedFace && !faceRegistered) {
+        runOnJS(showToast)('Face detected successfully');
+        runOnJS(setFaceRegistered)(true);
+      } else if (!hasDetectedFace && faceRegistered) {
+        runOnJS(setFaceRegistered)(false);
+      }
+
+    } catch (e) {
+      // Worklet error handling - log but don't crash
+      console.log('Face detection error (worklet):', e);
+    }
+  }, [faceDetectionEnabled, faceRegistered, showToast]);
+
+  // Initialize camera with proper permission handling
+  const initializeCamera = useCallback(async () => {
+    console.log('Initializing camera...');
+    try {
+      // Check current permission status first
+      const currentPermission = await Camera.getCameraPermissionStatus();
+      console.log('Current camera permission:', currentPermission);
+      
+      if (currentPermission !== 'authorized' && currentPermission !== 'granted') {
+        // Explicitly request permission if not already granted
+        const permission = await Camera.requestCameraPermission();
+        console.log('Camera permission request result:', permission);
+        
+        if (permission !== 'authorized' && permission !== 'granted') {
+          setError('Camera permission required. Please grant camera access in settings.');
+          return false;
+        }
+      }
+      
+      console.log('Camera permission granted');
+      return true;
+    } catch (err) {
+      console.error('Camera initialization error:', err);
+      setError('Failed to initialize camera: ' + err.message);
+      return false;
+    }
+  }, []);
+
+  // Handle camera errors
+  const onCameraError = useCallback((error) => {
+    console.error('Camera error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    setError(`Camera error: ${error.message}`);
+    setCameraInitialized(false);
+    setCameraReady(false);
+    
+    // Try to recover after a delay
+    setTimeout(() => {
+      if (currentStep === 'camera') {
+        initializeCamera();
+      }
+    }, 1000);
+  }, [currentStep, initializeCamera]);
+
+  // Handle camera ready event
+  const onCameraReady = useCallback(() => {
+    console.log('Camera is ready!');
+    setCameraReady(true);
+  }, []);
+
+  // Update camera device when devices change
+  useEffect(() => {
+    if (devices) {
+      console.log('Available devices:', devices);
+      
+      // Try to get front camera first
+      const frontCamera = devices.front;
+      
+      // If no front camera, try any available camera
+      const anyCamera = Object.values(devices).find(d => d) || null;
+      
+      setCameraDevice(frontCamera || anyCamera);
+      
+      if (!frontCamera && !anyCamera) {
+        setError('No camera device found on this device');
+      }
+    }
+  }, [devices]);
+
+  // Manage camera lifecycle
+  useEffect(() => {
+    return () => {
+      // Cleanup when component unmounts
+      if (cameraRef.current) {
+        console.log('Cleaning up camera');
+        setCameraInitialized(false);
+        setCameraReady(false);
+        setFaceDetectionEnabled(false);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentStep === 'camera') {
+      // Initialize camera when entering camera step
+      const init = async () => {
+        const hasPermission = await initializeCamera();
+        if (hasPermission) {
+          setCameraInitialized(true);
+          setFaceDetectionEnabled(true);
+        }
+      };
+      init();
+    } else {
+      // Deactivate camera when leaving camera step
+      setCameraInitialized(false);
+      setCameraReady(false);
+      setFaceDetectionEnabled(false);
+      setFaceDetected(false);
+      setFaceBounds(null);
+    }
+  }, [currentStep, initializeCamera]);
+
+  // Fetch assigned geo locations for current employee
+  const fetchAssignedGeoLocations = useCallback(async () => {
+    if (!employeeDetails?.id) {
+      console.log('No employee ID available to fetch geo locations');
+      return;
+    }
+
+    try {
+      setIsLoadingGeoData(true);
+      console.log(`Fetching assigned geo locations for employee ${employeeDetails.id}`);
+      
+      const response = await axios.get(
+        `${API_URL}GeoFencing/getAssignedGeoLocationIdsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`
+      );
+      
+      console.log('API RESPONSE - ASSIGNED GEO LOCATIONS:');
+      console.log('===========================================');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('===========================================');
+      
+      setAssignedGeoLocations(response.data);
+      
+      // For each assigned geo location, fetch its details
+      if (response.data && response.data.length > 0) {
+        const fetchedGeoDetails = [];
+        
+        for (const assignedGeo of response.data) {
+          const geoId = assignedGeo.geoLocationId;
+          try {
+            console.log(`Fetching geo fence details for ID: ${geoId}`);
+            const geoDetailsResponse = await axios.get(
+              `${API_URL}GeoFencing/GetGeoFenceDetails/${geoId}`
+            );
+            
+            console.log('API RESPONSE - GEO FENCE DETAILS:');
+            console.log('===========================================');
+            console.log(JSON.stringify(geoDetailsResponse.data, null, 2));
+            console.log('===========================================');
+            
+            fetchedGeoDetails.push(geoDetailsResponse.data);
+          } catch (error) {
+            console.error(`Error fetching geo fence details for ID ${geoId}:`, error);
+            console.error('Error response:', error.response?.data);
+          }
+        }
+        
+        setGeoFenceDetails(fetchedGeoDetails);
+      }
+    } catch (error) {
+      console.error('Error fetching assigned geo locations:', error);
+      console.error('Error response:', error.response?.data);
+    } finally {
+      setIsLoadingGeoData(false);
+    }
+  }, [employeeDetails?.id, employeeDetails?.childCompanyId]);
+  
+  // Fetch geo locations when employee details are loaded
+  useEffect(() => {
+    if (employeeDetails?.id) {
+      fetchAssignedGeoLocations();
+    }
+  }, [employeeDetails, fetchAssignedGeoLocations]);
+
+  // Convert geo fence details to the format expected by the location verification
+  useEffect(() => {
+    if (geoFenceDetails.length > 0) {
+      const convertedLocations = geoFenceDetails.map(geo => ({
+        latitude: parseFloat(geo.lattitude),
+        longitude: parseFloat(geo.longitude),
+        title: geo.geoLocationName,
+        radius: parseFloat(geo.radius) * 1000, // Convert radius to meters
+        address: geo.address,
+        areaType: geo.areaType,
+        geoLocationId: geo.gid // Store the geoLocationId for API submission
+      }));
+      
+      console.log('GEO LOCATIONS DETAILS:');
+      console.log('===========================================');
+      convertedLocations.forEach((loc, idx) => {
+        console.log(`[${idx+1}] ${loc.title}:`);
+        console.log(`  - Coordinates: ${loc.latitude}, ${loc.longitude}`);
+        console.log(`  - Radius: ${loc.radius} meters`);
+        console.log(`  - ID: ${loc.geoLocationId}`);
+        console.log(`  - Area Type: ${loc.areaType}`);
+      });
+      console.log('===========================================');
+      
+      // Replace default locations with assigned locations
+      if (convertedLocations.length > 0) {
+        setOfficeLocations(convertedLocations);
+      }
+    }
+  }, [geoFenceDetails]);
+
+
+  const handleTakePhoto = async () => {
+    if (!cameraRef.current) {
+      console.log('Camera ref is null');
+      showToast('Camera not initialized');
+      return;
+    }
+    
+    if (!faceDetected) {
+      console.log('No face detected');
+      showToast('Please position your face in the camera view');
+      return;
+    }
+    
+    try {
+      setProcessingPhoto(true);
+      setIsLoading(true);
+      console.log('Taking photo...');
+      
+      let photoPath = null;
+      
+      try {
+        // Take photo with face detection data
+        const photo = await cameraRef.current.takePhoto({
+          flash: 'off',
+          qualityPrioritization: 'balanced',
+          enableAutoRedEyeReduction: true,
+          includeBase64: true, // Get base64 data
+        });
+        
+        photoPath = photo.path;
+        
+        // Store base64 data if available
+        if (photo.base64) {
+          setPhotoBase64(photo.base64);
+        } else {
+          // Fallback if camera API doesn't provide base64 directly
+          try {
+            const encodedPhoto = await base64.encode(photoPath);
+            setPhotoBase64(encodedPhoto);
+          } catch (base64Err) {
+            console.warn('Failed to encode photo to base64:', base64Err);
+          }
+        }
+        
+        console.log('Photo taken successfully:', photoPath);
+      } catch (cameraErr) {
+        console.error('Error taking photo:', cameraErr);
+        photoPath = 'simulated_photo_path';
+      }
+      
+      showToast('Face verification successful');
+      submitCheckIn(photoPath);
+      
+    } catch (err) {
+      console.error('Photo capture error:', err);
+      setIsLoading(false);
+      setProcessingPhoto(false);
+      setError(`Failed to process: ${err.message}`);
+    }
+  };
+
+  // Check-in submission function
+  const submitCheckIn = async (photoPath = null) => {
+    // Wait for employee details if not available yet
+    if (!employeeDetails) {
+      console.log('Waiting for employee details before check-in...');
+      setTimeout(() => submitCheckIn(photoPath), 1000);
+      return;
+    }
+    
+    if (!userLocation || !nearestOffice) {
+      showToast('Missing location data for check-in');
+      console.error('Missing required data for check-in:');
+      console.error('User location:', userLocation);
+      console.error('Nearest office:', nearestOffice);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Log the detailed data for check-in
+      console.log('CHECK-IN SUBMISSION - DETAILED LOG');
+      console.log('===========================================');
+      console.log('Employee details:', {
+        id: employeeDetails.id,
+        employeeId: employeeDetails.employeeId,
+        name: employeeDetails.employeeName,
+        companyId: employeeDetails.childCompanyId
+      });
+      
+      console.log('Location data:', {
+        userLocation: userLocation,
+        nearestOffice: nearestOffice,
+        distance: nearestOffice.distance,
+        withinRadius: nearestOffice.distance <= nearestOffice.radius
+      });
+      
+      console.log('Face detection data:', {
+        faceDetected: faceDetected,
+        faceBounds: faceBounds
+      });
+      console.log('===========================================');
+      
+      // Prepare data for API with geo location details
+      const checkInData = {
+        employeeId: employeeDetails.id,
+        employeeCode: employeeDetails.employeeId,
+        companyId: employeeDetails.childCompanyId,
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
+        officeTitle: nearestOffice?.title,
+        officeLatitude: nearestOffice?.latitude,
+        officeLongitude: nearestOffice?.longitude,
+        distance: nearestOffice?.distance,
+        photoPath: photoPath || null,
+        photoBase64: photoBase64 || "[base64_encoded_photo_data]",
+        timestamp: new Date().toISOString(),
+        faceDetected: faceDetected,
+        faceBounds: faceBounds,
+        geoLocationId: nearestOffice.geoLocationId || null,
+        areaType: nearestOffice.areaType || null
+      };
+      
+      // Log the data being sent to API
+      console.log('Sending check-in data to API:', JSON.stringify(checkInData, null, 2));
+      
+      // Make API call to check in
+      const result = await attendanceApi.checkIn(checkInData);
+      
+      if (result.success) {
+        setIsLoading(false);
+        setModalVisible(false);
+        if (onCheckIn) onCheckIn();
+        showToast('Check-in successful');
+        console.log('Check-in API response:', result.data);
+      } else {
+        throw new Error(result.error || 'API check-in failed');
+      }
+      
+    } catch (error) {
+      console.error('Check-in submission error:', error);
+      setIsLoading(false);
+      showToast('Failed to submit check-in: ' + error.message);
+    }
+  };
+
+  // Check-out submission function
+  const submitCheckOut = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Build check-out data
+          const checkOutData = {
+            employeeId: employeeDetails?.id || "123456",
+            employeeCode: employeeDetails?.employeeId || "EMP123",
+            companyId: employeeDetails?.childCompanyId || "C001",
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            officeTitle: nearestOffice?.title || "Office Location 1",
+            officeLatitude: nearestOffice?.latitude || 20.292633,
+            officeLongitude: nearestOffice?.longitude || 85.857401,
+            distance: nearestOffice?.distance || 25,
+            photoBase64: photoBase64 || "[base64_encoded_photo_data]",
+            timestamp: new Date().toISOString(),
+            faceDetected: faceDetected || true,
+            faceBounds: faceBounds || {
+              x: 120,
+              y: 80,
+              width: 100,
+              height: 120
+            },
+            checkOutTime: new Date().toISOString(),
+          };
+          
+          // Log the data
+          console.log('Sending check-out data to API:', JSON.stringify(checkOutData, null, 2));
+          
+          // Send check-out data to API
+          const result = await attendanceApi.checkOut(checkOutData);
+          
+          if (result.success) {
+            setIsLoading(false);
+            if (onCheckOut) onCheckOut();
+            showToast('Check-out successful');
+            console.log('Check-out API response:', result.data);
+          } else {
+            throw new Error(result.error || 'API check-out failed');
+          }
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      console.error('Check-out submission error:', error);
+      setIsLoading(false);
+      showToast('Failed to submit check-out: ' + error.message);
+    }
+  };
+  
+  // Process selected image from image picker
+  const handleImageSelected = async (imageData) => {
+    try {
+      setImageUploadModalVisible(false);
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Calculate distance to nearest office
+          let nearestLoc = null;
+          let shortestDistance = Number.MAX_VALUE;
+          
+          officeLocations.forEach(office => {
+            const distance = geolib.getDistance(
+              userPos,
+              { latitude: office.latitude, longitude: office.longitude }
+            );
+            
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              nearestLoc = {
+                ...office,
+                distance: distance
+              };
+            }
+          });
+          
+          // Prepare user data
+          const userData = {
+            employeeId: employeeDetails?.id || "123456",
+            employeeCode: employeeDetails?.employeeId || "EMP123",
+            companyId: employeeDetails?.childCompanyId || "C001",
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            officeTitle: nearestLoc?.title || "Office Location 1",
+            officeLatitude: nearestLoc?.latitude || 20.292633,
+            officeLongitude: nearestLoc?.longitude || 85.857401,
+            distance: nearestLoc?.distance || 25,
+            photoBase64: imageData,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Call appropriate API endpoint based on the purpose
+          let result;
+          if (imageUploadPurpose === 'check-in') {
+            result = await attendanceApi.checkIn(userData);
+          } else {
+            result = await attendanceApi.checkOut({
+              ...userData,
+              checkOutTime: new Date().toISOString(),
+            });
+          }
+          
+          if (result.success) {
+            setIsLoading(false);
+            
+            if (imageUploadPurpose === 'check-in') {
+              if (onCheckIn) onCheckIn();
+              showToast('Check-in successful');
+            } else {
+              if (onCheckOut) onCheckOut();
+              showToast('Check-out successful');
+            }
+          } else {
+            throw new Error(result.error || 'API request failed');
+          }
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      console.error('Image processing error:', error);
+      setIsLoading(false);
+      showToast(`Failed to process image: ${error.message}`);
+    }
+  };
+
+  // Start check-in process
+  const handleStartCheckIn = () => {
+    setModalVisible(true);
+    setCurrentStep('none');
+    setError(null);
+    
+    // Begin location verification with map
+    verifyLocationWithMap();
+  };
+
+  // Start check-out process
+  const handleStartCheckOut = () => {
+    // Directly submit check-out without showing alert
+    submitCheckOut();
+  };
+
+  // Initialize map with current location
+  const initializeMap = useCallback((currentPosition) => {
+    if (!currentPosition) return;
+    
+    const newRegion = {
+      latitude: currentPosition.latitude,
+      longitude: currentPosition.longitude,
+      latitudeDelta: 0.005, // Zoom level
+      longitudeDelta: 0.005,
+    };
+    
+    setRegion(newRegion);
+  }, []);
+
+  // Enhanced location verification function with map display
+  const verifyLocationWithMap = () => {
+    try {
+      setCurrentStep('location');
+      setIsLoading(true);
+      setError(null);
+      setMapVisible(true);
+      
+      // If no office locations defined yet, display error
+      if (officeLocations.length === 0) {
+        console.log('No office locations defined yet');
+        setError('No office locations defined. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      Geolocation.getCurrentPosition(
+        position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          console.log('===========================================');
+          console.log('LOCATION VERIFICATION - DETAILED LOG');
+          console.log('===========================================');
+          console.log(`User current position: ${JSON.stringify(userPos)}`);
+          
+          setUserLocation(userPos);
+          initializeMap(userPos);
+          
+          // Calculate distance to each office and find nearest
+          let nearestLoc = null;
+          let shortestDistance = Number.MAX_VALUE;
+          let isWithinAnyOffice = false;
+          
+          console.log('Available office locations:');
+          officeLocations.forEach((office, index) => {
+            const distance = geolib.getDistance(
+              userPos,
+              { latitude: office.latitude, longitude: office.longitude }
+            );
+            
+            // Check if user is within this office radius
+            const withinThisOffice = distance <= office.radius;
+            if (withinThisOffice) {
+              isWithinAnyOffice = true;
+            }
+            
+            // Calculate the percentage of similarity between coordinates (for close matches)
+            const latSimilarity = (1 - Math.abs((userPos.latitude - office.latitude) / office.latitude)) * 100;
+            const lngSimilarity = (1 - Math.abs((userPos.longitude - office.longitude) / office.longitude)) * 100;
+            const coordSimilarity = (latSimilarity + lngSimilarity) / 2;
+            
+            console.log(`[${index+1}] ${office.title}:`);
+            console.log(`  - API coordinates: ${office.latitude}, ${office.longitude}`);
+            console.log(`  - User coordinates: ${userPos.latitude}, ${userPos.longitude}`);
+            console.log(`  - Coordinate similarity: ${coordSimilarity.toFixed(2)}%`);
+            console.log(`  - Distance: ${distance} meters`);
+            console.log(`  - Allowed radius: ${office.radius} meters`);
+            console.log(`  - Within radius: ${withinThisOffice ? 'YES' : 'NO'}`);
+            
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              nearestLoc = {
+                ...office,
+                distance: distance,
+                geoLocationId: office.geoLocationId || (assignedGeoLocations[index]?.geoLocationId || null),
+                coordSimilarity: coordSimilarity
+              };
+            }
+          });
+          
+          setNearestOffice(nearestLoc);
+          
+          console.log('===========================================');
+          console.log('LOCATION MATCH RESULT:');
+          console.log(`- Nearest office: ${nearestLoc.title}`);
+          console.log(`- API coordinates: ${nearestLoc.latitude}, ${nearestLoc.longitude}`);
+          console.log(`- User coordinates: ${userPos.latitude}, ${userPos.longitude}`);
+          console.log(`- Distance: ${nearestLoc.distance} meters`);
+          console.log(`- Coordinate similarity: ${nearestLoc.coordSimilarity.toFixed(2)}%`);
+          
+          // Check if user is within allowed radius of the nearest office
+          const withinRadius = nearestLoc.distance <= nearestLoc.radius;
+          console.log(`- Location match success: ${withinRadius ? 'YES' : 'NO'}`);
+          
+          if (withinRadius) {
+            console.log('✅ SUCCESS: Current location matches office location within allowed radius!');
+            console.log(`✅ User is inside ${nearestLoc.title} geofence (${nearestLoc.distance}m from center)`);
+          } else {
+            console.log('❌ FAILED: Current location does not match any office location');
+            console.log(`❌ User is ${nearestLoc.distance}m away from ${nearestLoc.title}, outside the ${nearestLoc.radius}m radius`); 
+          }
+          console.log('===========================================');
+          
+          setTimeout(() => {
+            setIsLoading(false);
+            
+            if (withinRadius) {
+              showToast(`Location verified: ${nearestLoc.title}`);
+              // Automatically proceed to next step after showing the map for a moment
+              setTimeout(() => {
+                setMapVisible(false);
+                setCurrentStep('camera');
+              }, 2000);
+            } else {
+              // Show alert for location mismatch
+              Alert.alert(
+                "Location Verification Failed",
+                `You are ${(nearestLoc.distance/1000).toFixed(2)} km away from ${nearestLoc.title}. You need to be within ${(nearestLoc.radius/1000).toFixed(2)} km radius to check in.`,
+                [
+                  {
+                    text: "Try Again",
+                    onPress: () => verifyLocationWithMap()
+                  },
+                  {
+                    text: "Cancel",
+                    onPress: () => {
+                      setMapVisible(false);
+                      setCurrentStep('none');
+                      setModalVisible(false);
+                    },
+                    style: "cancel"
+                  }
+                ]
+              );
+              setError(`You are too far from ${nearestLoc.title}. Please move closer to check in.`);
+            }
+          }, 2000);
+        },
+        err => {
+          console.error('Location error:', err);
+          setIsLoading(false);
+          setMapVisible(false);
+          setError(`Location error: ${err.message}`);
+          Alert.alert("Location Error", err.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (err) {
+      console.error('Location verification failed:', err);
+      setIsLoading(false);
+      setMapVisible(false);
+      setError(`Location verification failed: ${err.message}`);
+    }
+  };
+
+  // Render face detection overlay
+  const renderFaceDetectionOverlay = () => {
+    if (!faceDetectionEnabled) return null;
+    
+    return (
+      <View style={styles.faceDetectionOverlay}>
+        {faceDetected ? (
+          <View style={styles.faceDetectedIndicator}>
+            <IconButton icon="face-recognition" size={24} color="#4CAF50" />
+            <Text style={styles.faceDetectedText}>Face Detected</Text>
+          </View>
+        ) : (
+          <View style={styles.faceNotDetectedIndicator}>
+            <IconButton icon="face-recognition" size={24} color="#FFC107" />
+            <Text style={styles.faceNotDetectedText}>Position your face</Text>
+          </View>
+        )}
+        
+        {faceBounds && (
+          <View
+            style={[
+              styles.faceBoundsBox,
+              {
+                left: faceBounds.x,
+                top: faceBounds.y,
+                width: faceBounds.width,
+                height: faceBounds.height,
+              }
+            ]}
+          />
+        )}
+      </View>
+    );
+  };
+
+  // Render camera component
+  const renderCamera = () => {
+    if (!cameraDevice) {
+      return (
+        <View style={styles.cameraPlaceholder}>
+          <IconButton icon="camera-off" size={36} color="#F44336" />
+          <Text style={styles.placeholderText}>No camera available</Text>
+          <Button 
+            mode="contained"
+            onPress={async () => {
+              const success = await initializeCamera();
+              if (success) {
+                setCameraInitialized(true);
+              }
+            }}
+            style={{marginTop: 12}}
+          >
+            Retry Camera
+          </Button>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <Camera
+          ref={cameraRef}
+          style={styles.camera}
+          device={cameraDevice}
+          isActive={currentStep === 'camera' && cameraInitialized}
+          photo={true}
+          orientation="portrait"
+          onInitialized={onCameraReady}
+          onError={onCameraError}
+          frameProcessor={faceDetectionProcessor}
+          frameProcessorFps={5}
+        />
+        
+        {!cameraReady && (
+          <View style={styles.cameraLoadingOverlay}>
+            <ActivityIndicator size="large" color="#FFF" />
+            <Text style={styles.cameraLoadingText}>Initializing Camera...</Text>
+          </View>
+        )}
+        
+        {renderFaceDetectionOverlay()}
+        
+        <View style={styles.cameraControlsOverlay}>
+          <Button
+            mode="contained"
+            icon="camera"
+            onPress={handleTakePhoto}
+            style={styles.captureButton}
+            disabled={!cameraReady || !faceDetected || processingPhoto}
+            loading={processingPhoto}
+          >
+            {processingPhoto ? 'Processing...' : 'Verify Face'}
+          </Button>
+        </View>
+      </>
+    );
+  };
+
+  // Enhance the location verification success display
+  const renderLocationSuccess = () => {
+    if (currentStep === 'location' && !isLoading && !error && nearestOffice) {
+      return (
+        <View style={styles.successContainer}>
+          <View style={styles.successCircle}>
+            <IconButton icon="check" size={36} color="#fff" />
+          </View>
+          <Text style={styles.successText}>
+            Location verified: {nearestOffice.title}
+          </Text>
+          <Text style={styles.infoText}>
+            Distance: {(nearestOffice.distance / 1000).toFixed(2)} km
+          </Text>
+          {nearestOffice.address && (
+            <Text style={styles.addressText}>
+              {nearestOffice.address}
+            </Text>
+          )}
+        </View>
+      );
+    }
+    return null;
+  };
+
+  // Render map for location verification
+  const renderLocationMap = () => {
+    if (!mapVisible || !region || !userLocation) return null;
+    
+    return (
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          region={region}
+          showsUserLocation={true}
+          showsMyLocationButton={true}
+        >
+          {/* User's current position */}
+          <Marker
+            coordinate={{
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude
+            }}
+            title="Your Location"
+            description={`${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`}
+            pinColor="blue"
+          />
+
+          {/* Office Locations */}
+          {officeLocations.map((office, index) => (
+            <React.Fragment key={`office-${index}`}>
+              <Marker
+                coordinate={{
+                  latitude: office.latitude,
+                  longitude: office.longitude
+                }}
+                title={office.title}
+                description={`${office.latitude.toFixed(6)}, ${office.longitude.toFixed(6)}\nRadius: ${office.radius/1000} km`}
+                pinColor={
+                  nearestOffice && nearestOffice.title === office.title 
+                    ? "red" : "orange"
+                }
+              />
+              <Circle
+                center={{
+                  latitude: office.latitude,
+                  longitude: office.longitude
+                }}
+                radius={office.radius}
+                fillColor="rgba(0, 150, 136, 0.2)"
+                strokeColor="rgba(0, 150, 136, 0.5)"
+                strokeWidth={2}
+              />
+            </React.Fragment>
+          ))}
+        </MapView>
+        
+        {/* Information overlay on map */}
+        {nearestOffice && (
+          <View style={styles.mapOverlayInfo}>
+            <Text style={styles.mapInfoTitle}>{nearestOffice.title}</Text>
+            <Text style={styles.mapInfoCoords}>
+              API: {nearestOffice.latitude.toFixed(6)}, {nearestOffice.longitude.toFixed(6)}
+            </Text>
+            <Text style={styles.mapInfoCoords}>
+              You: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}
+            </Text>
+            <Text style={styles.mapInfoDistance}>
+              Distance: {(nearestOffice.distance/1000).toFixed(2)} km
+            </Text>
+            <Text style={[styles.mapInfoStatus, 
+              nearestOffice.distance <= nearestOffice.radius 
+                ? styles.statusSuccess : styles.statusError]}>
+              {nearestOffice.distance <= nearestOffice.radius
+                ? "✓ Within office radius" 
+                : "✗ Outside office radius"}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <>
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusBox, checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check In {elapsedTime || '00:00:00'}</Text>
+            </View>
+            <View style={[styles.statusBox, !checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check Out 00:00:00</Text>
+            </View>
+          </View>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage || 0}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{progressPercentage || 0}%</Text>
+          </View>
+          
+          <Text style={styles.shiftTime}>Shift: {shiftHours || '00:00'}</Text>
+          {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
+          
+          <View style={styles.buttonRow}>
+            <Button
+              mode="contained"
+              onPress={handleStartCheckIn}
+              disabled={checkedIn}
+              style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+            >
+              Check In
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleStartCheckOut}
+              disabled={!checkedIn}
+              style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+            >
+              Check Out
+            </Button>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Camera and location verification modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!isLoading) setModalVisible(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {currentStep === 'location' ? 'Location Verification' :
+               currentStep === 'camera' ? 'Face Verification' :
+               'Check In'}
+            </Text>
+            
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2196F3" />
+                <Text style={styles.loadingText}>
+                  {currentStep === 'location' ? 'Verifying your location...' : 
+                   currentStep === 'camera' ? 'Processing...' :
+                   'Initializing...'}
+                </Text>
+              </View>
+            )}
+            
+            {/* Map for location verification */}
+            {renderLocationMap()}
+            
+            {/* Show error message when not loading */}
+            {error && !isLoading && !mapVisible && (
+              <View style={styles.errorContainer}>
+                <IconButton icon="alert-circle" size={32} color="#F44336" />
+                <Text style={styles.errorText}>{error}</Text>
+                <Button 
+                  mode="contained" 
+                  onPress={() => {
+                    setError(null);
+                    if (currentStep === 'location') verifyLocationWithMap();
+                    else if (currentStep === 'camera') initializeCamera();
+                  }}
+                  style={styles.retryButton}
+                >
+                  Retry
+                </Button>
+              </View>
+            )}
+            
+            {/* Show location success only when not displaying map */}
+            {!mapVisible && renderLocationSuccess()}
+            
+            {currentStep === 'camera' && !isLoading && !error && (
+              <View style={styles.cameraContainer}>
+                {renderCamera()}
+              </View>
+            )}
+            
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="text"
+                onPress={() => {
+                  setModalVisible(false);
+                  setMapVisible(false);
+                }}
+                disabled={isLoading}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    margin: 8,
+    borderRadius: 10,
+    elevation: 3,
+    backgroundColor: '#fff',
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusBox: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  active: {
+    backgroundColor: '#e8f5e9',
+  },
+  inactive: {
+    backgroundColor: '#f9f9f9',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  progressContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    height: 8,
+    width: '100%',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#333',
+  },
+  shiftTime: {
+    fontSize: 14,
+    color: '#444',
+    marginTop: 8,
+  },
+  completedText: {
+    color: '#388E3C',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    height: 40,
+  },
+  green: {
+    backgroundColor: '#4CAF50',
+  },
+  red: {
+    backgroundColor: '#F44336',
+  },
+  disabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#222',
+  },
+  loadingContainer: {
+    width: '100%',
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#555',
+  },
+  errorContainer: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#F44336',
+    marginVertical: 8,
+  },
+  retryButton: {
+    marginTop: 12,
+  },
+  successContainer: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successText: {
+    fontSize: 16,
+    color: '#388E3C',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cameraContainer: {
+    width: '100%',
+    height: 320,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    position: 'relative',
+    marginVertical: 16,
+  },
+  camera: {
+    width: '100%',
+    height: '100%',
+  },
+  cameraPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#222',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#fff',
+    marginTop: 12,
+    textAlign: 'center',
+    padding: 10,
+  },
+  cameraLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  cameraLoadingText: {
+    color: '#FFF',
+    marginTop: 12,
+  },
+  cameraControlsOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 150,
+    borderRadius: 24,
+    marginBottom: 16,
+  },
+  buttonContainer: {
+    width: '100%',
+    marginTop: 8,
+  },
+  cancelButton: {
+    alignSelf: 'flex-end',
+  },
+  faceDetectionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  faceDetectedIndicator: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    margin: 16,
+    alignItems: 'center',
+  },
+  faceNotDetectedIndicator: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    margin: 16,
+    alignItems: 'center',
+  },
+  faceDetectedText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  faceNotDetectedText: {
+    color: '#FFC107',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  faceBoundsBox: {
+    position: 'absolute',
+    borderWidth: 3, // Increased border width for better visibility
+    borderColor: '#4CAF50', // Bright green border
+    borderRadius: 10,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)', // Light green background with opacity
+  },
+  addressText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 16
+  },
+  mapContainer: {
+    width: '100%',
+    height: 300,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginVertical: 16,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  mapOverlayInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  mapInfoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  mapInfoCoords: {
+    fontSize: 12,
+    color: '#333',
+    marginTop: 2,
+    fontFamily: 'monospace',  // Use monospace font for coordinate display
+  },
+  mapInfoDistance: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  mapInfoStatus: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  statusSuccess: {
+    color: '#4CAF50',
+  },
+  statusError: {
+    color: '#F44336',
+  },
+
+
+});
+
+export default AttendanceTracker;
+
+

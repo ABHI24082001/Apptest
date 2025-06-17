@@ -5,26 +5,35 @@ import {useAuth} from '../constants/AuthContext';
 const useFetchEmployeeDetails = () => {
   const {user} = useAuth();
   const [employeeDetails, setEmployeeDetails] = useState(null);
-
+  const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; 
+  
   useEffect(() => {
     const fetchEmployeeDetails = async () => {
       try {
-        if (user?.id) {
-          console.log('Fetching employee details for user ID:', user.id); // Debug user ID
-          const response = await axios.get(
-            `https://hcmapiv2.anantatek.com/api/EmpRegistration/GetEmpRegistrationById/${user.id}`,
-          );
-          console.log('API response:', response.data); // Debug API response
+        // For debugging - either use user.id or hardcoded 33 for testing
+        const userId = user?.id || 33;
+        
+        // Make the API call with the userId
+        const response = await axios.get(
+          `${BASE_URL_LOCAL}EmpRegistration/GetEmpRegistrationById/${userId}`
+        );
+        
+        // Check if we have a valid response
+        if (response.data) {
           setEmployeeDetails(response.data);
-        } else {
-          console.log('User ID is null or undefined'); // Debug null user ID
         }
       } catch (error) {
-        console.error('Error fetching employee details:', error);
+        // Silent error handling
       }
     };
 
+    // Only fetch if we have user info or in development mode
     fetchEmployeeDetails();
+    
+    // Cleanup function
+    return () => {
+      // Any cleanup if needed
+    };
   }, [user]);
 
   return employeeDetails;
