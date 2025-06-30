@@ -13278,3 +13278,789 @@ const styles = StyleSheet.create({
 export default AttendanceTracker;
 
 
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Modal, Alert, Platform, ToastAndroid } from 'react-native';
+import { Button, ActivityIndicator } from 'react-native-paper';
+import Geolocation from '@react-native-community/geolocation';
+import axios from 'axios';
+import * as geolib from 'geolib';
+
+const API_URL = 'http://192.168.29.2:90/api/';
+
+// Define test coordinates
+const TEST_COORDINATES = {
+  latitude: 20.304665,
+  longitude: 85.863333
+};
+
+
+const GeofencingCamera = ({
+  visible,
+  onClose,
+  geoFenceDetails = [],
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [checkInStatus, setCheckInStatus] = useState('');
+
+  // Toast function that works on both platforms
+  const showToast = useCallback((message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Notification', message);
+    }
+  }, []);
+
+  // Test location functionality using actual current location
+  const handleTestLocation = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch geo-fence details from the API
+      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      console.log('Geo Fence Details:', response.data);
+
+      const officeLocation = {
+        latitude: parseFloat(response.data.lattitude),
+        longitude: parseFloat(response.data.longitude),
+      };
+
+      // Get user's current location
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
+          console.log('User Location:', userLocation);
+          console.log('Office Location:', officeLocation);
+
+          // Calculate distance between user and office in meters
+          const distanceInMeters = geolib.getDistance(userLocation, officeLocation);
+          console.log('Distance between user and office:', distanceInMeters, 'meters');
+
+          // Check if user is within 50 meters of the office location
+          const isWithinRadius = geolib.isPointWithinRadius(userLocation, officeLocation, 50);
+          console.log('Is within 50 meter radius:', isWithinRadius);
+          
+          // Format distance for display
+          const formattedDistance = Math.round(distanceInMeters);
+
+          if (isWithinRadius) {
+            showToast(`Success: You are ${formattedDistance} meters away from the office location.`);
+            Alert.alert(
+              "Location Verification Success",
+              `You are within the allowed radius.\nDistance: ${formattedDistance} meters from the office location.`,
+              [{ text: "OK" }]
+            );
+          } else {
+            showToast(`Failed: You are ${formattedDistance} meters away (exceeds 50 meter limit).`);
+            Alert.alert(
+              "Location Verification Failed",
+              `You are too far from the office location.\nCurrent distance: ${formattedDistance} meters.\nYou need to be within 50 meters to check in.`,
+              [{ text: "OK" }]
+            );
+          }
+
+          setIsLoading(false);
+        },
+        (err) => {
+          setError(`Location error: ${err.message}`);
+          setIsLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (err) {
+      setError(`API error: ${err.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  // Test with predefined coordinates
+  const handleTestWithFixedCoordinates = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch geo-fence details from the API
+      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      console.log('Geo Fence Details:', response.data);
+
+      const officeLocation = {
+        latitude: parseFloat(response.data.lattitude),
+        longitude: parseFloat(response.data.longitude),
+      };
+      
+      console.log('Test User Location:', TEST_COORDINATES);
+      console.log('Office Location:', officeLocation);
+
+      // Calculate distance between test coordinates and office
+      const distanceInMeters = geolib.getDistance(TEST_COORDINATES, officeLocation);
+      console.log('Distance between test coordinates and office:', distanceInMeters, 'meters');
+
+      // Check if test coordinates are within 50 meters of the office
+      const isWithinRadius = geolib.isPointWithinRadius(TEST_COORDINATES, officeLocation, 50);
+      console.log('Is within 50 meter radius:', isWithinRadius);
+      
+      // Format distance for display
+      const formattedDistance = Math.round(distanceInMeters);
+
+      // Show appropriate message based on distance
+      if (isWithinRadius) {
+        showToast(`Success: Test coordinates are ${formattedDistance} meters from office.`);
+        Alert.alert(
+          "Test Location Success",
+          `The test coordinates are within the allowed radius.\nDistance: ${formattedDistance} meters from the office.`,
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Test Location Failed",
+          `The test coordinates are too far from the office.\nDistance: ${formattedDistance} meters.\nNeeds to be within 50 meters.`,
+          [{ text: "OK" }]
+        );
+      }
+      
+      setIsLoading(false);
+    } catch (err) {
+      setError(`API error: ${err.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Check In functionality
+  const handleCheckIn = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setCheckInStatus('checking');
+
+      // Fetch geo-fence details from the API
+      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      
+      const officeLocation = {
+        latitude: parseFloat(response.data.lattitude),
+        longitude: parseFloat(response.data.longitude),
+      };
+
+      // Get user's current location
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
+          // Calculate distance between user and office in meters
+          const distanceInMeters = geolib.getDistance(userLocation, officeLocation);
+          
+          // Check if user is within 50 meters of the office location
+          const isWithinRadius = geolib.isPointWithinRadius(userLocation, officeLocation, 50);
+          
+          // Format distance for display
+          const formattedDistance = Math.round(distanceInMeters);
+
+          if (isWithinRadius) {
+            setCheckInStatus('success');
+            showToast(`Check-in successful! You are ${formattedDistance} meters from the office.`);
+            
+            // Here you would typically call an API to register the successful check-in
+            // For example: axios.post(`${API_URL}/attendance/checkin`, { userId: currentUserId })
+            
+            setTimeout(() => {
+              setCheckInStatus('');
+              onClose(); // Close modal after successful check-in
+            }, 2000);
+          } else {
+            setCheckInStatus('failed');
+            showToast(`Check-in failed! You are ${formattedDistance} meters away (must be within 50 meters).`);
+            
+            setTimeout(() => {
+              setCheckInStatus('');
+            }, 2000);
+          }
+
+          setIsLoading(false);
+        },
+        (err) => {
+          setError(`Location error: ${err.message}`);
+          setCheckInStatus('');
+          setIsLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (err) {
+      setError(`API error: ${err.message}`);
+      setCheckInStatus('');
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => {
+        if (!isLoading) onClose();
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Location Verification</Text>
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+              <Text style={styles.loadingText}>Processing...</Text>
+            </View>
+          )}
+
+          {/* Error display */}
+          {error && !isLoading && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* Check-in Status Display */}
+          {checkInStatus === 'success' && !isLoading && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.successText}>Check-in Successful! ✓</Text>
+            </View>
+          )}
+          
+          {checkInStatus === 'failed' && !isLoading && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.errorText}>Check-in Failed! Too far from office.</Text>
+            </View>
+          )}
+
+          {/* Check In Button */}
+          <Button
+            mode="contained"
+            onPress={handleCheckIn}
+            disabled={isLoading}
+            style={[styles.testButton, { backgroundColor: '#FF5722' }]}
+          >
+            Check In
+          </Button>
+
+          {/* Test Button */}
+          <Button
+            mode="contained"
+            onPress={handleTestLocation}
+            disabled={isLoading}
+            style={styles.testButton}
+          >
+            Test Current Location
+          </Button>
+          
+          {/* Test with Fixed Coordinates Button */}
+          <Button
+            mode="contained"
+            onPress={handleTestWithFixedCoordinates}
+            disabled={isLoading}
+            style={[styles.testButton, { marginTop: 12, backgroundColor: '#2196F3' }]}
+          >
+            Test Fixed Coordinates
+          </Button>
+
+          {/* Cancel Button */}
+          <Button
+            mode="text"
+            onPress={onClose}
+            disabled={isLoading}
+            style={styles.cancelButton}
+          >
+            Cancel
+          </Button>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#222',
+  },
+  loadingContainer: {
+    width: '100%',
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 160,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#555',
+  },
+  errorContainer: {
+    width: '100%',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#F44336',
+    marginVertical: 8,
+  },
+  testButton: {
+    marginTop: 16,
+    backgroundColor: '#4CAF50',
+    width: '80%',
+  },
+  cancelButton: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  statusContainer: {
+    width: '100%',
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderRadius: 4,
+  },
+  successText: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
+});
+
+export default GeofencingCamera;
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Alert, Platform, ToastAndroid } from 'react-native';
+import { Button, Card, Snackbar, ActivityIndicator } from 'react-native-paper';
+import axios from 'axios';
+import * as geolib from 'geolib';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+
+const API_URL = 'http://192.168.29.2:90/api/';
+
+// Test coordinates for checking against office location
+const TEST_COORDINATES = {
+  latitude: 20.304756,
+  longitude: 85.863306
+};
+
+
+
+// API service for attendance
+const attendanceApi = {
+  checkIn: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-in`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+  
+  checkOut: async (data) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/check-out`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  }
+};
+
+const AttendanceTracker = ({
+  checkedIn,
+  elapsedTime,
+  progressPercentage,
+  shiftHours,
+  shiftCompleted,
+  onCheckIn,
+  onCheckOut,
+}) => {
+  // Employee details from custom hook
+  const employeeDetails = useFetchEmployeeDetails();
+  
+  // State for check-in process
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [checkInStatus, setCheckInStatus] = useState(''); // 'success', 'failed', or ''
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Toast function that works on both platforms
+  const showToast = useCallback((message) => {
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
+    
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    }
+  }, []);
+
+  // Handle check-in process with fixed coordinates for testing
+  const handleStartCheckIn = async () => {
+    try {
+      // Reset states
+      setError(null);
+      setIsLoading(true);
+      setCheckInStatus('');
+      
+      // Fetch geo-fence details from the API
+      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      console.log('Geo Fence Details:', response.data);
+
+      // Extract coordinates and radius from API response
+      const officeLocation = {
+        latitude: parseFloat(response.data.lattitude),
+        longitude: parseFloat(response.data.longitude),
+      };
+      
+      const radiusInMeters = parseInt(response.data.radius) || 50;
+      
+      console.log('Test User Location:', TEST_COORDINATES);
+      console.log('Office Location:', officeLocation);
+      console.log('Office Radius (meters):', radiusInMeters);
+
+      // Calculate distance between test coordinates and office
+      const distanceInMeters = geolib.getDistance(TEST_COORDINATES, officeLocation);
+      console.log('Distance between test coordinates and office:', distanceInMeters, 'meters');
+
+      // Check if test coordinates are within the specified radius of the office
+      const isWithinRadius = geolib.isPointWithinRadius(
+        TEST_COORDINATES, 
+        officeLocation,
+        radiusInMeters
+      );
+      console.log(`Is within ${radiusInMeters} meter radius:`, isWithinRadius);
+      
+      // Format distance for display
+      const formattedDistance = Math.round(distanceInMeters);
+
+      // Simulate a short delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (isWithinRadius) {
+        setCheckInStatus('success');
+        showToast(`Check-in successful! You are ${formattedDistance} meters from the office.`);
+        
+        // Here you would typically call an API to register the successful check-in
+        // For example: axios.post(`${API_URL}/attendance/checkin`, { userId: currentUserId })
+        
+        // Notify parent component of successful check-in
+        if (onCheckIn) onCheckIn();
+        
+        // Reset status after some time
+        setTimeout(() => {
+          setCheckInStatus('');
+        }, 3000);
+      } else {
+        setCheckInStatus('failed');
+        showToast(`Check-in failed! You are ${formattedDistance} meters away (must be within ${radiusInMeters} meters).`);
+        
+        Alert.alert(
+          "Check-in Failed",
+          `You are too far from the office.\nCurrent distance: ${formattedDistance} meters.\nYou need to be within ${radiusInMeters} meters to check in.`,
+          [{ text: "OK" }]
+        );
+        
+        // Reset status after some time
+        setTimeout(() => {
+          setCheckInStatus('');
+        }, 3000);
+      }
+    } catch (err) {
+      setError(`Error: ${err.message}`);
+      showToast(`Check-in failed: ${err.message}`);
+      
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle check-out process
+  const handleStartCheckOut = () => {
+    // Directly submit check-out
+    submitCheckOut();
+  };
+
+  // Check-out submission function
+  const submitCheckOut = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current location
+      Geolocation.getCurrentPosition(
+        async position => {
+          const userPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Build check-out data
+          const checkOutData = {
+            employeeId: employeeDetails?.id,
+            employeeCode: employeeDetails?.employeeId,
+            companyId: employeeDetails?.childCompanyId,
+            latitude: userPos.latitude,
+            longitude: userPos.longitude,
+            timestamp: new Date().toISOString(),
+            checkOutTime: new Date().toISOString(),
+          };
+          
+          // Send check-out data to API
+          const result = await attendanceApi.checkOut(checkOutData);
+          
+          if (result.success) {
+            if (onCheckOut) onCheckOut();
+            showToast('Check-out successful');
+          } else {
+            throw new Error(result.error || 'API check-out failed');
+          }
+        },
+        err => {
+          showToast(`Location error: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } catch (error) {
+      showToast('Failed to submit check-out: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusBox, checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check In {elapsedTime || '00:00:00'}</Text>
+            </View>
+            <View style={[styles.statusBox, !checkedIn ? styles.active : styles.inactive]}>
+              <Text style={styles.statusText}>Check Out 00:00:00</Text>
+            </View>
+          </View>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage || 0}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{progressPercentage || 0}%</Text>
+          </View>
+          
+          <Text style={styles.shiftTime}>Shift: {shiftHours || '00:00'}</Text>
+          {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
+          
+          {/* Status Display */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+          
+          {checkInStatus === 'success' && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.successText}>Check-in Successful! ✓</Text>
+            </View>
+          )}
+          
+          {checkInStatus === 'failed' && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.errorText}>Check-in Failed! Too far from office.</Text>
+            </View>
+          )}
+          
+          {/* Button Row */}
+          <View style={styles.buttonRow}>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.loadingText}>Processing check-in...</Text>
+              </View>
+            ) : (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={handleStartCheckIn}
+                  disabled={checkedIn || isLoading}
+                  style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+                >
+                  Check In
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleStartCheckOut}
+                  disabled={!checkedIn || isLoading}
+                  style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+                >
+                  Check Out
+                </Button>
+              </>
+            )}
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    margin: 8,
+    borderRadius: 10,
+    elevation: 3,
+    backgroundColor: '#fff',
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusBox: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  active: {
+    backgroundColor: '#e8f5e9',
+  },
+  inactive: {
+    backgroundColor: '#f9f9f9',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  progressContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    height: 8,
+    width: '100%',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#333',
+  },
+  shiftTime: {
+    fontSize: 14,
+    color: '#444',
+    marginTop: 8,
+  },
+  completedText: {
+    color: '#388E3C',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    height: 40,
+  },
+  green: {
+    backgroundColor: '#4CAF50',
+  },
+  red: {
+    backgroundColor: '#F44336',
+  },
+  disabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  loadingContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#555',
+  },
+  errorContainer: {
+    width: '100%',
+    padding: 10,
+    marginTop: 10,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 4,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#F44336',
+  },
+  statusContainer: {
+    width: '100%',
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 4,
+    backgroundColor: '#E8F5E9',
+  },
+  successText: {
+    textAlign: 'center',
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  }
+});
+
+export default AttendanceTracker;
+
+

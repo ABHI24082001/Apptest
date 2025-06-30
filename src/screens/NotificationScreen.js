@@ -1,94 +1,11 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Text, Avatar, Divider } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppSafeArea from '../component/AppSafeArea';
 import { useNavigation } from '@react-navigation/native';
-
-const requestsData = {
-  today: [
-    {
-      type: 'Exit Request',
-      name: 'Anusman Samal',
-      title: '.Net Developer',
-      department: 'IT Dept',
-      id: '784512',
-      time: '4/3/2025 06:45 PM',
-      status: 'Rejected by HR',
-      color: '#FF5252',
-      icon: 'close-circle',
-      avatar: { uri: 'https://i.pravatar.cc/150?img=1' },
-      unread: true,
-    },
-    {
-      type: 'Leave Status Update',
-      name: 'Jayanta Behera',
-      title: 'Marketing, Sale Executive',
-      department: '',
-      id: '784512',
-      time: '4/3/2025 06:45 PM',
-      status: 'Approved',
-      color: '#4CAF50',
-      icon: 'check-circle',
-      avatar: 'J',
-      unread: true,
-    },
-    {
-      type: 'Pending Request',
-      name: 'Durga Prasad',
-      title: 'UI Developer',
-      department: 'IT Dept',
-      id: '784510',
-      time: '22/02/2025 10:45 AM',
-      status: 'Pending Your Approval',
-      color: '#FFC107',
-      icon: 'clock-alert',
-      avatar: 'D',
-      unread: true,
-    },
-  ],
-  older: [
-    {
-      type: 'Exit Request',
-      name: 'Kush Samal',
-      title: 'React Developer',
-      department: 'IT Dept',
-      id: '784512',
-      time: '4/3/2025 06:45 PM',
-      status: 'Rejected by HR',
-      color: '#E91E63',
-      icon: 'close-circle',
-      avatar: 'K',
-      unread: false,
-    },
-    {
-      type: 'Exit Request',
-      name: 'Kush Sharma',
-      title: 'Rust Developer',
-      department: 'IT Dept',
-      id: '784512',
-      time: '4/3/2025 06:45 PM',
-      status: 'Rejected by HR',
-      color: '#9C27B0',
-      icon: 'close-circle',
-      avatar: 'T',
-      unread: false,
-    },
-    {
-      type: 'Exit Request',
-      name: 'Suman Samal',
-      title: '.Net Developer',
-      department: 'IT Dept',
-      id: '784512',
-      time: '4/3/2025 06:45 PM',
-      status: 'Rejected by HR',
-      color: '#FF9800',
-      icon: 'close-circle',
-      avatar: 'S',
-      unread: false,
-    },
-  ],
-};
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
 
 const RequestCard = ({ item, onPress }) => {
   return (
@@ -145,42 +62,198 @@ const RequestCard = ({ item, onPress }) => {
 
 const RequestDetailsScreen = () => {
   const navigation = useNavigation();
-  const [requests, setRequests] = useState(requestsData);
-  const [unreadCount, setUnreadCount] = useState(3);
+  const [notifications, setNotifications] = useState({
+    today: [],
+    older: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const employeeDetails = useFetchEmployeeDetails();
+
+  // Fetch notifications from API
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+  
+  // Moved fetchNotifications outside to be able to call it from the retry button
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching notifications...');
+      
+      // Using hardcoded values as required
+      const response = await axios.get('https://hcmapiv2.anantatek.com/api/Email/GetAllNotificationByEmployeeIdWithSenderDetails/1/11');
+      
+      console.log('API Response:', JSON.stringify(response.data));
+      
+      if (response.data && Array.isArray(response.data)) {
+        processNotifications(response.data);
+      } else {
+        console.error('Invalid response format:', response.data);
+        setError('Invalid response format from server');
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError(`Failed to load notifications: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Process and format notifications with improved date handling
+  const processNotifications = (data) => {
+    try {
+      console.log('Processing notifications:', data.length);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayNotifications = [];
+      const olderNotifications = [];
+      let unreadCounter = 0;
+      
+      data.forEach(item => {
+        try {
+          const notificationDate = new Date(item.createdDate);
+          console.log(`Notification date: ${notificationDate} for item: ${item.id}`);
+          const formattedDate = formatDate(item.createdDate);
+          
+          // Create notification object with default values for missing fields
+          const notification = {
+            id: item.id || Math.random().toString(),
+            type: getNotificationType(item.notification || ''),
+            name: item.employeeName || 'Unknown',
+            title: 'Employee', // Default title
+            department: '', 
+            time: formattedDate,
+            status: getNotificationStatus(item.notification || ''),
+            color: getStatusColor(item.notification || ''),
+            icon: getStatusIcon(item.notification || ''),
+            avatar: (item.employeeName && item.employeeName.charAt(0)) || 'U',
+            unread: true,
+          };
+          
+          // Check if the date is valid before comparing
+          if (!isNaN(notificationDate.getTime())) {
+            if (notificationDate >= today) {
+              todayNotifications.push(notification);
+            } else {
+              olderNotifications.push(notification);
+            }
+          } else {
+            // If date is invalid, default to older notifications
+            olderNotifications.push(notification);
+          }
+          
+          unreadCounter++;
+        } catch (itemErr) {
+          console.error('Error processing notification item:', itemErr, item);
+        }
+      });
+      
+      console.log(`Processed: Today: ${todayNotifications.length}, Older: ${olderNotifications.length}`);
+      
+      setNotifications({
+        today: todayNotifications,
+        older: olderNotifications
+      });
+      setUnreadCount(unreadCounter);
+    } catch (processErr) {
+      console.error('Error in processNotifications:', processErr);
+      setError('Error processing notification data');
+    }
+  };
+  
+  // Helper functions with more robust date handling
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      
+      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${formatTime(date)}`;
+    } catch (err) {
+      console.error('Error formatting date:', err, dateString);
+      return 'Unknown date';
+    }
+  };
+  
+  const formatTime = (date) => {
+    try {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+    } catch (err) {
+      console.error('Error formatting time:', err);
+      return '';
+    }
+  };
+  
+  const getNotificationType = (notification) => {
+    if (notification.includes('leave')) return 'Leave Status Update';
+    if (notification.includes('exit')) return 'Exit Request';
+    if (notification.includes('shift')) return 'Shift Update';
+    return 'Notification';
+  };
+  
+  const getNotificationStatus = (notification) => {
+    if (notification.includes('approved')) return 'Approved';
+    if (notification.includes('rejected')) return 'Rejected by HR';
+    if (notification.includes('assigned')) return 'New Assignment';
+    if (notification.includes('deassigned')) return 'Removed from Assignment';
+    return 'Notification';
+  };
+  
+  const getStatusColor = (notification) => {
+    if (notification.includes('approved')) return '#4CAF50';
+    if (notification.includes('rejected')) return '#FF5252';
+    if (notification.includes('assigned')) return '#2196F3';
+    if (notification.includes('deassigned')) return '#FFC107';
+    return '#757575';
+  };
+  
+  const getStatusIcon = (notification) => {
+    if (notification.includes('approved')) return 'check-circle';
+    if (notification.includes('rejected')) return 'close-circle';
+    if (notification.includes('assigned')) return 'account-check';
+    if (notification.includes('deassigned')) return 'account-remove';
+    return 'bell';
+  };
 
   const markAllAsRead = () => {
-    const updatedRequests = {
-      today: requests.today.map(item => ({ ...item, unread: false })),
-      older: requests.older
+    const updatedNotifications = {
+      today: notifications.today.map(item => ({ ...item, unread: false })),
+      older: notifications.older.map(item => ({ ...item, unread: false }))
     };
-    setRequests(updatedRequests);
+    setNotifications(updatedNotifications);
     setUnreadCount(0);
   };
 
   const handleCardPress = (section, index) => {
-    if (section === 'today' && requests.today[index].unread) {
-      const updatedRequests = { ...requests };
-      updatedRequests.today[index].unread = false;
-      setRequests(updatedRequests);
+    if (section === 'today' && notifications.today[index].unread) {
+      const updatedNotifications = { ...notifications };
+      updatedNotifications.today[index].unread = false;
+      setNotifications(updatedNotifications);
+      setUnreadCount(prev => prev - 1);
+    } else if (section === 'older' && notifications.older[index].unread) {
+      const updatedNotifications = { ...notifications };
+      updatedNotifications.older[index].unread = false;
+      setNotifications(updatedNotifications);
       setUnreadCount(prev => prev - 1);
     }
   };
 
+  // Add console logs to the UI render section
   return (
     <AppSafeArea>
       {/* Header */}
       <View style={styles.header}>
-        {/* <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons 
-            name="arrow-left" 
-            size={24} 
-            color="#333" 
-          />
-        </TouchableOpacity> */}
         <Text style={styles.headerTitle}>Request Details</Text>
         {unreadCount > 0 && (
           <TouchableOpacity 
@@ -197,44 +270,82 @@ const RequestDetailsScreen = () => {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* Today Section */}
-        {requests.today.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today</Text>
-              {unreadCount > 0 && (
-                <View style={styles.unreadCount}>
-                  <Text style={styles.unreadCountText}>{unreadCount}</Text>
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loaderText}>Loading notifications...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <MaterialCommunityIcons name="alert-circle" size={40} color="#FF5252" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={() => {
+                setLoading(true);
+                setError(null);
+                fetchNotifications();
+              }}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Debug info */}
+            <Text style={styles.debugText}>
+              Today: {notifications.today.length}, Older: {notifications.older.length}
+            </Text>
+            
+            {/* Today Section */}
+            {notifications.today.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Today</Text>
+                  {notifications.today.filter(item => item.unread).length > 0 && (
+                    <View style={styles.unreadCount}>
+                      <Text style={styles.unreadCountText}>
+                        {notifications.today.filter(item => item.unread).length}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-            <View style={styles.cardsContainer}>
-              {requests.today.map((item, index) => (
-                <RequestCard 
-                  item={item} 
-                  key={`today-${index}`}
-                  onPress={() => handleCardPress('today', index)}
-                />
-              ))}
-            </View>
-          </View>
-        )}
+                <View style={styles.cardsContainer}>
+                  {notifications.today.map((item, index) => (
+                    <RequestCard 
+                      item={item} 
+                      key={`today-${item.id}`}
+                      onPress={() => handleCardPress('today', index)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
 
-        {/* Older Section */}
-        {requests.older.length > 0 && (
-          <View style={styles.section}>
-            <Divider style={styles.divider} />
-            <Text style={styles.sectionTitle}>Older</Text>
-            <View style={styles.cardsContainer}>
-              {requests.older.map((item, index) => (
-                <RequestCard 
-                  item={item} 
-                  key={`older-${index}`}
-                  onPress={() => {}}
-                />
-              ))}
-            </View>
-          </View>
+            {/* Older Section */}
+            {notifications.older.length > 0 && (
+              <View style={styles.section}>
+                {notifications.today.length > 0 && <Divider style={styles.divider} />}
+                <Text style={styles.sectionTitle}>Older</Text>
+                <View style={styles.cardsContainer}>
+                  {notifications.older.map((item, index) => (
+                    <RequestCard 
+                      item={item} 
+                      key={`older-${item.id}`}
+                      onPress={() => handleCardPress('older', index)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {notifications.today.length === 0 && notifications.older.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
+                <Text style={styles.emptyText}>No notifications to display</Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </AppSafeArea>
@@ -393,5 +504,62 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     height: 1,
     backgroundColor: '#EEEEEE',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    height: 300,
+  },
+  loaderText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#616161',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    height: 300,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#616161',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#2196F3',
+    borderRadius: 4,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    height: 300,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#9E9E9E',
+    textAlign: 'center',
+  },
+  debugText: {
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    marginBottom: 8,
+    fontSize: 12,
+    color: '#666',
   },
 });

@@ -1,12 +1,20 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Button, Card, Snackbar } from 'react-native-paper';
-import Geolocation from '@react-native-community/geolocation';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import GeofencingCamera from './GeofencingCamera';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Alert, Platform, ToastAndroid } from 'react-native';
+import { Button, Card, Snackbar, ActivityIndicator } from 'react-native-paper';
 import axios from 'axios';
+import * as geolib from 'geolib';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+// import CameraComponent from './CameraComponent';
 
 const API_URL = 'http://192.168.29.2:90/api/';
+
+// Test coordinates for checking against office location
+const TEST_COORDINATES = {
+  latitude: 20.304756,
+  longitude: 85.863306
+};
+
+
 
 // API service for attendance
 const attendanceApi = {
@@ -41,117 +49,176 @@ const AttendanceTracker = ({
   // Employee details from custom hook
   const employeeDetails = useFetchEmployeeDetails();
   
-  // State for geo-fencing
-  const [geoFenceDetails, setGeoFenceDetails] = useState([]);
+  // State for check-in process
   const [isLoading, setIsLoading] = useState(false);
-  const [geofencingModalVisible, setGeofencingModalVisible] = useState(false);
+  const [error, setError] = useState(null);
+  const [checkInStatus, setCheckInStatus] = useState(''); // 'success', 'failed', or ''
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Add state for camera visibility
+  const [isCameraVisible, setIsCameraVisible] = useState(false);
+  const [locationVerified, setLocationVerified] = useState(false);
 
   // Toast function that works on both platforms
   const showToast = useCallback((message) => {
     setSnackbarMessage(message);
     setSnackbarVisible(true);
+    
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    }
   }, []);
+
+  // Use useEffect to ensure console logging happens after state updates
+  useEffect(() => {
+    if (isCameraVisible) {
+      console.log('Camera has been set to visible:', isCameraVisible);
+    }
+  }, [isCameraVisible]);
   
-  // Fetch geo-fence details when needed
-  const fetchGeoFenceDetails = useCallback(async () => {
-    if (!employeeDetails?.id) return;
-    
+  // Use ref to track render count and prevent excessive logging
+  const renderCount = useRef(0);
+  
+  // Handle check-in process with camera integration - optimized
+  const handleStartCheckIn = useCallback(async () => {
     try {
+      console.log('Starting check-in process...');
+      
+      // Reset states
+      setError(null);
       setIsLoading(true);
+      setCheckInStatus('');
       
-      // Fetch assigned geo locations for the employee
-      const response = await axios.get(
-        `${API_URL}GeoFencing/getAssignedGeoLocationIdsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`
-      );
-      
-      if (response.data && response.data.length > 0) {
-        const fetchedGeoDetails = [];
-        
-        for (const assignedGeo of response.data) {
-          const geoId = assignedGeo.geoLocationId;
-          try {
-            const geoDetailsResponse = await axios.get(
-              `${API_URL}GeoFencing/GetGeoFenceDetails/${geoId}`
-            );
-            
-            fetchedGeoDetails.push(geoDetailsResponse.data);
-          } catch (error) {
-            console.error(`Error fetching geo fence details for ID ${geoId}:`, error);
-          }
-        }
-        
-        setGeoFenceDetails(fetchedGeoDetails);
-      } else {
-        // If no assigned locations, fetch a default one (ID: 2)
-        try {
-          const geoDetailsResponse = await axios.get(
-            `${API_URL}GeoFencing/GetGeoFenceDetails/2`
-          );
-          setGeoFenceDetails([geoDetailsResponse.data]);
-        } catch (error) {
-          console.error('Error fetching default geo fence details:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching assigned geo locations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [employeeDetails?.id, employeeDetails?.childCompanyId]);
+      // Fetch geo-fence details from the API
+      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      console.log('Geo Fence Details:', response.data);
 
-  // Handle check-in process
-  const handleStartCheckIn = async () => {
-    // Fetch geo fence details if not already loaded
-    if (geoFenceDetails.length === 0) {
-      await fetchGeoFenceDetails();
-    }
-    
-    // Open the geofencing and camera modal
-    setGeofencingModalVisible(true);
-  };
-
-  // Handle successful verification from GeofencingCamera
-  const handleGeofencingSuccess = async (data) => {
-    try {
-      setIsLoading(true);
-      
-      const { userLocation, nearestOffice, photoPath, photoBase64, faceBounds } = data;
-      
-      // Prepare check-in data
-      const checkInData = {
-        employeeId: employeeDetails.id,
-        employeeCode: employeeDetails.employeeId,
-        companyId: employeeDetails.childCompanyId,
-        latitude: userLocation?.latitude,
-        longitude: userLocation?.longitude,
-        officeTitle: nearestOffice?.title,
-        officeLatitude: nearestOffice?.latitude,
-        officeLongitude: nearestOffice?.longitude,
-        distance: nearestOffice?.distance,
-        photoPath: photoPath || null,
-        photoBase64: photoBase64 || null,
-        timestamp: new Date().toISOString(),
-        faceDetected: true,
-        faceBounds: faceBounds,
-        geoLocationId: nearestOffice?.geoLocationId || null,
-        areaType: nearestOffice?.areaType || null
+      // Extract coordinates and radius from API response
+      const officeLocation = {
+        latitude: parseFloat(response.data.lattitude),
+        longitude: parseFloat(response.data.longitude),
       };
       
-      // Make API call to check in
-      const result = await attendanceApi.checkIn(checkInData);
+      const radiusInMeters = parseInt(response.data.radius) || 50;
       
-      if (result.success) {
-        setGeofencingModalVisible(false);
-        if (onCheckIn) onCheckIn();
-        showToast('Check-in successful');
+      console.log('Test User Location:', TEST_COORDINATES);
+      console.log('Office Location:', officeLocation);
+      console.log('Office Radius (meters):', radiusInMeters);
+
+      // Calculate distance between test coordinates and office
+      const distanceInMeters = geolib.getDistance(TEST_COORDINATES, officeLocation);
+      console.log('Distance between test coordinates and office:', distanceInMeters, 'meters');
+
+      // Check if test coordinates are within the specified radius of the office
+      const isWithinRadius = geolib.isPointWithinRadius(
+        TEST_COORDINATES, 
+        officeLocation,
+        radiusInMeters
+      );
+      console.log(`Is within ${radiusInMeters} meter radius:`, isWithinRadius);
+    
+      // Format distance for display
+      const formattedDistance = Math.round(distanceInMeters);
+
+      // Simulate a short delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (isWithinRadius) {
+        console.log('Location verification successful. Opening camera...');
+        setLocationVerified(true);
+        showToast(`Location verified! Distance: ${formattedDistance}m`);
+      
+        // Show camera after location verification is successful - with a slight delay
+        // to ensure state updates properly
+        setTimeout(() => {
+          setIsCameraVisible(true);
+        }, 300);
+      
       } else {
-        throw new Error(result.error || 'API check-in failed');
-      }
+        console.log('Location verification failed. User too far from office.');
+        setCheckInStatus('failed');
+        showToast(`Check-in failed! You are ${formattedDistance} meters away (must be within ${radiusInMeters} meters).`);
       
-    } catch (error) {
-      showToast('Failed to submit check-in: ' + error.message);
+        Alert.alert(
+          "Check-in Failed",
+          `You are too far from the office.\nCurrent distance: ${formattedDistance} meters.\nYou need to be within ${radiusInMeters} meters to check in.`,
+          [{ text: "OK" }]
+        );
+      
+        // Reset status after some time
+        setTimeout(() => {
+          setCheckInStatus('');
+        }, 3000);
+      }
+    
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error during check-in process:', err);
+      setError(`Error: ${err.message}`);
+      showToast(`Check-in failed: ${err.message}`);
+      setIsLoading(false);
+    
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
+    }
+  }, [employeeDetails]); // Add dependencies as needed
+
+  // Add handler for camera picture taken
+  const handlePictureTaken = (photo) => {
+    console.log('Picture taken with data:', photo);
+    
+    if (!photo || !photo.base64) {
+      console.error('Invalid photo data received');
+      showToast('Failed to process photo: Missing data');
+      return;
+    }
+    
+    // Process the check-in with the captured photo
+    processCameraCheckIn(photo);
+  };
+  
+  // Process check-in with photo - improved error handling
+  const processCameraCheckIn = async (photo) => {
+    try {
+      setIsLoading(true);
+      
+      // Build check-in data with photo
+      const checkInData = {
+        employeeId: employeeDetails?.id || '0',
+        employeeCode: employeeDetails?.employeeId || 'UNKNOWN',
+        companyId: employeeDetails?.childCompanyId || '0',
+        latitude: TEST_COORDINATES.latitude,  // Using test coordinates
+        longitude: TEST_COORDINATES.longitude,
+        timestamp: new Date().toISOString(),
+        checkInTime: new Date().toISOString(),
+        photoBase64: photo.base64,  // Include the captured photo
+        faceDetected: true
+      };
+      
+      console.log('Submitting check-in data with photo');
+      
+      // Here you would make the API call to check-in
+      // const result = await attendanceApi.checkIn(checkInData);
+      
+      // For now, we're simulating a successful check-in
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setCheckInStatus('success');
+      showToast('Check-in successful with photo verification!');
+      
+      // Notify parent component of successful check-in
+      if (onCheckIn) onCheckIn();
+      
+      // Reset status after some time
+      setTimeout(() => {
+        setCheckInStatus('');
+      }, 3000);
+    } catch (err) {
+      console.error('Error during photo check-in:', err);
+      setError(`Error: ${err.message}`);
+      showToast(`Photo check-in failed: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -209,6 +276,26 @@ const AttendanceTracker = ({
     }
   };
 
+  // Memoize the camera component to prevent re-renders
+  // const cameraComponentMemo = React.useMemo(() => (
+  //   <CameraComponent 
+  //     visible={isCameraVisible}
+  //     onClose={() => setIsCameraVisible(false)}
+  //     onPictureTaken={handlePictureTaken}
+  //     testMode={true} // Add test mode for debugging
+  //   />
+  // ), [isCameraVisible, handlePictureTaken]);
+
+  // Log render counts in development only, remove in production
+  useEffect(() => {
+    if (__DEV__) {
+      renderCount.current += 1;
+      if (renderCount.current % 10 === 0) { // Only log every 10 renders
+        console.log(`AttendanceTracker rendered ${renderCount.current} times`);
+      }
+    }
+  });
+
   return (
     <>
       <Card style={styles.card}>
@@ -232,37 +319,58 @@ const AttendanceTracker = ({
           <Text style={styles.shiftTime}>Shift: {shiftHours || '00:00'}</Text>
           {shiftCompleted && <Text style={styles.completedText}>Shift Completed</Text>}
           
+          {/* Status Display */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+          
+          {checkInStatus === 'success' && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.successText}>Check-in Successful! ✓</Text>
+            </View>
+          )}
+          
+          {checkInStatus === 'failed' && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.errorText}>Check-in Failed! Too far from office.</Text>
+            </View>
+          )}
+          
+          {/* Button Row */}
           <View style={styles.buttonRow}>
-            <Button
-              mode="contained"
-              onPress={handleStartCheckIn}
-              disabled={checkedIn || isLoading}
-              style={[styles.button, checkedIn ? styles.disabled : styles.green]}
-              loading={isLoading}
-            >
-              Check In
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleStartCheckOut}
-              disabled={!checkedIn || isLoading}
-              style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
-              loading={isLoading}
-            >
-              Check Out
-            </Button>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.loadingText}>Processing check-in...</Text>
+              </View>
+            ) : (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={handleStartCheckIn}
+                  disabled={checkedIn || isLoading}
+                  style={[styles.button, checkedIn ? styles.disabled : styles.green]}
+                >
+                  Check In
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleStartCheckOut}
+                  disabled={!checkedIn || isLoading}
+                  style={[styles.button, !checkedIn ? styles.disabled : styles.red]}
+                >
+                  Check Out
+                </Button>
+              </>
+            )}
           </View>
         </Card.Content>
       </Card>
+      
+      {/* Camera Component with proper props and debug logs */}
 
-      {/* Geofencing & Camera Modal */}
-      <GeofencingCamera
-        visible={geofencingModalVisible}
-        onClose={() => setGeofencingModalVisible(false)}
-        onSuccess={handleGeofencingSuccess}
-        employeeDetails={employeeDetails}
-        geoFenceDetails={geoFenceDetails}
-      />
       
       {/* Snackbar for notifications */}
       <Snackbar
@@ -359,6 +467,41 @@ const styles = StyleSheet.create({
   disabled: {
     backgroundColor: '#BDBDBD',
   },
+  loadingContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#555',
+  },
+  errorContainer: {
+    width: '100%',
+    padding: 10,
+    marginTop: 10,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 4,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#F44336',
+  },
+  statusContainer: {
+    width: '100%',
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 4,
+    backgroundColor: '#E8F5E9',
+  },
+  successText: {
+    textAlign: 'center',
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  }
 });
 
 export default AttendanceTracker;
