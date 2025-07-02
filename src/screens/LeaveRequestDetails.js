@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,49 +11,9 @@ import {
 import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Avatar, Chip, Divider} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
-
-const leaveData = [
-  {
-    id: '1',
-    employeeName: 'Geoffrey Buckley',
-    designation: 'Customer Service Manager',
-    department: 'Customer Service',
-    leaveType: 'Casual Leave',
-    leaveDuration: 'Full Day',
-    numberOfDays: 3,
-    document: 'https://example.com/medical-certificate.pdf',
-    remark: 'Need to attend sister wedding',
-    startDate: '2025-05-01',
-    endDate: '2025-05-03',
-  },
-  {
-    id: '2',
-    employeeName: 'Alice Johnson',
-    designation: 'Software Engineer',
-    department: 'Development',
-    leaveType: 'Sick Leave',
-    leaveDuration: 'Half Day',
-    numberOfDays: 1,
-    document: '',
-    remark: '',
-    startDate: '2025-05-06',
-    endDate: '2025-05-06',
-  },
-  {
-    id: '3',
-    employeeName: 'Michael Smith',
-    designation: 'Product Manager',
-    department: 'Product',
-    leaveType: 'Paid Leave',
-    leaveDuration: 'Full Day',
-    numberOfDays: 5,
-    document: 'https://example.com/travel-plan.pdf',
-    remark: 'Vacation',
-    startDate: '2025-05-10',
-    endDate: '2025-05-14',
-    status: 'Pending',
-  },
-];
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import axios from 'axios';
+const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
@@ -62,25 +22,158 @@ const LeaveTypeColors = {
 };
 
 const LeaveRequest = ({navigation}) => {
+  const employeeDetails = useFetchEmployeeDetails();
+
+  const [leaveApprovalAccess, setLeaveApprovalAccess] = useState(null);
+  const [approvalList, setApprovalList] = useState([]); // State to hold the approval list
+  const [approveLeaveId, setapproveLeaveId] = useState(null); // State to hold the applyLeaveId
+
+  useEffect(() => {
+    if (employeeDetails) {
+      fetchLeaveApprovalData();
+    }
+  }, [employeeDetails]);
+
+  const fetchLeaveApprovalData = async () => {
+    const accessData = await fetchFunctionalAccessMenus();
+    setLeaveApprovalAccess(accessData);
+    console.log('Leave approval access data set:', accessData);
+
+    // Logic to match employeeId and UserType 2
+    const userType = 2; // static as per requirement
+    const employeeId = employeeDetails?.id;
+    const companyId = employeeDetails?.childCompanyId;
+    let hasAccess = false;
+
+    if (Array.isArray(accessData)) {
+      hasAccess = accessData.some(
+        item => item.employeeId === employeeId || userType === 2,
+      );
+    }
+
+    let ApprovalList;
+    try {
+      let apiUrl = '';
+      if (hasAccess) {
+        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
+      } else {
+        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
+      }
+      // debugger;;
+      ApprovalList = await axios.get(apiUrl);
+      ApprovalList.data = ApprovalList.data.filter(
+        item => item.employeeId != employeeDetails?.id,
+      );
+      console.log('Leave list:', ApprovalList.data);
+    } catch (err) {
+      console.error('Error fetching leave list:', err);
+    }
+
+    let roleurl = '';
+    roleurl = `${BASE_URL_PROD}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
+    const response = await axios.get(roleurl);
+    let roleData = null;
+    console.log('Role Details========:', response.data);
+    if (Array.isArray(response.data)) {
+      // If employeeId matches, get that role data, else get the first role as fallback
+      roleData =
+        response.data.find(item => item.employeeId === employeeDetails?.id) ||
+        response.data[0] ||
+        null;
+    }
+    console.log('Role Data=========:', roleData);
+
+    if (roleData.branchId != 0) {
+      ApprovalList = ApprovalList.data.some(
+        item => item.branchId === roleData.branchId,
+      );
+    }
+    console.log('Filtered Approval List:', ApprovalList.data);
+
+    // Integrate the filtered approval list into the UI
+    // Set the approval list state for FlatList rendering
+    setApprovalList(Array.isArray(ApprovalList.data) ? ApprovalList.data : []);
+  };
+
+  // debugger
+
+  const fetchFunctionalAccessMenus = async () => {
+    try {
+      const requestData = {
+        DepartmentId: employeeDetails?.departmentId || 0,
+        DesignationId: employeeDetails?.designtionId || 0,
+        EmployeeId: employeeDetails?.id || 0,
+        ControllerName: 'Leaveapproval',
+        ActionName: 'LeaveapprovalList',
+        ChildCompanyId: employeeDetails?.childCompanyId || 1,
+        BranchId: employeeDetails?.branchId || 2,
+        UserType: 1,
+      };
+
+      console.log(
+        'Sending request data for leave approval access:',
+        requestData,
+      );
+
+      const response = await axios.post(
+        `${BASE_URL_PROD}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        requestData,
+      );
+
+      console.log('Leave Approval Access List:', response.data);
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching functional access menus:', error);
+      return null;
+    }
+  };
+
+  console.log(employeeDetails, 'Employee Details');
+
   const [rmRemarks, setRmRemarks] = useState({});
   const [approvalRemarks, setApprovalRemarks] = useState({});
   const [expandedCard, setExpandedCard] = useState(null);
+  const [approvalLeaveId, setApprovalLeaveId] = useState(null);
+  // Add state for approved leave count per request
+  const [approvedLeaveCount, setApprovedLeaveCount] = useState({});
 
   const handleApprove = id => {
-    if (!rmRemarks[id]?.trim()) {
-      alert('Please add remarks before approving');
+    const leaveItem = approvalList.find(
+      item => (item.id || item.applyLeaveId) === id,
+    );
+    if (!leaveItem || leaveItem.leaveNo === 0) {
+      alert('Leave days (leaveNo) cannot be zero');
       return;
     }
-    alert(`Approved leave request ID: ${id}`);
+    const approvedCount = Number(approvedLeaveCount[id]);
+    if (!approvedCount || approvedCount === 0) {
+      alert('You cannot approve 0 leave days. Please enter a valid number.');
+      return;
+    }
+    if (approvedCount > leaveItem.leaveNo) {
+      alert('Approved leave days cannot be greater than requested leave days');
+      return;
+    }
+    alert(
+      `Approved!\n\nEmployee: ${leaveItem.employeeName}\nLeave Type: ${leaveItem.leaveName}\nRequested: ${leaveItem.leaveNo} day(s)\nApproved: ${approvedCount} day(s)`,
+    );
+    console.log('Approve Payload:', {
+      id,
+      approvedCount,
+      leaveItem,
+      remarks: rmRemarks[id],
+      approvalRemarks: approvalRemarks[id],
+    });
   };
 
-  const handleReject = id => {
-    if (!rmRemarks[id]?.trim()) {
-      alert('Please add remarks before rejecting');
-      return;
-    }
-    alert(`Rejected leave request ID: ${id}`);
-  };
+  // const handleReject = id => {
+  //   if (!rmRemarks[id]?.trim()) {
+  //     alert('Please add remarks before rejecting');
+  //     return;
+  //   }
+  //   alert(`Rejected leave request ID: ${id}`);
+  // };
 
   const formatDate = dateString => {
     const date = new Date(dateString);
@@ -95,14 +188,16 @@ const LeaveRequest = ({navigation}) => {
     setExpandedCard(expandedCard === id ? null : id);
   };
 
+  // Update FlatList to use approvalList
   const renderItem = ({item}) => {
-    const isExpanded = expandedCard === item.id;
-    const leaveColor = LeaveTypeColors[item.leaveType] || '#6b7280';
+    const isExpanded = expandedCard === (item.id || item.applyLeaveId);
+    const leaveType = item.leaveName || 'Leave';
+    const leaveColor = LeaveTypeColors[leaveType] || '#6b7280';
 
     return (
       <TouchableOpacity
         style={[styles.card, isExpanded && styles.expandedCard]}
-        onPress={() => toggleCardExpansion(item.id)}
+        onPress={() => toggleCardExpansion(item.id || item.applyLeaveId)}
         activeOpacity={0.9}>
         {/* Header section */}
         <View style={styles.cardHeader}>
@@ -113,10 +208,9 @@ const LeaveRequest = ({navigation}) => {
                 {backgroundColor: `${leaveColor}20`},
               ]}
               textStyle={{color: leaveColor, fontWeight: '800'}}>
-              {item.leaveType}
+              {leaveType}
             </Chip>
           </View>
-
           <Icon
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={20}
@@ -128,22 +222,21 @@ const LeaveRequest = ({navigation}) => {
         <View style={styles.dateContainer}>
           <View style={styles.dateBox}>
             <Text style={styles.dateLabel}>From</Text>
-            <Text style={styles.dateValue}>{formatDate(item.startDate)}</Text>
+            <Text style={styles.dateValue}>
+              {formatDate(item.fromLeaveDate)}
+            </Text>
           </View>
-
           <View style={styles.dateArrow}>
             <Icon name="arrow-right" size={18} color="#9ca3af" />
           </View>
-
           <View style={styles.dateBox}>
             <Text style={styles.dateLabel}>To</Text>
-            <Text style={styles.dateValue}>{formatDate(item.endDate)}</Text>
+            <Text style={styles.dateValue}>{formatDate(item.toLeaveDate)}</Text>
           </View>
-
           <View style={styles.daysContainer}>
-            <Text style={styles.daysValue}>{item.numberOfDays}</Text>
+            <Text style={styles.daysValue}>{item.leaveNo}</Text>
             <Text style={styles.daysLabel}>
-              {item.numberOfDays > 1 ? 'Days' : 'Day'}
+              {item.leaveNo > 1 ? 'Days' : 'Day'}
             </Text>
           </View>
         </View>
@@ -156,7 +249,9 @@ const LeaveRequest = ({navigation}) => {
             color="#6b7280"
             style={styles.durationIcon}
           />
-          <Text style={styles.durationText}>{item.leaveDuration}</Text>
+          <Text style={styles.durationText}>
+            {item.leaveDuration || 'Full Day'}
+          </Text>
         </View>
 
         {/* Expanded section */}
@@ -164,44 +259,68 @@ const LeaveRequest = ({navigation}) => {
           <View style={styles.expandedSection}>
             <Divider style={styles.divider} />
 
-            {/* Reason section */}
+            {/* Employee Name */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>EmployeeName</Text>
+              <Text style={styles.sectionTitle}>Employee Name</Text>
               <Text style={styles.reasonText}>
-                {item.employeeName ? item.employeeName : 'No reason provided'}
+                {item.employeeName || 'No name provided'}
               </Text>
             </View>
 
-            {/* Reason section */}
+            {/* Designation */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Designation</Text>
               <Text style={styles.reasonText}>
-                {item.designation ? item.designation : 'No reason provided'}
+                {item.designation || 'No designation provided'}
               </Text>
             </View>
 
-
-              {/* Reason section */}
-              <View style={styles.sectionContainer}>
+            {/* Department */}
+            <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Department</Text>
               <Text style={styles.reasonText}>
-                {item.department ? item.department : 'No reason provided'}
+                {item.department || 'No department provided'}
               </Text>
             </View>
 
-
             {/* Document section */}
-            {item.document ? (
+            {item.documentPath ? (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Supporting Document</Text>
                 <TouchableOpacity
                   style={styles.documentButton}
-                  onPress={() => Linking.openURL(item.document)}>
+                  onPress={() => Linking.openURL(item.documentPath)}>
                   <Icon name="file-text" size={18} color="#3b82f6" />
                   <Text style={styles.documentText}>View document</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
+
+            {/* How many days requested? */}
+
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>No of Approved Leave</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter number of approved leave days (required)"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={
+                  approvedLeaveCount[item.id || item.applyLeaveId]
+                    ? approvedLeaveCount[
+                        item.id || item.applyLeaveId
+                      ].toString()
+                    : ''
+                }
+                onChangeText={text => {
+                  const val = text.replace(/[^0-9]/g, ''); // keep only numbers
+                  setApprovedLeaveCount(prev => ({
+                    ...prev,
+                    [item.id || item.applyLeaveId]: val,
+                  }));
+                }}
+              />
+            </View>
 
             {/* Reporting Manager Remarks */}
             <View style={styles.sectionContainer}>
@@ -212,9 +331,12 @@ const LeaveRequest = ({navigation}) => {
                 placeholderTextColor="#9ca3af"
                 maxLength={400}
                 multiline
-                value={rmRemarks[item.id] || ''}
+                value={rmRemarks[item.id || item.applyLeaveId] || ''}
                 onChangeText={text =>
-                  setRmRemarks(prev => ({...prev, [item.id]: text}))
+                  setRmRemarks(prev => ({
+                    ...prev,
+                    [item.id || item.applyLeaveId]: text,
+                  }))
                 }
               />
             </View>
@@ -222,18 +344,20 @@ const LeaveRequest = ({navigation}) => {
             {/* Approval Remarks (optional) */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>
-                {' '}
-                Final Approvel Manager Remarks
+                Final Approval Manager Remarks
               </Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Add approval Mangaer notes"
+                placeholder="Add approval Manager notes"
                 placeholderTextColor="#9ca3af"
                 maxLength={400}
                 multiline
-                value={approvalRemarks[item.id] || ''}
+                value={approvalRemarks[item.id || item.applyLeaveId] || ''}
                 onChangeText={text =>
-                  setApprovalRemarks(prev => ({...prev, [item.id]: text}))
+                  setApprovalRemarks(prev => ({
+                    ...prev,
+                    [item.id || item.applyLeaveId]: text,
+                  }))
                 }
               />
             </View>
@@ -242,7 +366,7 @@ const LeaveRequest = ({navigation}) => {
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.approveButton]}
-                onPress={() => handleApprove(item.id)}>
+                onPress={() => handleApprove(item.id || item.applyLeaveId)}>
                 <Icon
                   name="check"
                   size={18}
@@ -253,7 +377,7 @@ const LeaveRequest = ({navigation}) => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.button, styles.rejectButton]}
-                onPress={() => handleReject(item.id)}>
+                onPress={() => handleReject(item.id || item.applyLeaveId)}>
                 <Icon
                   name="x"
                   size={18}
@@ -285,8 +409,12 @@ const LeaveRequest = ({navigation}) => {
 
       <FlatList
         contentContainerStyle={styles.listContainer}
-        data={leaveData}
-        keyExtractor={item => item.id}
+        data={approvalList}
+        keyExtractor={item =>
+          item.id?.toString() ||
+          item.applyLeaveId?.toString() ||
+          Math.random().toString()
+        }
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
       />
@@ -474,3 +602,54 @@ const styles = StyleSheet.create({
 });
 
 export default LeaveRequest;
+
+// {
+//         "employeeCode": "AA_10",
+//         "employeeName": "William Puckett",
+//         "leaveName": "Casual Leave",
+//         "gender": "Male",
+//         "department": "Human Resources",
+//         "designation": "HR Manager",
+//         "employeeEmail": null,
+//         "mobileNo": "918945689456",
+//         "departmentId": null,
+//         "designationId": null,
+//         "approvalStatus": 0,
+//         "taskAssignmentEmpId": null,
+//         "taskAssignEmployeeCode": null,
+//         "reportTaskEmail": null,
+//         "reason": null,
+//         "applyLeaveId": 0,
+//         "reportingMgerName": null,
+//         "reportingMgerEmail": null,
+//         "approvedPaidLeave": null,
+//         "approvedUnpaidLeave": null,
+//         "paidLeaveAmount": null,
+//         "month": 0,
+//         "year": 0,
+//         "assignmentEmpDepartment": null,
+//         "assignmentEmpDesignation": null,
+//         "reportingRemarks": null,
+//         "branchName": null,
+//         "branchId": 2,
+//         "id": 136,
+//         "employeeId": 9,
+//         "reportingId": 0,
+//         "leaveType": 1,
+//         "leaveId": 0,
+//         "fromLeaveDate": "2025-06-04T13:14:51",
+//         "toLeaveDate": "2025-06-05T13:14:51",
+//         "leaveNo": 2,
+//         "documentPath": null,
+//         "remarks": "rfrrrr",
+//         "status": "Pending",
+//         "companyId": 0,
+//         "isDelete": 0,
+//         "flag": 1,
+//         "createdBy": 0,
+//         "createdDate": "2025-06-04T13:15:04.793",
+//         "modifiedBy": null,
+//         "modifiedDate": null,
+//         "reporting": null,
+//         "tblLeaveDates": []
+// }

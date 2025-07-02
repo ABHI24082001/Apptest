@@ -382,7 +382,13 @@ const PaymentRequest = ({navigation, route}) => {
           'Success',
           isEditing
             ? 'Advance request updated successfully'
-            : 'Advance request submitted successfully'
+            : 'Advance request submitted successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('ExpenseRequestStatus'),
+            },
+          ]
         );
         reset();
         setTotalAmount(0);
@@ -393,8 +399,8 @@ const PaymentRequest = ({navigation, route}) => {
           console.error('Error clearing stored expense items:', error);
         }
       } else if (requestType === 'expense') {
-        // Validate that at least one expense item is added
-        if (expenseItems.length === 0) {
+        // Only require at least one expense item if NOT updating (i.e., not edit mode)
+        if (!isEditing && expenseItems.length === 0) {
           Alert.alert('Error', 'Please add at least one expense item');
           return;
         }
@@ -450,7 +456,13 @@ const PaymentRequest = ({navigation, route}) => {
           'Success',
           isEditing
             ? 'Expense request updated successfully'
-            : 'Expense request submitted successfully'
+            : 'Expense request submitted successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('ExpenseRequestStatus'),
+            },
+          ]
         );
         reset();
         setExpenseItems([]);
@@ -494,7 +506,7 @@ const PaymentRequest = ({navigation, route}) => {
       console.log('Received Payment Data:', paymentData);
     }
   }, [paymentData]);
-
+// debugger
   // Fetch expense details if editing an existing request
   useEffect(() => {
     const fetchExpenseDetails = async () => {
@@ -506,7 +518,7 @@ const PaymentRequest = ({navigation, route}) => {
 
           const expenseDetails = response.data;
 
-          console.log('Fetched Expense Details:', expenseDetails);
+          console.log('Fetched sdddddddddddddddddd Details:', expenseDetails);
 
           // Populate form fields with fetched data
           if (expenseDetails?.remarks) {
@@ -594,26 +606,7 @@ const PaymentRequest = ({navigation, route}) => {
 
 
   // Add a function to handle item selection for editing
-  const handleEditItem = (item) => {
-    console.log('Editing expense item:', item);
-    setEditingItemId(item.id);
-    setValue('expenseHead', item.head);
-    setValue('paymentTitle', item.title || '');
-    setValue('amount', item.amount.toString());
-    
-    // Set date
-    if (item.date) {
-      setDate(new Date(item.date));
-      setValue('date', new Date(item.date));
-    }
-    
-    // Set document if available
-    if (item.document) {
-      setUploadedFile(item.document);
-    }
-    
-    setIsModalVisible(true);
-  };
+
 
   // Conditional rendering based on request type
   return (
@@ -720,11 +713,17 @@ const PaymentRequest = ({navigation, route}) => {
               onPress={openAddExpenseModal}>
               <Icon name="plus" size={20} color="#fff" />
               <Text style={styles.addBtnText}>
-                {expenceData ? 'Add/Edit Expense' : 'Add Expense'}
+                {expenceData ? 'Add' : 'Add Expense'}
               </Text>
             </TouchableOpacity>
 
+
+            {/* Add Expense Modal Button */}
+            
+
             {/* Always show the grid if there are expense items */}
+
+            
             {expenseItems.length > 0 && (
               <View style={styles.gridContainer}>
                 {/* Grid Header */}
@@ -762,11 +761,7 @@ const PaymentRequest = ({navigation, route}) => {
                       )}
                     </View>
                     <View style={[styles.gridCell, styles.actionsCell]}>
-                      <TouchableOpacity
-                        style={[styles.gridActionBtn, {marginRight: 6}]}
-                        onPress={() => handleEditItem(item)}>
-                        <Icon name="pencil" size={18} color="#3B82F6" />
-                      </TouchableOpacity>
+                     
                       <TouchableOpacity
                         style={styles.gridActionBtn}
                         onPress={() => handleDeleteExpense(item.id)}>

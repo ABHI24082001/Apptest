@@ -205,8 +205,8 @@ const ExitRequestStatusScreen = () => {
           <>
             {requests.map((item, index) => (
               <View key={index} style={styles.card}>
-                {/* Status Badge - Positioned at top right */}
-                <View style={styles.statusBadgeContainer}>
+                {/* Status Badge */}
+                <View style={styles.cardHeader}>
                   <View
                     style={[
                       styles.statusBadge,
@@ -219,36 +219,52 @@ const ExitRequestStatusScreen = () => {
                       {item.applicationStatus}
                     </Text>
                   </View>
+                  
+                  <View style={styles.dateChip}>
+                    <Icon name="calendar-clock" size={16} color="#475569" />
+                    <Text style={styles.dateChipText}>Applied: {formatDate(item.appliedDt)}</Text>
+                  </View>
                 </View>
                 
-                <View style={styles.infoRow}>
-                  <Icon name="calendar-edit" size={20} color="#6B7280" />
-                  <Text style={styles.infoText}>Applied: {formatDate(item.appliedDt)}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Icon name="calendar-remove-outline" size={20} color="#6B7280" />
-                  <Text style={styles.infoText}>Exit: {formatDate(item.exitDt)}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Icon name="information-outline" size={20} color="#6B7280" />
-                  <Text style={styles.infoText}>Reason: {item.exitReasons}</Text>
-                </View>
-                {item.supervisorRemarks ? (
+                <View style={styles.cardDivider} />
+                
+                <View style={styles.cardBody}>
                   <View style={styles.infoRow}>
-                    <Icon name="comment-account-outline" size={20} color="#6B7280" />
-                    <Text style={styles.infoText}>Supervisor: {item.supervisorRemarks}</Text>
+                    <Icon name="calendar-remove" size={20} color="#3B82F6" />
+                    <Text style={styles.infoLabel}>Exit Date:</Text>
+                    <Text style={styles.infoValue}>{formatDate(item.exitDt)}</Text>
                   </View>
-                ) : null}
-                {item.hrremarks ? (
+                  
                   <View style={styles.infoRow}>
-                    <Icon name="comment-account-outline" size={18} color="#6366F1" />
-                    <Text style={styles.infoText}>HR: <Text style={styles.remarksText}>{item.hrremarks}</Text></Text>
+                    <Icon name="information" size={20} color="#3B82F6" />
+                    <Text style={styles.infoLabel}>Reason:</Text>
+                    <Text style={styles.infoValue}>{item.exitReasons}</Text>
                   </View>
-                ) : null}
+                  
+                  {item.supervisorRemarks ? (
+                    <View style={styles.remarksContainer}>
+                      <View style={styles.remarksHeader}>
+                        <Icon name="account-tie" size={18} color="#6B7280" />
+                        <Text style={styles.remarksTitle}>Supervisor Remarks</Text>
+                      </View>
+                      <Text style={styles.remarksText}>{item.supervisorRemarks}</Text>
+                    </View>
+                  ) : null}
+                  
+                  {item.hrremarks ? (
+                    <View style={styles.remarksContainer}>
+                      <View style={styles.remarksHeader}>
+                        <Icon name="account-group" size={18} color="#6366F1" />
+                        <Text style={[styles.remarksTitle, {color: '#6366F1'}]}>HR Remarks</Text>
+                      </View>
+                      <Text style={[styles.remarksText, {color: '#6366F1'}]}>{item.hrremarks}</Text>
+                    </View>
+                  ) : null}
+                </View>
 
-                {/* Add withdraw button for pending applications */}
+                {/* Action buttons */}
                 {item.applicationStatus?.toLowerCase() === 'pending' && (
-                  <View style={styles.cardFooterRow}>
+                  <View style={styles.cardActions}>
                     <Button
                       mode="outlined"
                       onPress={() => handleWithdraw(item.id)}
@@ -265,7 +281,7 @@ const ExitRequestStatusScreen = () => {
                 
                 {/* Add reapply button for rejected applications */}
                 {item.applicationStatus?.toLowerCase() === 'rejected' && (
-                  <View style={styles.cardFooterRow}>
+                  <View style={styles.cardActions}>
                     <Button
                       mode="contained"
                       onPress={handleApplyNew}
@@ -297,34 +313,46 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     letterSpacing: 0.2,
   },
-  scrollContainer: {padding: 12, paddingBottom: 24},
-  cardTouchable: {
-    borderRadius: 16,
-    marginBottom: 18,
-    overflow: 'hidden',
+  scrollContainer: {
+    padding: 12, 
+    paddingBottom: 24
   },
   card: {
-    backgroundColor: '#F8FAFC',
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 0,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E0E7EF',
-    elevation: 3,
+    borderColor: '#E2E8F0',
+    marginBottom: 18,
+    overflow: 'hidden',
+    elevation: 2,
     shadowColor: '#64748B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
   },
-  cardHeaderRow: {
+  cardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    padding: 16,
+    paddingBottom: 12,
   },
-  cardFooterRow: {
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 16,
+  },
+  cardBody: {
+    padding: 16,
+  },
+  cardActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 14,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
   empName: {
     fontSize: 18,
@@ -341,32 +369,58 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 7,
-    marginBottom: 2,
+    marginBottom: 12,
   },
-  infoText: {
-    fontSize: 15.5,
-    color: '#334155',
+  infoLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600',
     marginLeft: 10,
+    width: 80,
+  },
+  infoValue: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1E293B',
     fontWeight: '500',
-    letterSpacing: 0.1,
+  },
+  remarksContainer: {
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#CBD5E1',
+  },
+  remarksHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  remarksTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+    marginLeft: 6,
   },
   remarksText: {
-    color: '#6366F1',
-    fontStyle: 'italic',
+    fontSize: 14,
+    color: '#334155',
     fontWeight: '400',
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   statusBadge: {
-    paddingVertical: 7,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     borderWidth: 1.5,
     minWidth: 90,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusText: {
-    fontSize: 15.5,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
     textTransform: 'capitalize',
@@ -404,16 +458,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.5,
   },
-  statusBadgeContainer: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
+  dateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  dateChipText: {
+    fontSize: 13,
+    color: '#475569',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   withdrawBtn: {
-    marginTop: 16,
     borderColor: '#ef4444',
     borderWidth: 1.5,
+    borderRadius: 8,
   },
   withdrawBtnLabel: {
     color: '#ef4444',
@@ -421,8 +483,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   reapplyBtn: {
-    marginTop: 16,
     backgroundColor: '#10B981',
+    borderRadius: 8,
   },
   reapplyBtnLabel: {
     fontSize: 13,

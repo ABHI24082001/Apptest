@@ -51,7 +51,7 @@ const SignInScreen = () => {
       });
   
       if (response.data) {
-        console.log('Login ==================== Response:', response.data); // ✅ Console log user data
+        console.log('Login Response:', response.data); // ✅ Console log user data
   
         await AsyncStorage.setItem('hasLoggedIn', 'true');
   
