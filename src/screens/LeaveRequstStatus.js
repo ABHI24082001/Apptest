@@ -18,6 +18,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 import StatusCard from '../components/StatusCard'; // Import the StatusCard component
+import Pagination from '../components/Pagination'; // Import the Pagination component
 
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
@@ -36,6 +37,10 @@ const LeaveRequestStatusScreen = () => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5); // Show 5 items per page
 
   const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
   const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
@@ -63,6 +68,11 @@ const LeaveRequestStatusScreen = () => {
   useEffect(() => {
     fetchLeaveData();
   }, [fetchLeaveData]);
+
+  // Reset to first page when filter changes or on refresh
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fromDate, toDate]);
 
   // Handle refresh
   const onRefresh = useCallback(() => {
@@ -92,6 +102,18 @@ const LeaveRequestStatusScreen = () => {
 
     return fromMatch && toMatch;
   });
+  
+  // Get current items for the current page
+  const getCurrentItems = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  };
+  
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   // When fromDate or toDate changes due to datePicker
   useEffect(() => {
@@ -328,35 +350,49 @@ const LeaveRequestStatusScreen = () => {
               </TouchableOpacity>
             </View>
           ) : (
-            filteredData.map(item => (
-              <StatusCard
-                key={item.id}
-                title={`${item.employeeName || 'Leave Request'}`}
-                subtitle={`${item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''} to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
-                details={[
-                  {icon: 'briefcase-outline', label: 'Leave Type', value: item.leaveName || 'N/A'},
-                  {icon: 'calendar-range', label: 'Leave Days', value: item.leaveDays || '0'},
-                  {icon: 'clock-outline', label: 'Applied On', value: formatDate(item.createdDate)},
-                ]}
-                status={item.status || 'Pending'}
-                remarks={item.remarks}
-                onEdit={() => handleEditLeave(item)}
-                onDelete={() => item.status === 'Pending' && 
-                  Alert.alert(
-                    'Delete Leave Request',
-                    'Are you sure you want to delete this leave request?',
-                    [
-                      {text: 'Cancel', style: 'cancel'},
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => handleDeleteLeave(item.id),
-                      },
-                    ],
-                  )
-                }
-              />
-            ))
+            <>
+              {/* Display only current page items */}
+              {getCurrentItems().map(item => (
+                <StatusCard
+                  key={item.id}
+                  title={`${item.employeeName || 'Leave Request'}`}
+                  subtitle={`${item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''} to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
+                  details={[
+                    {icon: 'briefcase-outline', label: 'Leave Type', value: item.leaveName || 'N/A'},
+                    {icon: 'calendar-range', label: 'Leave Days', value: item.leaveDays || '0'},
+                    {icon: 'clock-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                  ]}
+                  status={item.status || 'Pending'}
+                  remarks={item.remarks}
+                  onEdit={() => handleEditLeave(item)}
+                  onDelete={() => item.status === 'Pending' && 
+                    Alert.alert(
+                      'Delete Leave Request',
+                      'Are you sure you want to delete this leave request?',
+                      [
+                        {text: 'Cancel', style: 'cancel'},
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => handleDeleteLeave(item.id),
+                        },
+                      ],
+                    )
+                  }
+                />
+              ))}
+              
+              {/* Pagination component - only show if we have enough items */}
+              {filteredData.length > itemsPerPage && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(filteredData.length / itemsPerPage)}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredData.length}
+                />
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -665,5 +701,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 6,
     fontWeight: '600',
+  },
+  
+  // Add pagination styles if needed
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
   },
 });
