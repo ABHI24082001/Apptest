@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-
+import BASE_URL from '../constants/apiConfig';
 const ExpenceRequestStatus = ({ navigation, route }) => {
   const [expenseData, setExpenseData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ const ExpenceRequestStatus = ({ navigation, route }) => {
   const routeParams = route?.params?.expenseData || null;
   
   const employeeDetails = useFetchEmployeeDetails();
-  const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+
 
   // Fetch expense request details either from route params or from storage
   useEffect(() => {

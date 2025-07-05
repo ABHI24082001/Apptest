@@ -22,12 +22,11 @@ import {Picker} from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
 import { Platform } from 'react-native';
-
+import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; 
-const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; 
+
 
 const ApplyLeaveScreen = ({ navigation, route }) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -119,7 +118,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
 
         // Fetch leave policies for Leave Name dropdown
         const policiesResponse = await axios.get(
-          `${BASE_URL_PROD}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
+          `${BASE_URL}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
         
         );
 
@@ -228,7 +227,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
 
     try {
       const response = await axios.post(
-        `${BASE_URL_PROD}/ApplyLeave/SaveAndUpdateApplyLeave`,
+        `${BASE_URL}/ApplyLeave/SaveAndUpdateApplyLeave`,
         payload,
         {
           headers: {
@@ -293,7 +292,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       try {
         if (employeeDetails?.id && employeeDetails?.childCompanyId) {
           const response = await axios.get(
-            `${BASE_URL_PROD}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+            `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`
           );
 
           const transformed = response.data.leaveBalances.map(item => ({

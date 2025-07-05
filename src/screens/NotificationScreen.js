@@ -6,6 +6,7 @@ import AppSafeArea from '../component/AppSafeArea';
 import { useNavigation } from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
+import BASE_URL from '../constants/apiConfig';
 
 const RequestCard = ({ item, onPress }) => {
   return (
@@ -83,7 +84,7 @@ const RequestDetailsScreen = () => {
       console.log('Fetching notifications...');
       
       // Using hardcoded values as required
-      const response = await axios.get('https://hcmapiv2.anantatek.com/api/Email/GetAllNotificationByEmployeeIdWithSenderDetails/1/11');
+      const response = await axios.get(`${BASE_URL}/api/Email/GetAllNotificationByEmployeeIdWithSenderDetails/1/11`);
       
       console.log('API Response:', JSON.stringify(response.data));
       

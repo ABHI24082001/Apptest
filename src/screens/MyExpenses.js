@@ -19,8 +19,8 @@ import axios from 'axios';
 import DateRangeFilter from '../components/DateRangeFilter'; // Import the reusable component
 import TabFilter from '../components/TabFilter'; // Import the reusable component
 import StatusCard from '../components/StatusCard'; // Import the reusable component
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
+import BASE_URL from '../constants/apiConfig';
 const AdvancePaymentReport = () => {
   const employeeDetails = useFetchEmployeeDetails();
   const navigation = useNavigation();
@@ -40,8 +40,8 @@ const AdvancePaymentReport = () => {
     try {
       const endpoint =
         activeTab === 'advance'
-          ? `${BASE_URL_PROD}/PaymentAdvanceRequest/GetAdvanceReport`
-          : `${BASE_URL_PROD}/PaymentAdvanceRequest/GetExpenseReport`;
+          ? `${BASE_URL}/PaymentAdvanceRequest/GetAdvanceReport`
+          : `${BASE_URL}/PaymentAdvanceRequest/GetExpenseReport`;
 
       const response = await axios.get(endpoint, {
         params: {

@@ -14,8 +14,8 @@ import { Appbar, Button } from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
+import BASE_URL from '../constants/apiConfig';
 
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 // Helper to format date string as DD-MM-YYYY
 function formatDate(dateStr) {
@@ -60,7 +60,7 @@ const ExitRequestStatusScreen = () => {
     if (!employeeDetails?.id) return;
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL_PROD}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`);
+      const res = await fetch(`${BASE_URL}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`);
       const data = await res.json();
       const exitRequests = Array.isArray(data) ? data : [];
       setRequests(exitRequests);
@@ -95,7 +95,7 @@ const ExitRequestStatusScreen = () => {
             try {
               setWithdrawingId(id);
               const response = await axios.get(
-                `${BASE_URL_PROD}/EmployeeExit/WithdrawExitApplication/${id}`
+                `${BASE_URL}/EmployeeExit/WithdrawExitApplication/${id}`
               );
               
               if (response.status === 200) {

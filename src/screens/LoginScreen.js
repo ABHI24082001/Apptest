@@ -44,7 +44,7 @@ const SignInScreen = () => {
     clearErrors();
   
     try {
-      const response = await axios.post(`${BASE_URL}EmpRegistration/GetAuthUser`, {
+      const response = await axios.post(`${BASE_URL}/EmpRegistration/GetAuthUser`, {
         UserName: username,
         Password: password,
         UserType: 0,

@@ -15,7 +15,8 @@ import {Appbar, Avatar, Chip, Divider, Button} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+import BASE_URL from '../constants/apiConfig';
+
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
@@ -83,9 +84,9 @@ const LeaveRequest = ({navigation}) => {
     try {
       let apiUrl = '';
       if (hasAccess) {
-        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
+        apiUrl = `${BASE_URL}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
       } else {
-        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
+        apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
       }
       // debugger;;
       ApprovalList = await axios.get(apiUrl);
@@ -98,7 +99,7 @@ const LeaveRequest = ({navigation}) => {
     }
 
     let roleurl = '';
-    roleurl = `${BASE_URL_PROD}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
+    roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
     const response = await axios.get(roleurl);
     let roleData = null;
     console.log('Role Details========:', response.data);
@@ -163,7 +164,7 @@ const LeaveRequest = ({navigation}) => {
       );
 
       const response = await axios.post(
-        `${BASE_URL_PROD}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
 
@@ -217,7 +218,7 @@ const LeaveRequest = ({navigation}) => {
       };
 
       const payrollRes = await axios.post(
-        `${BASE_URL_PROD}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
+        `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
         payrollCheckBody,
       );
 
@@ -307,8 +308,8 @@ const LeaveRequest = ({navigation}) => {
       console.log('Final payload being sent to API:', JSON.stringify(approvalPayload, null, 2));
 
       const endpoint = isAuthorizationPerson
-        ? `${BASE_URL_PROD}/LeaveApproval/SaveLeaveFinalApproval`
-        : `${BASE_URL_PROD}/LeaveApproval/SaveLeaveApproval`;
+        ? `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`
+        : `${BASE_URL}/LeaveApproval/SaveLeaveApproval`;
 
       console.log('Submitting leave approval to:', endpoint);
 

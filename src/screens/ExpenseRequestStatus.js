@@ -19,8 +19,8 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import TabFilter from '../components/TabFilter'; // Import the reusable TabFilter component
 import StatusCard from '../components/StatusCard'; // Import the reusable component
+import BASE_URL from '../constants/apiConfig';
 
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
 const ExpenseRequestStatusScreen = () => {
   const navigation = useNavigation();
@@ -44,7 +44,7 @@ const ExpenseRequestStatusScreen = () => {
 
     try {
       const response = await axios.get(
-        `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
+        `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
       );
       setExpenseData(response.data);
 
@@ -134,7 +134,7 @@ useEffect(() => {
   const handleDeleteExpense = async (requestId, companyId) => {
     try {
       const response = await axios.get(
-        `${BASE_URL_PROD}/PaymentAdvanceRequest/DeletePaymentAdvanveRequest/${requestId}/${companyId}`
+        `${BASE_URL}/PaymentAdvanceRequest/DeletePaymentAdvanveRequest/${requestId}/${companyId}`
       );
 
       if (response?.status === 200) {

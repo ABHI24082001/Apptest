@@ -24,10 +24,8 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import StatusCard from '../components/StatusCard';
 import TabFilter from '../components/TabFilter'; // Import TabFilter component
+import BASE_URL from '../constants/apiConfig';
 
-
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
-const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
 
 const LeaveReportScreen = ({ navigation }) => {
   const [fromDate, setFromDate] = useState(null);
@@ -67,7 +65,7 @@ const LeaveReportScreen = ({ navigation }) => {
     try {
       if (employeeDetails?.id) {
         const response = await axios.get(
-          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+          `${BASE_URL}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`
         );
         setLeaveData(response.data);
         console.log('Fetched leave data:', response.data);

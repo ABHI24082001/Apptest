@@ -19,9 +19,9 @@ import {useForm, Controller} from 'react-hook-form';
 import AppSafeArea from '../component/AppSafeArea';
 import axios from 'axios';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
-
+import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+
 
 const ExitApplyScreen = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -59,7 +59,7 @@ const ExitApplyScreen = ({navigation}) => {
         setCheckingStatus(true);
         try {
           const response = await axios.get(
-            `${BASE_URL_PROD}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
+            `${BASE_URL}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
           );
 
           const exitRequests = Array.isArray(response.data) ? response.data : [];
@@ -194,7 +194,7 @@ const ExitApplyScreen = ({navigation}) => {
       console.log('Exit Application Payload:', exitApplicationData);
 
       const response = await axios.post(
-        `${BASE_URL_PROD}/EmployeeExit/SaveEmpExitApplication`,
+        `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         exitApplicationData,
       );
       console.log('API Resp=============onse:', response.data);

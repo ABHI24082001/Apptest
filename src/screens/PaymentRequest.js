@@ -21,7 +21,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import BASE_URL from '../constants/apiConfig';
 const PaymentRequest = ({navigation, route}) => {
   const [date, setDate] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
@@ -42,7 +42,7 @@ const PaymentRequest = ({navigation, route}) => {
   const [feedbackType, setFeedbackType] = useState('success');
 
   const employeeDetails = useFetchEmployeeDetails();
-  const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+ 
   const {
     control,
     handleSubmit,
@@ -212,7 +212,7 @@ const PaymentRequest = ({navigation, route}) => {
     const fetchExpenseHeads = async () => {
       try {
         const response = await axios.get(
-          `${BASE_URL_PROD}/ExpHeadMaster/GetExpenseHeadList/${employeeDetails?.childCompanyId}`,
+          `${BASE_URL}/ExpHeadMaster/GetExpenseHeadList/${employeeDetails?.childCompanyId}`,
         );
         setExpenseHeads(
           response.data.map(head => ({
@@ -373,7 +373,7 @@ const PaymentRequest = ({navigation, route}) => {
         console.log(`${isEditing ? 'Updating' : 'Submitting'} Advance Form Data:`, formData);
 
         const response = await axios.post(
-          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
           formData
         );
 
@@ -447,7 +447,7 @@ const PaymentRequest = ({navigation, route}) => {
         console.log(`${isEditing ? 'Updating' : 'Submitting'} Expense Form Data:`, formData);
 
         const response = await axios.post(
-          `${BASE_URL_PROD}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
+          `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
           formData
         );
 
@@ -513,7 +513,7 @@ const PaymentRequest = ({navigation, route}) => {
       if (expenceData?.requestId && expenceData?.companyId) {
         try {
           const response = await axios.get(
-            `${BASE_URL_PROD}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`
+            `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`
           );
 
           const expenseDetails = response.data;

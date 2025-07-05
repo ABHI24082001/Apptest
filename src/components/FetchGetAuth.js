@@ -1,15 +1,10 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 import useFetchEmployeeDetails from './FetchEmployeeDetails';
+import BASE_URL from '../constants/apiConfig';
 
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
 
-/**
- * Custom hook to fetch authorization data for a specific action
- * @param {string} controllerName - The controller name for the action
- * @param {string} actionName - The action name to check
- * @returns {Object} - Functions and data for authorization
- */
+
 const useFetchAuth = (controllerName = 'Leaveapproval', actionName = 'LeaveapprovalList') => {
   const employeeDetails = useFetchEmployeeDetails();
   const [authData, setAuthData] = useState(null);
@@ -35,7 +30,7 @@ const useFetchAuth = (controllerName = 'Leaveapproval', actionName = 'Leaveappro
       console.log('Sending request data for access:', requestData);
 
       const response = await axios.post(
-        `${BASE_URL_PROD}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
 

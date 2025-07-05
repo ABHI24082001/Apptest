@@ -19,7 +19,7 @@ import axios from 'axios';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 import StatusCard from '../components/StatusCard'; // Import the StatusCard component
 import Pagination from '../components/Pagination'; // Import the Pagination component
-
+import BASE_URL from '../constants/apiConfig';
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
 ];
@@ -42,8 +42,7 @@ const LeaveRequestStatusScreen = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5); // Show 5 items per page
 
-  const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api'; // Use your local API
-  const BASE_URL_LOCAL = 'http://192.168.29.2:90/api/'; // Use your local API
+ 
 
   // Updated fetch data function with callback
   const fetchLeaveData = useCallback(async () => {
@@ -51,7 +50,7 @@ const LeaveRequestStatusScreen = () => {
       setLoading(true);
       if (employeeDetails?.id) {
         const response = await axios.get(
-          `${BASE_URL_PROD}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
+          `${BASE_URL}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
         );
         setLeaveData(response.data);
         console.log('Fetched leave data:', response.data.length);
@@ -170,7 +169,7 @@ const LeaveRequestStatusScreen = () => {
       console.log('Leave ID to delete:', id); // Log the ID being deleted
 
       const response = await axios.get(
-        `${BASE_URL_PROD}/ApplyLeave/DeleteApplyLeave/${id}`,
+        `${BASE_URL}/ApplyLeave/DeleteApplyLeave/${id}`,
       );
 
       if (response?.status === 200) {

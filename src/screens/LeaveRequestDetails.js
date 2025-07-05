@@ -13,7 +13,8 @@ import {Appbar, Avatar, Chip, Divider} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
-const BASE_URL_PROD = 'https://hcmapiv2.anantatek.com/api';
+import BASE_URL from '../constants/apiConfig';
+
 import { useAuth } from '../constants/AuthContext';
 // Import the Pagination component
 import Pagination from '../components/Pagination';
@@ -125,9 +126,9 @@ const LeaveRequest = ({navigation}) => {
       
       let apiUrl = '';
       if (hasAccess) {
-        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
+        apiUrl = `${BASE_URL}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
       } else {
-        apiUrl = `${BASE_URL_PROD}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
+        apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
       }
       // debugger;;
       ApprovalList = await axios.get(apiUrl);
@@ -146,7 +147,7 @@ const LeaveRequest = ({navigation}) => {
     }
 
     let roleurl = '';
-    roleurl = `${BASE_URL_PROD}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
+    roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
     const response = await axios.get(roleurl);
     let roleData = null;
     console.log('Role Details========:', response.data);
@@ -221,7 +222,7 @@ const LeaveRequest = ({navigation}) => {
       );
 
       const response = await axios.post(
-        `${BASE_URL_PROD}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
 
@@ -294,7 +295,7 @@ const LeaveRequest = ({navigation}) => {
       };
 
       const payrollRes = await axios.post(
-        `${BASE_URL_PROD}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
+        `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
         payrollCheckBody,
       );
 
@@ -384,8 +385,8 @@ const LeaveRequest = ({navigation}) => {
       console.log('Final approval payload using detailed data:', JSON.stringify(approvalPayload, null, 2));
 
       const endpoint = isAuthorizationPerson
-        ? `${BASE_URL_PROD}/LeaveApproval/SaveLeaveFinalApproval`
-        : `${BASE_URL_PROD}/LeaveApproval/SaveLeaveApproval`;
+        ? `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`
+        : `${BASE_URL}/LeaveApproval/SaveLeaveApproval`;
 
       console.log('Submitting leave approval to:', endpoint);
 
@@ -437,7 +438,7 @@ const fetchLeaveDetailsById = async (id) => {
   try {
     console.log(`Fetching leave details for ID: ${id}`);
    
-    const response = await axios.get(`${BASE_URL_PROD}/ApplyLeave/GetApplyLeaveDetailsById/${id}`);
+    const response = await axios.get(`${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`);
     console.log('Leave Details API ==============================Response:', JSON.stringify(response.data, null, 2));
     setLeaveDetails(response.data);
     return response.data;
@@ -468,7 +469,7 @@ const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
       return;
     }
 
-    const apiUrl = `${BASE_URL_PROD}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId || 0}`;
+    const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId || 0}`;
     console.log('Fetching employees from:', apiUrl);
 
     const response = await axios.get(apiUrl);

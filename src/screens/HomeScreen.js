@@ -124,7 +124,7 @@ const Dashboard = () => {
         if (!employeeId || !companyId) return;
 
         const response = await axios.get(
-          `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
+          `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
         );
 
         const transformed = response.data.leaveBalances.map(item => ({
