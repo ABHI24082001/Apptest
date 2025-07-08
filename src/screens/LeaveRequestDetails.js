@@ -4,22 +4,39 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
+  TextInput as RNTextInput,
   TouchableOpacity,
   Linking,
+  ScrollView,
 } from 'react-native';
 import AppSafeArea from '../component/AppSafeArea';
-import {Appbar, Avatar, Chip, Divider} from 'react-native-paper';
+import {
+  Appbar,
+  Avatar,
+  Chip,
+  Divider,
+  Card,
+  Title,
+  Subheading,
+  Badge,
+  Button as PaperButton,
+  DataTable,
+  TextInput,
+} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
+import LinearGradient from 'react-native-linear-gradient';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
+import FeedbackModal from '../component/FeedbackModal';
 
-import { useAuth } from '../constants/AuthContext';
+import {useAuth} from '../constants/AuthContext';
 // Import the Pagination component
 import Pagination from '../components/Pagination';
 // Import Picker for task assignment dropdown
 import {Picker} from '@react-native-picker/picker';
+// Import the new LeaveBalanceTable component
+import LeaveBalanceTable from '../components/LeaveBalanceTable';
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
@@ -31,16 +48,20 @@ const LeaveRequest = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
   const {user} = useAuth();
 
-  console.log('First ======================================', user);
-  console.log('Employee Details:', employeeDetails);
+  // console.log('First ======================================', user);
+  // console.log('Employee Details:', employeeDetails);
   const [leaveApprovalAccess, setLeaveApprovalAccess] = useState(null);
   const [approvalList, setApprovalList] = useState([]); // State to hold the approval list
   const [approveLeaveId, setapproveLeaveId] = useState(null); // State to hold the applyLeaveId
   const [leaveDetails, setLeaveDetails] = useState(null);
-  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] = useState(false);
+  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] =
+    useState(false);
   // Add state for pending requests count
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  
+
+  // Add state to track if user is a reporting manager
+  const [isReportingManager, setIsReportingManager] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5); // Number of items to display per page
@@ -50,6 +71,27 @@ const LeaveRequest = ({navigation}) => {
   const [taskAssignmentEmployees, setTaskAssignmentEmployees] = useState([]);
   const [selectedTaskAssignee, setSelectedTaskAssignee] = useState({});
 
+  // New state for leave balance data
+  const [leaveData, setLeaveData] = useState([]);
+  const [isLoadingLeaveData, setIsLoadingLeaveData] = useState(false);
+
+  // Feedback modal state
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [feedbackModalType, setFeedbackModalType] = useState('success');
+  const [feedbackModalMessage, setFeedbackModalMessage] = useState('');
+
+  // Function to show feedback modal
+  const showFeedbackModal = (type, message) => {
+    setFeedbackModalType(type);
+    setFeedbackModalMessage(message);
+    setFeedbackModalVisible(true);
+  };
+
+  // Function to hide feedback modal
+  const hideFeedbackModal = () => {
+    setFeedbackModalVisible(false);
+  };
+
   useEffect(() => {
     if (employeeDetails) {
       fetchLeaveApprovalData();
@@ -57,50 +99,59 @@ const LeaveRequest = ({navigation}) => {
     }
   }, [employeeDetails]);
 
-  // Add another useEffect to initialize approvedLeaveCount when approvalList changes
+  // Add another useEffect to initialize approvedLeaveCount and unapprovedLeaveCount when approvalList changes
   useEffect(() => {
     if (Array.isArray(approvalList) && approvalList.length > 0) {
-      // Initialize approvedLeaveCount with tfetchLeaveDetailsByIdhe requested leave days from each request
       const initialCounts = {};
+      const initialUnapprovedCounts = {};
+
       approvalList.forEach(item => {
         const id = item.id || item.applyLeaveId;
         initialCounts[id] = item.leaveNo || 0;
+        initialUnapprovedCounts[id] = 0; // Initialize unapproved count with 0
       });
+
       setApprovedLeaveCount(initialCounts);
-      
+      setUnapprovedLeaveCount(initialUnapprovedCounts);
+
       // Reset to first page when approval list changes
       setCurrentPage(1);
-      
+
       // Update paginated data
       updatePaginatedData(approvalList, 1);
     } else {
       setPaginatedData([]);
     }
   }, [approvalList]);
-  
+
   // Update paginated data whenever current page changes
   useEffect(() => {
     updatePaginatedData(approvalList, currentPage);
   }, [currentPage]);
-  
+
   // Function to paginate data
   const updatePaginatedData = (data, page) => {
     if (!Array.isArray(data) || data.length === 0) {
       setPaginatedData([]);
       return;
     }
-    
+
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedItems = data.slice(startIndex, endIndex);
-    
-    console.log(`Paginating: Page ${page}, showing items ${startIndex + 1}-${Math.min(endIndex, data.length)} of ${data.length}`);
-    
+
+    console.log(
+      `Paginating: Page ${page}, showing items ${startIndex + 1}-${Math.min(
+        endIndex,
+        data.length,
+      )} of ${data.length}`,
+    );
+
     setPaginatedData(paginatedItems);
   };
-  
+
   // Handle page change
-  const handlePageChange = (newPage) => {
+  const handlePageChange = newPage => {
     console.log(`Changing to page ${newPage}`);
     setCurrentPage(newPage);
   };
@@ -108,7 +159,7 @@ const LeaveRequest = ({navigation}) => {
   const fetchLeaveApprovalData = async () => {
     const accessData = await fetchFunctionalAccessMenus();
     setLeaveApprovalAccess(accessData);
-    console.log('Leave approval access data set:', accessData);
+    // console.log('Leave approval access data set:', accessData);
 
     const userType = user?.userType; // static as per requirement
     const employeeId = user?.id;
@@ -123,7 +174,6 @@ const LeaveRequest = ({navigation}) => {
 
     let ApprovalList;
     try {
-      
       let apiUrl = '';
       if (hasAccess) {
         apiUrl = `${BASE_URL}/ApplyLeave/GetLeaveListForFinalApproval/${companyId}/${employeeId}`;
@@ -135,13 +185,13 @@ const LeaveRequest = ({navigation}) => {
       ApprovalList.data = ApprovalList.data.filter(
         item => item.employeeId != employeeDetails?.id,
       );
-      
+
       // Get the pending request count
       if (Array.isArray(ApprovalList.data)) {
         setPendingRequestsCount(ApprovalList.data.length);
       }
-      
-      console.log('Leave =================list:', ApprovalList.data);
+
+      // console.log('Leave =================list:', ApprovalList.data);
     } catch (err) {
       console.error('Error fetching leave list:', err);
     }
@@ -150,32 +200,36 @@ const LeaveRequest = ({navigation}) => {
     roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
     const response = await axios.get(roleurl);
     let roleData = null;
-    console.log('Role Details========:', response.data);
-    
+    // console.log('Role Details========:', response.data);
+
     // Check if current user is authorized for final approval
     if (Array.isArray(response.data)) {
       // Check if employee ID exists in role details
-      const isAuthorized = response.data.some(role => 
-        role.employeeId === employeeDetails?.id && 
-        (role.roleId === 1 || role.branchId === 0) // Assuming roleId 1 or branchId 0 indicates authorization
+      const isAuthorized = response.data.some(
+        role => role.employeeId === employeeDetails?.id,
+        // (role.roleId === 1 || role.branchId === 0)
       );
       setIsAuthorizedForFinalApproval(isAuthorized);
-      console.log('User is authorized for final approval:', isAuthorized);
-      
+
+      // Determine if the user is a reporting manager
+      // Check if user is a reporting manager (not an HR/final approver)
+      const isManager = hasAccess && !isAuthorized;
+      setIsReportingManager(isManager);
+
       // If employeeId matches, get that role data, else get the first role as fallback
       roleData =
         response.data.find(item => item.employeeId === employeeDetails?.id) ||
         response.data[0] ||
         null;
     }
-    console.log('Role Data==============================', roleData);
+    // console.log('Role Data==============================', roleData);
 
     if (roleData.branchId != 0) {
       ApprovalList = ApprovalList.data.some(
         item => item.branchId === roleData.branchId,
       );
     }
-    console.log('Filtered fffffffApproval List:', ApprovalList.data);
+    // console.log('Filtered fffffffApproval List:', ApprovalList.data);
 
     // Integrate the filtered approval list into the UI
     // Set the approval list state for FlatList rendering
@@ -216,17 +270,17 @@ const LeaveRequest = ({navigation}) => {
         UserType: user?.userType || 1,
       };
 
-      console.log(
-        'Sending request data for leave approval access:',
-        requestData,
-      );
+      // console.log(
+      //   'Sending request data for leave approval access:',
+      //   requestData,
+      // );
 
       const response = await axios.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
 
-      console.log('Leave fetchFunctionalAccessMenus:', response.data);
+      // console.log('Leave fetchFunctionalAccessMenus:', response.data);
 
       return response.data;
     } catch (error) {
@@ -235,7 +289,7 @@ const LeaveRequest = ({navigation}) => {
     }
   };
 
-  console.log(employeeDetails, 'Employee Details');
+  // console.log(employeeDetails, 'Employee Details');
 
   const [rmRemarks, setRmRemarks] = useState({});
   const [approvalRemarks, setApprovalRemarks] = useState({});
@@ -243,45 +297,57 @@ const LeaveRequest = ({navigation}) => {
   const [approvalLeaveId, setApprovalLeaveId] = useState(null);
   // Add state for approved leave count per request
   const [approvedLeaveCount, setApprovedLeaveCount] = useState({});
+  // Add state for unapproved leave count per request
+  const [unapprovedLeaveCount, setUnapprovedLeaveCount] = useState({});
+  // Add validation state for the leave count inputs
+  const [leaveCountErrors, setLeaveCountErrors] = useState({});
 
-  
   // debugger;
   const handleApprove = async id => {
     try {
       // First fetch the detailed leave data directly from API
       const leaveDetails = await fetchLeaveDetailsById(id);
-      
+
       if (!leaveDetails) {
-        alert('Cannot fetch leave request details');
+        showFeedbackModal('fail', 'Cannot fetch leave request details');
         return;
       }
-      
+
       // Find matching item in approval list for UI display purposes
       const leaveItem = approvalList.find(
         item => (item.id || item.applyLeaveId) === id,
       );
-      
+
       if (!leaveItem) {
-        alert('Cannot find leave request details');
+        showFeedbackModal('fail', 'Cannot find leave request details');
         return;
       }
 
       const leaveNo = leaveDetails.leaveNo || leaveItem.leaveNo || 0;
-      
+
       if (leaveNo === 0) {
-        alert('Leave days (leaveNo) cannot be zero');
+        showFeedbackModal('fail', 'Leave days (leaveNo) cannot be zero');
         return;
       }
 
-      const approvedCount = Number(approvedLeaveCount[id]);
-      if (!approvedCount || approvedCount === 0) {
-        alert('You cannot approve 0 leave days. Please enter a valid number.');
-        return;
-      }
+      const approvedCount = Number(approvedLeaveCount[id]) || 0;
+      const unapprovedCount = Number(unapprovedLeaveCount[id]) || 0;
+      const totalCount = approvedCount + unapprovedCount;
 
-      if (approvedCount > leaveNo) {
-        alert(
-          'Approved leave days cannot be greater than requested leave days',
+      // Validate leave counts before proceeding
+      const isValid = validateLeaveCounts(
+        id,
+        approvedCount.toString(),
+        unapprovedCount.toString(),
+        leaveNo,
+      );
+
+      if (!isValid) {
+        // Get the error message to display
+        const errors = leaveCountErrors[id] || {};
+        showFeedbackModal(
+          'fail',
+          errors.total || 'Please enter valid values for leave days',
         );
         return;
       }
@@ -289,7 +355,7 @@ const LeaveRequest = ({navigation}) => {
       // Step 1: Check if payroll already generated
       const payrollCheckBody = {
         EmployeeId: leaveDetails.employeeId,
-        CompanyId: leaveDetails.companyId, 
+        CompanyId: leaveDetails.companyId,
         BranchId: leaveDetails.branchId || 0,
         fromLeaveDate: formatDateForBackend(leaveDetails.fromLeaveDate),
       };
@@ -300,7 +366,8 @@ const LeaveRequest = ({navigation}) => {
       );
 
       if (payrollRes?.data?.isSuccess) {
-        alert(
+        showFeedbackModal(
+          'fail',
           'Payroll already generated for this employee. Leave cannot be approved.',
         );
         return;
@@ -344,33 +411,37 @@ const LeaveRequest = ({navigation}) => {
 
       // Step 3: Construct payload using the detailed data from API
       const taskAssignment = selectedTaskAssignee[id] || {};
-      
+
       const approvalPayload = {
         CompanyId: leaveDetails.companyId,
         Id: leaveDetails.id,
         Visible: false,
         EmployeeId: leaveDetails.employeeId,
         ReportingId: leaveDetails.reportingId,
-        DocumentPath: leaveDetails.documentPath || "",
-        EmployeeEmail: leaveDetails.employeeEmail || "",
+        DocumentPath: leaveDetails.documentPath || '',
+        EmployeeEmail: leaveDetails.employeeEmail || '',
         ApplyLeaveId: leaveDetails.applyLeaveId || 0,
         DepartmentId: leaveDetails.departmentId,
-        ReportingMgerEmail: leaveDetails.reportingMgerEmail || "",
-        ReportTaskEmail: leaveDetails.reportTaskEmail || "",
+        ReportingMgerEmail: leaveDetails.reportingMgerEmail || '',
+        ReportTaskEmail: leaveDetails.reportTaskEmail || '',
         ToLeaveDate: leaveDetails.toLeaveDate,
         FromLeaveDate: leaveDetails.fromLeaveDate,
         EmployeeName: leaveDetails.employeeName,
         EmployeeCode: leaveDetails.employeeCode,
         Designation: leaveDetails.designation,
         Department: leaveDetails.department,
-        Remarks: rmRemarks[id] || leaveDetails.remarks || "",
+        Remarks: rmRemarks[id] || leaveDetails.remarks || '',
         LeaveNo: leaveNo,
         ApprovedPaidLeave: approvedCount,
-        ApprovedUnpaidLeave: 0,
+        ApprovedUnpaidLeave: unapprovedCount,
         ApprovalStatus: 1, // 1 means approved
-        taskAssignmentEmpId: taskAssignment.employeeId || leaveDetails.taskAssignmentEmpId || 0,
-        taskAssignEmployeeCode: taskAssignment.employeeCode || leaveDetails.taskAssignEmployeeCode || "",
-        ReportingRemarks: rmRemarks[id] || "",
+        taskAssignmentEmpId:
+          taskAssignment.employeeId || leaveDetails.taskAssignmentEmpId || 0,
+        taskAssignEmployeeCode:
+          taskAssignment.employeeCode ||
+          leaveDetails.taskAssignEmployeeCode ||
+          '',
+        ReportingRemarks: rmRemarks[id] || '',
         leaveType: leaveDetails.leaveType,
         status: 'Approved',
         flag: 1,
@@ -378,11 +449,14 @@ const LeaveRequest = ({navigation}) => {
         createdBy: employeeDetails?.id || 0,
         createdDate: new Date().toISOString(),
         modifiedBy: employeeDetails?.id || 0,
-        modifiedDate: new Date().toISOString()
+        modifiedDate: new Date().toISOString(),
       };
 
       // Debug the exact payload being sent
-      console.log('Final approval payload using detailed data:', JSON.stringify(approvalPayload, null, 2));
+      console.log(
+        'Final approval payload using detailed data:',
+        JSON.stringify(approvalPayload, null, 2),
+      );
 
       const endpoint = isAuthorizationPerson
         ? `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`
@@ -392,37 +466,173 @@ const LeaveRequest = ({navigation}) => {
 
       const approvalRes = await axios.post(endpoint, approvalPayload);
       const {data} = approvalRes;
-      
+
       // Log the full backend response for debugging
       console.log('Backend response:', {
         status: approvalRes.status,
         statusText: approvalRes.statusText,
         headers: approvalRes.headers,
-        data: data
+        data: data,
       });
 
       if (data?.isSuccess) {
-        alert(
-          `✅ Leave Approved!\n\nEmployee: ${leaveItem.employeeName}\nLeave Type: ${leaveItem.leaveName}\nRequested: ${leaveItem.leaveNo} day(s)\nApproved: ${approvedCount} day(s)`,
-        );
+        // Simplified success message without employee details
+        showFeedbackModal('success', 'Leave Approved Successfully!');
 
         // After successful approval, refresh the list
         fetchLeaveApprovalData();
       } else {
         console.error('Backend returned error:', data);
-        alert(`❌ Approval Failed: ${data?.message || 'Unknown error'}`);
+        showFeedbackModal(
+          'fail',
+          `Approval Failed: ${data?.message || 'Unknown error'}`,
+        );
       }
     } catch (error) {
       console.error('Exception during approval:', error);
       console.error('Error details:', error.response?.data || error.message);
-      alert(
+      showFeedbackModal(
+        'fail',
         'An unexpected error occurred during leave approval. Please try again.',
       );
     }
   };
 
+  const handleReject = async id => {
+    try {
+      // First fetch the detailed leave data directly from API
+      const leaveDetails = await fetchLeaveDetailsById(id);
 
+      if (!leaveDetails) {
+        showFeedbackModal('fail', 'Cannot fetch leave request details');
+        return;
+      }
 
+      // Find matching item in approval list for UI display purposes
+      const leaveItem = approvalList.find(
+        item => (item.id || item.applyLeaveId) === id,
+      );
+
+      if (!leaveItem) {
+        showFeedbackModal('fail', 'Cannot find leave request details');
+        return;
+      }
+
+      // Validate that remarks are provided for rejection
+      if (!rmRemarks[id]) {
+        showFeedbackModal(
+          'fail',
+          'Please provide remarks for rejecting this leave request',
+        );
+        return;
+      }
+
+      // Step 1: Check if current user is in authorization list
+      const currentUserId = employeeDetails?.id;
+
+      // First check if we have cached access data
+      let accessData = leaveApprovalAccess;
+
+      // If not cached, fetch it
+      if (!Array.isArray(accessData) || accessData.length === 0) {
+        accessData = await fetchFunctionalAccessMenus();
+      }
+
+      // Check if current user is an authorization person
+      let isAuthorizationPerson = false;
+
+      if (Array.isArray(accessData)) {
+        isAuthorizationPerson = accessData.some(
+          person => person.employeeId === currentUserId,
+        );
+      }
+
+      console.log(
+        'Is authorization person for rejection:',
+        isAuthorizationPerson,
+      );
+
+      // Step 2: Construct payload using the detailed data from API
+      const rejectPayload = {
+        CompanyId: leaveDetails.companyId,
+        Id: leaveDetails.id,
+        Visible: false,
+        EmployeeId: leaveDetails.employeeId,
+        ReportingId: leaveDetails.reportingId,
+        DocumentPath: leaveDetails.documentPath || '',
+        EmployeeEmail: leaveDetails.employeeEmail || '',
+        ApplyLeaveId: leaveDetails.applyLeaveId || 0,
+        DepartmentId: leaveDetails.departmentId,
+        ReportingMgerEmail: leaveDetails.reportingMgerEmail || '',
+        ReportTaskEmail: leaveDetails.reportTaskEmail || '',
+        ToLeaveDate: leaveDetails.toLeaveDate,
+        FromLeaveDate: leaveDetails.fromLeaveDate,
+        EmployeeName: leaveDetails.employeeName,
+        EmployeeCode: leaveDetails.employeeCode,
+        Designation: leaveDetails.designation,
+        Department: leaveDetails.department,
+        Remarks: rmRemarks[id] || leaveDetails.remarks || '',
+        LeaveNo: leaveDetails.leaveNo || leaveItem.leaveNo || 0,
+        ApprovedPaidLeave: 0,
+        ApprovedUnpaidLeave: 0,
+        ApprovalStatus: 2, // 2 means rejected
+        ReportingRemarks: rmRemarks[id] || 'Rejected by reporting manager',
+        leaveType: leaveDetails.leaveType,
+        status: 'Rejected',
+        flag: 1,
+        isDelete: 0,
+        createdBy: employeeDetails?.id || 0,
+        createdDate: new Date().toISOString(),
+        modifiedBy: employeeDetails?.id || 0,
+        modifiedDate: new Date().toISOString(),
+      };
+
+      // Debug the exact payload being sent
+      console.log(
+        'Final rejection payload:',
+        JSON.stringify(rejectPayload, null, 2),
+      );
+
+      const endpoint = isAuthorizationPerson
+        ? `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`
+        : `${BASE_URL}/LeaveApproval/SaveLeaveApproval`;
+
+      console.log('Submitting leave rejection to:', endpoint);
+
+      const rejectionRes = await axios.post(endpoint, rejectPayload);
+      const {data} = rejectionRes;
+
+      // Log the full backend response for debugging
+      console.log('Backend response for rejection:', {
+        status: rejectionRes.status,
+        statusText: rejectionRes.statusText,
+        data: data,
+      });
+
+      if (data?.isSuccess) {
+        showFeedbackModal(
+          'success',
+          `Leave Rejected Successfully\n\nEmployee: ${leaveItem.employeeName}\nLeave Type: ${leaveItem.leaveName}\nReason: ${rmRemarks[id]}`,
+        );
+
+        // After successful rejection, refresh the list
+        fetchLeaveApprovalData();
+      } else {
+        console.error('Backend returned error on rejection:', data);
+        showFeedbackModal(
+          'fail',
+          `Rejection Failed: ${data?.message || 'Unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.error('Exception during rejection:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      showFeedbackModal(
+        'fail',
+        'An unexpected error occurred during leave rejection. Please try again.',
+      );
+    }
+  };
 
   const formatDate = dateString => {
     const date = new Date(dateString);
@@ -432,24 +642,75 @@ const LeaveRequest = ({navigation}) => {
       year: 'numeric',
     });
   };
-// debugger
+  // debugger
   // Function to fetch leave details by ID
-const fetchLeaveDetailsById = async (id) => {
-  try {
-    console.log(`Fetching leave details for ID: ${id}`);
-   
-    const response = await axios.get(`${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`);
-    console.log('Leave Details API ==============================Response:', JSON.stringify(response.data, null, 2));
-    setLeaveDetails(response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching leave details:', error);
-    console.error('Error details:', error.response?.data || error.message);
-    return null;
-  }
-};
+  const fetchLeaveDetailsById = async id => {
+    try {
+      console.log(`Fetching leave details for ID: ${id}`);
 
-  const toggleCardExpansion = async (id) => {
+      const response = await axios.get(
+        `${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`,
+      );
+      console.log(
+        'Leave Details API ==============================Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      setLeaveDetails(response.data);
+
+      // Fetch leave balances for this employee
+      if (response.data && response.data.employeeId) {
+        fetchLeaveData(response.data.employeeId);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leave details:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      return null;
+    }
+  };
+
+  // Function to fetch leave balance data
+  const fetchLeaveData = async employeeId => {
+    try {
+      setIsLoadingLeaveData(true);
+
+      if (!employeeId) return;
+
+      const companyId = user?.childCompanyId;
+      if (!companyId) return;
+
+      console.log(
+        `Fetching leave balances for employee ${employeeId} in company ${companyId}`,
+      );
+
+      const response = await axios.get(
+        `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
+      );
+
+      if (response.data && response.data.leaveBalances) {
+        const transformed = response.data.leaveBalances.map(item => ({
+          label: item.leavename,
+          used: item.usedLeaveNo,
+          available: item.availbleLeaveNo,
+        }));
+
+        console.log('Leave balance data:', transformed);
+        setLeaveData(transformed);
+      } else {
+        console.log('No leave balance data available');
+        setLeaveData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching leave data:', error.message);
+      setLeaveData([]);
+    } finally {
+      setIsLoadingLeaveData(false);
+    }
+  };
+
+  // Toggle card expansion
+  const toggleCardExpansion = async id => {
     // If we're expanding a card, fetch its details
     if (expandedCard !== id) {
       const details = await fetchLeaveDetailsById(id);
@@ -458,103 +719,183 @@ const fetchLeaveDetailsById = async (id) => {
     setExpandedCard(expandedCard === id ? null : id);
   };
 
+  const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
+    try {
+      const companyId = user?.childCompanyId;
+      const departmentId = leaveDetails?.departmentId;
+      const requestEmployeeId = leaveDetails?.employeeId;
 
-const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
-  try {
-    const companyId = user?.childCompanyId;
-    const departmentId = leaveDetails?.departmentId;
+      if (!companyId) {
+        console.log('Missing company ID, cannot fetch employees');
+        return;
+      }
 
-    if (!companyId) {
-      console.log('Missing company ID, cannot fetch employees');
-      return;
-    }
+      // First API call - Get employees by department
+      const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId}`;
+      console.log('Fetching employees from:', apiUrl);
 
-    const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId || 0}`;
-    console.log('Fetching employees from:', apiUrl);
+      const response = await axios.get(apiUrl);
 
-    const response = await axios.get(apiUrl);
+      if (!response.data || !Array.isArray(response.data)) {
+        console.log('No employee data received or invalid format');
+        return;
+      }
 
-    if (!response.data || !Array.isArray(response.data)) {
-      console.log('No employee data received or invalid format');
-      return;
-    }
+      const employeesData = Array.isArray(response.data) ? response.data : [];
 
-    console.log('Received employee data:', response.data);
-    
-    // Define IDs to match against (using the current leave details or a provided ID)
-    const targetId = filterEmployeeId || leaveDetails?.employeeId || null;
-    
-    // Map data into your structure
-    let employeesData = response.data.map(emp => ({
-      id: emp.id,
-      employeeId: emp.employeeId,
-      employeeName: emp.employeeName,
-      departmentId: emp.departmentId,
-      departmentName: emp.departmentName,
-      designationName: emp.designationName,
-      emailAddress: emp.emailAddress
-    }));
-    
-    // Check if we need to match specific employee IDs
-    if (targetId) {
-      // Try to find exact match by employee ID or numeric ID
-      const matchingEmployee = employeesData.find(emp => 
-        emp.employeeId === targetId || emp.id === targetId
+      console.log('=== EMPLOYEE DATA SUMMARY ===');
+      console.log(`Total employees received: ${employeesData.length}`);
+      console.log(`Request employee ID: ${requestEmployeeId}`);
+
+      const employeeToFilter = employeesData.find(
+        emp => emp.id === requestEmployeeId,
       );
-      
-      if (matchingEmployee) {
-        console.log(`Found matching employee with ID ${targetId}:`, matchingEmployee);
-        // Filter to only show matching employee
-        employeesData = [matchingEmployee];
-      } else {
-        console.log(`No employee found matching ID ${targetId}, showing full list`);
-      }
-    } else {
-      // If no specific ID to match, filter by department if needed
-      if (departmentId) {
-        const filteredByDept = employeesData.filter(
-          emp => emp.departmentId === departmentId
-        );
-        
-        if (filteredByDept.length > 0) {
-          console.log(`Found ${filteredByDept.length} employees in department ${departmentId}`);
-          employeesData = filteredByDept;
-        } else {
-          console.log(`No employees found in depaccccccrtment ${departmentId}, showing full list`);
-        }
-      }
-    }
-    
-    // Update the state with processed employees
-    setTaskAssignmentEmployees(employeesData);
-    
-    return employeesData; // Return the final filtered response
-  } catch (error) {
-    console.error('Error fetching employees:', error);
-    setTaskAssignmentEmployees([]);
-    return null;
-  }
-};
 
+      const filteredEmployees = employeesData.filter(
+        employee => employee.id !== requestEmployeeId,
+      );
+
+      console.log(`=== FILTERING RESULTS ===`);
+      console.log(
+        `Filtered ${
+          employeesData.length - filteredEmployees.length
+        } employees, keeping ${filteredEmployees.length} for task assignment`,
+      );
+
+      if (employeeToFilter) {
+        console.log('=== REMOVED EMPLOYEE ===');
+        console.log(JSON.stringify(employeeToFilter, null, 2));
+      }
+
+      const employeeSummary = filteredEmployees.map(emp => ({
+        id: emp.id,
+        employeeId: emp.employeeId,
+        employeeName: emp.employeeName,
+        department: emp.departmentName,
+        designation: emp.designationName,
+      }));
+
+      console.log('=== FILTERED EMPLOYEES SUMMARY ===');
+      console.log(JSON.stringify(employeeSummary, null, 2));
+
+      // Second API call - Get employees assigned to the same shift
+      let shiftEmployeeIds = [];
+      try {
+        if (requestEmployeeId) {
+          const shiftApiUrl = `${BASE_URL}/Shift/GetRotaAsignedEmployeeByEmployeeId/${requestEmployeeId}`;
+          console.log('Fetching shift employees from:', shiftApiUrl);
+
+          const shiftResponse = await axios.get(shiftApiUrl);
+
+          if (shiftResponse.data && Array.isArray(shiftResponse.data)) {
+            shiftEmployeeIds = shiftResponse.data;
+            console.log('=== EMPLOYEES IN SAME SHIFT ===');
+            console.log(JSON.stringify(shiftEmployeeIds, null, 2));
+          }
+        }
+      } catch (shiftError) {
+        console.error('Error fetching shift employees:', shiftError);
+      }
+
+      // Match shiftEmployeeIds with filteredEmployees
+      let finalTaskAssignmentEmployees = filteredEmployees;
+
+      if (shiftEmployeeIds.length > 0) {
+        finalTaskAssignmentEmployees = filteredEmployees.filter(emp =>
+          shiftEmployeeIds.includes(emp.id),
+        );
+
+        console.log('=== FINAL MATCHED EMPLOYEES ===');
+        const finalSummary = finalTaskAssignmentEmployees.map(emp => ({
+          id: emp.id,
+          employeeId: emp.employeeId,
+          employeeName: emp.employeeName,
+          department: emp.departmentName,
+          designation: emp.designationName,
+        }));
+        console.log(JSON.stringify(finalSummary, null, 2));
+      }
+
+      setTaskAssignmentEmployees(finalTaskAssignmentEmployees);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      setTaskAssignmentEmployees([]);
+      return null;
+    }
+  };
 
   // Add helper function to update task assignee (if not already added)
   const updateTaskAssignee = (leaveId, employeeId) => {
     if (!employeeId) return;
-    
-    const selectedEmployee = taskAssignmentEmployees.find(emp => emp.id === employeeId);
-    
+
+    const selectedEmployee = taskAssignmentEmployees.find(
+      emp => emp.id === employeeId,
+    );
+
     if (selectedEmployee) {
-      console.log(`Setting task assignee for leave ID ${leaveId}:`, selectedEmployee);
-      
+      console.log(
+        `Setting task assignee for leave ID ${leaveId}:`,
+        selectedEmployee,
+      );
+
       setSelectedTaskAssignee(prev => ({
         ...prev,
         [leaveId]: {
           employeeId: selectedEmployee.id,
           employeeName: selectedEmployee.employeeName,
-          employeeCode: selectedEmployee.employeeId
-        }
+          employeeCode: selectedEmployee.employeeId,
+        },
       }));
     }
+  };
+
+  // Add validation function for leave counts
+  const validateLeaveCounts = (
+    itemId,
+    approvedCount,
+    unapprovedCount,
+    totalLeaveNo,
+  ) => {
+    const approvedNum = Number(approvedCount) || 0;
+    const unapprovedNum = Number(unapprovedCount) || 0;
+    const totalCount = approvedNum + unapprovedNum;
+    const totalLeave = Number(totalLeaveNo) || 0;
+
+    let errors = {};
+
+    // Validate that total is not more than requested leave days
+    if (totalCount > totalLeave) {
+      errors.total = `Total (${totalCount}) exceeds requested days (${totalLeave})`;
+      errors.approved = true;
+      errors.unapproved = true;
+    }
+
+    // Validate that approved and unapproved are not negative
+    if (approvedNum < 0) {
+      errors.approved = true;
+      errors.approvedMsg = 'Cannot be negative';
+    }
+
+    if (unapprovedNum < 0) {
+      errors.unapproved = true;
+      errors.unapprovedMsg = 'Cannot be negative';
+    }
+
+    // Validate that the total is not zero
+    if (totalCount === 0 && (approvedCount !== '' || unapprovedCount !== '')) {
+      errors.total = 'Total leave days cannot be zero';
+      errors.approved = approvedNum === 0;
+      errors.unapproved = unapprovedNum === 0;
+    }
+
+    // Update errors state
+    setLeaveCountErrors(prev => ({
+      ...prev,
+      [itemId]: errors,
+    }));
+
+    // Return true if no errors
+    return Object.keys(errors).length === 0;
   };
 
   const renderItem = ({item}) => {
@@ -562,291 +903,426 @@ const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
     const leaveType = item.leaveName || 'Leave';
     const leaveColor = LeaveTypeColors[leaveType] || '#6b7280';
     const itemId = item.id || item.applyLeaveId;
+    const itemErrors = leaveCountErrors[itemId] || {};
 
     return (
-      <TouchableOpacity
+      <Card
         style={[styles.card, isExpanded && styles.expandedCard]}
-        onPress={() => toggleCardExpansion(itemId)}
-        activeOpacity={0.9}>
-        {/* Status badge */}
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>PENDING</Text>
-        </View>
-
-        {/* Header with leave type and toggle icon */}
-        <View style={styles.cardHeader}>
-          <View style={styles.leaveTypeContainer}>
-            <Chip
-              style={[
-                styles.leaveTypeChip,
-                {backgroundColor: `${leaveColor}20`},
-              ]}
-              textStyle={{color: leaveColor, fontWeight: '800'}}>
-              {leaveType}
-            </Chip>
-          </View>
-          <Icon
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#6b7280"
-          />
-        </View>
-
-        {/* Employee info section - always visible */}
-        <View style={styles.employeeInfoSection}>
-          <Text style={styles.employeeName}>{item.employeeName}</Text>
-          <View style={styles.employeeDetails}>
-            <View style={styles.detailItem}>
-              <Icon
-                name="briefcase"
-                size={14}
-                color="#6B7280"
-                style={styles.detailIcon}
-              />
-              <Text style={styles.detailText}>
-                {item.designation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailDivider} />
-            <View style={styles.detailItem}>
-              <Icon
-                name="users"
-                size={14}
-                color="#6B7280"
-                style={styles.detailIcon}
-              />
-              <Text style={styles.detailText}>
-                {item.department || 'Not specified'}
-              </Text>
+        onPress={() => toggleCardExpansion(itemId)}>
+        <Card.Content>
+          {/* Header with employee info and avatar */}
+          <View style={styles.cardHeader}>
+            <View style={styles.employeeInfoContainer}>
+              <View style={styles.employeeTextInfo}>
+                <Title style={styles.employeeName}>{item.employeeName}</Title>
+                <View style={styles.employeeDetails}>
+                  <View style={styles.detailItem}>
+                    <Icon
+                      name="briefcase"
+                      size={14}
+                      color="#6B7280"
+                      style={styles.detailIcon}
+                    />
+                    <Text style={styles.detailText}>
+                      {item.designation || 'Not specified'}
+                    </Text>
+                  </View>
+                  {/* <View style={styles.detailDivider} /> */}
+                  <View style={styles.detailItem}>
+                    <Icon
+                      name="users"
+                      size={14}
+                      color="#6B7280"
+                      style={styles.detailIcon}
+                    />
+                    <Text style={styles.detailText}>
+                      {item.department || 'Not specified'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Date and duration info */}
-        <View style={styles.dateOuterContainer}>
-          <View style={styles.dateInnerContainer}>
-            <View style={styles.dateFromToContainer}>
-              <View style={styles.dateBox}>
-                <Text style={styles.dateLabel}>From</Text>
-                <Text style={styles.dateValue}>
-                  {formatDate(item.fromLeaveDate)}
-                </Text>
+          <Divider style={styles.sectionDivider} />
+
+          {/* Date and duration info */}
+          <View style={styles.dateOuterContainer}>
+            <View style={styles.dateInnerContainer}>
+              <View style={styles.dateFromToContainer}>
+                <Card style={styles.dateCard}>
+                  <Card.Content style={styles.dateCardContent}>
+                    <Text style={styles.dateLabel}>From</Text>
+                    <Text style={styles.dateValue}>
+                      {formatDate(item.fromLeaveDate)}
+                    </Text>
+                  </Card.Content>
+                </Card>
+                <View style={styles.dateArrow}>
+                  <Icon name="arrow-right" size={18} color="#9ca3af" />
+                </View>
+                <Card style={styles.dateCard}>
+                  <Card.Content style={styles.dateCardContent}>
+                    <Text style={styles.dateLabel}>To</Text>
+                    <Text style={styles.dateValue}>
+                      {formatDate(item.toLeaveDate)}
+                    </Text>
+                  </Card.Content>
+                </Card>
               </View>
-              <View style={styles.dateArrow}>
-                <Icon name="arrow-right" size={18} color="#9ca3af" />
-              </View>
-              <View style={styles.dateBox}>
-                <Text style={styles.dateLabel}>To</Text>
-                <Text style={styles.dateValue}>
-                  {formatDate(item.toLeaveDate)}
+              <View style={styles.daysContainer}>
+                <Text style={styles.daysValue}>{item.leaveNo}</Text>
+                <Text style={styles.daysLabel}>
+                  {item.leaveNo > 1 ? 'Days' : 'Day'}
                 </Text>
               </View>
             </View>
-            <View style={styles.daysContainer}>
-              <Text style={styles.daysValue}>{item.leaveNo}</Text>
-              <Text style={styles.daysLabel}>
-                {item.leaveNo > 1 ? 'Days' : 'Day'}
+
+            {/* Duration type */}
+            <View style={styles.durationTypeContainer}>
+              <Icon
+                name="calendar" // 📅 better for "Leave Type"
+                size={16}
+                color="#6b7280"
+                style={styles.durationIcon}
+              />
+              <Text style={styles.durationText}>Leave Type:</Text>
+              <Text style={styles.durationText}>
+                {item.leaveDuration || 'Full Day'}
               </Text>
             </View>
-          </View>
 
-          {/* Duration type */}
-          <View style={styles.durationTypeContainer}>
-            <Icon
-              name="clock"
-              size={16}
-              color="#6b7280"
-              style={styles.durationIcon}
-            />
-            <Text style={styles.durationText}>
-              {item.leaveDuration || 'Full Day'}
-            </Text>
+            <View style={styles.durationTypeContainer}>
+              <Icon
+                name="user-check" // 👤✅ for leave approval/status
+                size={16}
+                color="#6b7280"
+                style={styles.durationIcon}
+              />
+              <Text style={styles.durationText}>Leave:</Text>
+              <Text style={[styles.durationText, {color: leaveColor}]}>
+                {leaveType}
+              </Text>
+            </View>
           </View>
 
           {/* Reason/Remarks Section */}
-          <View style={styles.remarksSection}>
-            <Text style={styles.remarksLabel}>Reason:</Text>
-            <Text style={styles.remarksValue}>{item.remarks || 'No reason provided'}</Text>
-          </View>
-          
+          <Card style={styles.remarksCard}>
+            <Card.Content>
+              {/* Reason Section */}
+              <View style={styles.remarksSection}>
+                <Subheading style={styles.remarksLabel}>Reason:</Subheading>
+                <Text style={styles.remarksValue}>
+                  {item.remarks || 'No reason provided'}
+                </Text>
+              </View>
+
+              {/* Status Section */}
+              <View style={styles.remarksSection}>
+                <Subheading style={styles.remarksLabel}>Status:</Subheading>
+                <Text
+                  style={[
+                    styles.remarksValue,
+                    item.status?.toLowerCase().includes('approved')
+                      ? styles.statusApproved
+                      : item.status?.toLowerCase().includes('rejected')
+                      ? styles.statusRejected
+                      : styles.statusPending,
+                  ]}>
+                  {item.status }
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+
           {/* Status Section with color-coded status */}
-          <View style={styles.statusSection}>
-            <Text style={styles.statusLabel}>Status:</Text>
-            <Text style={[
-              styles.statusValue,
-              item.status?.toLowerCase().includes('approved') 
-                ? styles.statusApproved 
-                : item.status?.toLowerCase().includes('rejected')
-                  ? styles.statusRejected
-                  : styles.statusPending
-            ]}>
-              {item.status || 'Pending'}
-            </Text>
-          </View>
-          
-          {/* Display Reporting Remarks with conditional title based on authorization */}
-          {(item.reportingRemarks || item.status?.includes('Approved By Reporting Manager')) && (
-            <View style={styles.reportingRemarksSection}>
-              <Text style={styles.remarksLabel}>
-                {isAuthorizedForFinalApproval 
-                  ? 'Final Approval Manager Remarks' 
-                  : 'Reporting Manager Remarks'}
-              </Text>
-              <Text style={styles.remarksValue}>
-                {item.reportingRemarks || 'Approved without additional remarks'}
-              </Text>
+          {isAuthorizedForFinalApproval && (
+            <Card style={[styles.remarksCard, {marginTop: 12}]}>
+              <Card.Content>
+                <View style={styles.statusSection}>
+                  <Subheading style={styles.remarksLabel}>
+                    Reporting Manager Remarks:
+                  </Subheading>
+                  <Text style={styles.remarksValue}>
+                    {item.reportingRemarks || 
+                     item.reportingManagerRemarks || 
+                     item.rmRemarks || 
+                     'No remarks provided'}
+                  </Text>
+                </View>
+                <View style={styles.statusBadgeContainer}>
+                  <Badge style={styles.statusBadge} size={20}>
+                    {item.reportingStatus || 'Pending'}
+                  </Badge>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Expanded section */}
+          {isExpanded && (
+            <View style={styles.expandedSection}>
+              <Divider style={styles.divider} />
+
+              {/* Document section */}
+              {item.documentPath ? (
+                <View style={styles.sectionContainer}>
+                  <Subheading style={styles.sectionTitle}>
+                    Supporting Document
+                  </Subheading>
+                  <PaperButton
+                    icon="file-document"
+                    mode="outlined"
+                    onPress={() => Linking.openURL(item.documentPath)}
+                    style={styles.documentButton}>
+                    View document
+                  </PaperButton>
+                </View>
+              ) : null}
+
+              {/* Assignment Employee Department if available */}
+              {item.assignmentEmpDepartment && (
+                <Card style={styles.infoCard}>
+                  <Card.Content>
+                    <Subheading style={styles.sectionTitle}>
+                      Assigned Employee Department
+                    </Subheading>
+                    <Text style={styles.infoText}>
+                      {item.assignmentEmpDepartment}
+                    </Text>
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Assignment Employee Designation if available */}
+              {item.assignmentEmpDesignation && (
+                <Card style={styles.infoCard}>
+                  <Card.Content>
+                    <Subheading style={styles.sectionTitle}>
+                      Assigned Employee Designation
+                    </Subheading>
+                    <Text style={styles.infoText}>
+                      {item.assignmentEmpDesignation}
+                    </Text>
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Leave approval fields - Only show approved and unapproved fields to HR/Final Approvers */}
+              {isAuthorizedForFinalApproval && (
+                <Card style={styles.infoCard}>
+                  <Card.Content>
+                    <View style={styles.leaveCountContainer}>
+                      {/* How many days approved? */}
+                      <View style={styles.leaveCountField}>
+                        <Subheading style={styles.sectionTitle}>
+                          No of Approved Leave
+                        </Subheading>
+                        <TextInput
+                          style={[
+                            styles.enhancedTextInput,
+                            itemErrors.approved && styles.inputError,
+                          ]}
+                          placeholder="Enter approved days"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="numeric"
+                          value={
+                            approvedLeaveCount[itemId]
+                              ? approvedLeaveCount[itemId].toString()
+                              : item.leaveNo?.toString() || '0'
+                          }
+                          onChangeText={text => {
+                            const val = text.replace(/[^0-9-]/g, '');
+                            setApprovedLeaveCount(prev => ({
+                              ...prev,
+                              [itemId]: val,
+                            }));
+
+                            // Validate as user types
+                            validateLeaveCounts(
+                              itemId,
+                              val,
+                              unapprovedLeaveCount[itemId] || '0',
+                              item.leaveNo,
+                            );
+                          }}
+                          mode="outlined"
+                          theme={{colors: {primary: '#3b82f6'}}}
+                        />
+                        {itemErrors.approvedMsg && (
+                          <Text style={styles.errorText}>
+                            {itemErrors.approvedMsg}
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* How many days unapproved? */}
+                      <View style={styles.leaveCountField}>
+                        <Subheading style={styles.sectionTitle}>
+                          No of UnApproval Leave
+                        </Subheading>
+                        <TextInput
+                          style={[
+                            styles.enhancedTextInput,
+                            itemErrors.unapproved && styles.inputError,
+                          ]}
+                          placeholder="Enter unapproved days"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="numeric"
+                          value={
+                            unapprovedLeaveCount[itemId]
+                              ? unapprovedLeaveCount[itemId].toString()
+                              : '0'
+                          }
+                          onChangeText={text => {
+                            const val = text.replace(/[^0-9-]/g, '');
+                            setUnapprovedLeaveCount(prev => ({
+                              ...prev,
+                              [itemId]: val,
+                            }));
+
+                            // Validate as user types
+                            validateLeaveCounts(
+                              itemId,
+                              approvedLeaveCount[itemId] ||
+                                item.leaveNo?.toString() ||
+                                '0',
+                              val,
+                              item.leaveNo,
+                            );
+                          }}
+                          mode="outlined"
+                          theme={{colors: {primary: '#3b82f6'}}}
+                        />
+                        {itemErrors.unapprovedMsg && (
+                          <Text style={styles.errorText}>
+                            {itemErrors.unapprovedMsg}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Leave Balance Table - Only for HR */}
+              {isAuthorizedForFinalApproval && (
+                <Card style={styles.infoCard}>
+                  <Card.Content>
+                    <Subheading style={styles.sectionTitle}>
+                      Employee Leave Balances
+                    </Subheading>
+                    <LeaveBalanceTable
+                      leaveData={leaveData}
+                      isLoadingLeaveData={isLoadingLeaveData}
+                    />
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Reporting Manager Remarks /////////////'////////////////*/}
+              <Card style={styles.infoCard}>
+                <Card.Content>
+                  <Subheading style={styles.sectionTitle}>
+                    {isAuthorizedForFinalApproval
+                      ? 'Final Approval Manager Remarks'
+                      : 'Reporting Manager Remarks'}
+                  </Subheading>
+                  <TextInput
+                    style={styles.remarksInput}
+                    placeholder={`Add your ${
+                      isAuthorizedForFinalApproval
+                        ? 'final approval'
+                        : 'reporting manager'
+                    } remarks here (required)`}
+                    placeholderTextColor="#9ca3af"
+                    maxLength={400}
+                    multiline
+                    value={rmRemarks[itemId] || ''}
+                    onChangeText={text =>
+                      setRmRemarks(prev => ({
+                        ...prev,
+                        [itemId]: text,
+                      }))
+                    }
+                    mode="outlined"
+                    theme={{colors: {primary: '#3b82f6'}}}
+                    numberOfLines={4}
+                  />
+                </Card.Content>
+              </Card>
+
+              {/* Task Assignment Dropdown - Fixed to show for any non-HR approver */}
+              {!isAuthorizedForFinalApproval && (
+                <Card style={styles.infoCard}>
+                  <Card.Content>
+                    <Subheading style={styles.sectionTitle}>
+                      Task Assignment
+                    </Subheading>
+                    <View style={styles.pickerContainer}>
+                      <Picker
+                        selectedValue={
+                          selectedTaskAssignee[itemId]?.employeeId || null
+                        }
+                        style={styles.picker}
+                        dropdownIconColor="#4B5563"
+                        onValueChange={itemValue =>
+                          updateTaskAssignee(itemId, itemValue)
+                        }>
+                        <Picker.Item
+                          label="Select an employee for task assignment"
+                          value={null}
+                          style={styles.pickerPlaceholder}
+                        />
+                        {taskAssignmentEmployees.map(employee => (
+                          <Picker.Item
+                            key={employee.id}
+                            label={`${employee.employeeName} (${
+                              employee.employeeId || 'N/A'
+                            })`}
+                            value={employee.id}
+                            style={styles.pickerItem}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+
+                    {/* Display selected employee information if available */}
+                    {selectedTaskAssignee[itemId] && (
+                      <Chip
+                        icon="account-check"
+                        style={styles.taskAssigneeSelected}>
+                        Task assigned to:{' '}
+                        {selectedTaskAssignee[itemId].employeeName}
+                      </Chip>
+                    )}
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.buttonContainer}>
+                <PaperButton
+                  mode="contained"
+                  icon="check-circle"
+                  style={[styles.button, styles.approveButton]}
+                  labelStyle={styles.buttonText}
+                  onPress={() => handleApprove(item.id || item.applyLeaveId)}>
+                  {isAuthorizedForFinalApproval ? 'Final Approve' : 'Approve'}
+                </PaperButton>
+                <PaperButton
+                  mode="contained"
+                  icon="close-circle"
+                  style={[styles.button, styles.rejectButton]}
+                  labelStyle={styles.buttonText}
+                  onPress={() => handleReject(item.id || item.applyLeaveId)}>
+                  Reject
+                </PaperButton>
+              </View>
             </View>
           )}
-        </View>
-
-
-
-        {/* Expanded section */}
-        {isExpanded && (
-          <View style={styles.expandedSection}>
-            <Divider style={styles.divider} />
-
-            {/* Document section */}
-            {item.documentPath ? (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Supporting Document</Text>
-                <TouchableOpacity
-                  style={styles.documentButton}
-                  onPress={() => Linking.openURL(item.documentPath)}>
-                  <Icon name="file-text" size={18} color="#3b82f6" />
-                  <Text style={styles.documentText}>View document</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {/* Assignment Employee Department if available */}
-            {item.assignmentEmpDepartment && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Assigned Employee Department</Text>
-                <Text style={styles.infoText}>{item.assignmentEmpDepartment}</Text>
-              </View>
-            )}
-
-            {/* Assignment Employee Designation if available */}
-            {item.assignmentEmpDesignation && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Assigned Employee Designation</Text>
-                <Text style={styles.infoText}>{item.assignmentEmpDesignation}</Text>
-              </View>
-            )}
-
-            {/* How many days approved? */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>No of Approved Leave</Text>
-              <TextInput
-                style={styles.enhancedTextInput}
-                placeholder="Enter number of approved leave days (required)"
-                placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
-                value={
-                  approvedLeaveCount[item.id || item.applyLeaveId]
-                    ? approvedLeaveCount[
-                        item.id || item.applyLeaveId
-                      ].toString()
-                    : item.leaveNo?.toString() || '0'
-                }
-                onChangeText={text => {
-                  const val = text.replace(/[^0-9]/g, '');
-                  setApprovedLeaveCount(prev => ({
-                    ...prev,
-                    [item.id || item.applyLeaveId]: val,
-                  }));
-                }}
-              />
-            </View>
-         
-          {/* How many days approved? */}
-
-            
-
-            {/* Reporting Manager Remarks */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>
-                {isAuthorizedForFinalApproval
-                  ? 'Final Approval Manager Remarks'
-                  : 'Reporting Manager Remarks'}
-              </Text>
-              <TextInput
-                style={[styles.enhancedTextInput, styles.remarksInput]}
-                placeholder={`Add your ${
-                  isAuthorizedForFinalApproval
-                    ? 'final approval'
-                    : 'reporting manager'
-                } remarks here (required)`}
-                placeholderTextColor="#9ca3af"
-                maxLength={400}
-                multiline
-                value={rmRemarks[item.id || item.approvalRemarks] || ''}
-                onChangeText={text =>
-                  setRmRemarks(prev => ({
-                    ...prev,
-                    [item.id || item.setApprovalRemarks]: text,
-                  }))
-                }
-              />
-            </View>
-
-            {/* Task Assignment Dropdown */}
-            {/* <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Task Assignment</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={selectedTaskAssignee[itemId]?.employeeId || null}
-                  style={styles.picker}
-                  dropdownIconColor="#4B5563"
-                  onValueChange={(itemValue) => updateTaskAssignee(itemId, itemValue)}>
-                  <Picker.Item 
-                    label="Select an employee for task assignment" 
-                    value={null} 
-                    style={styles.pickerPlaceholder} 
-                  />
-                  {taskAssignmentEmployees.map(employee => (
-                    <Picker.Item 
-                      key={employee.id} 
-                      label={`${employee.name} (${employee.employeeCode})`} 
-                      value={employee.id}
-                      style={styles.pickerItem} 
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View> */}
-
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.approveButton]}
-                onPress={() => handleApprove(item.id || item.applyLeaveId)}>
-                <Icon
-                  name="check"
-                  size={18}
-                  color="#fff"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>
-                  {isAuthorizedForFinalApproval ? 'Final Approve' : 'Approve'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.rejectButton]}
-                onPress={() => handleReject(item.id || item.applyLeaveId)}>
-                <Icon
-                  name="x"
-                  size={18}
-                  color="#fff"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>Reject</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
+        </Card.Content>
+      </Card>
     );
   };
 
@@ -858,26 +1334,32 @@ const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
           color="#4B5563"
         />
         <Appbar.Content
-          title="Leave Requests"
+          title="Leave Request Details"
           titleStyle={styles.headerTitle}
         />
-        {/* <Appbar.Action icon="filter" color="#4B5563" onPress={() => alert('Filter pressed')} /> */}
       </Appbar.Header>
 
       {/* Pending Requests Card - Updated to show actual count */}
-      <View style={styles.pendingAlertSmall}>
-        <Icon
-          name="alert-circle"
-          size={20}
-          color="#f59e42"
-          style={{marginRight: 8}}
-        />
-        <Text style={styles.pendingAlertCountSmall}>{pendingRequestsCount} Pending Request{pendingRequestsCount !== 1 ? 's' : ''}</Text>
-      </View>
+      {pendingRequestsCount > 0 && (
+        <Card style={styles.pendingAlertCard}>
+          <Card.Content style={styles.pendingAlertContent}>
+            <Icon
+              name="alert-circle"
+              size={20}
+              color="#f59e42"
+              style={{marginRight: 8}}
+            />
+            <Text style={styles.pendingAlertCountSmall}>
+              {pendingRequestsCount} Pending Request
+              {pendingRequestsCount !== 1 ? 's' : ''}
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
 
       <FlatList
         contentContainerStyle={styles.listContainer}
-        data={paginatedData} // Use paginated data instead of full approvalList
+        data={paginatedData}
         keyExtractor={item =>
           item.id?.toString() ||
           item.applyLeaveId?.toString() ||
@@ -885,29 +1367,58 @@ const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
         }
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
-        ListFooterComponent={
-          approvalList.length > 0 ? (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(approvalList.length / itemsPerPage)}
-              onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={approvalList.length}
-            />
-          ) : null
-        }
+        ListFooterComponent={() => (
+          <>
+            {/* Debug pagination visibility */}
+            {console.log(
+              'Pagination debug - List length:',
+              approvalList.length,
+              'Should show pagination:',
+              approvalList.length >= 3,
+            )}
+
+            {/* Only show pagination when there are 3 or more items */}
+            {approvalList.length >= 3 && (
+              <View style={styles.paginationContainer}>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(approvalList.length / itemsPerPage)}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={approvalList.length}
+                />
+              </View>
+            )}
+          </>
+        )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={40} color="#9CA3AF" />
-            <Text style={styles.emptyText}>No pending leave requests found</Text>
-          </View>
+          <Card style={styles.emptyCard}>
+            <Card.Content style={styles.emptyContainer}>
+              <Icon name="inbox" size={60} color="#9CA3AF" />
+              <Text style={styles.emptyText}>
+                No pending exit requests found
+              </Text>
+            </Card.Content>
+          </Card>
         }
+      />
+
+      {/* Add the feedback modal */}
+      <FeedbackModal
+        visible={feedbackModalVisible}
+        onClose={hideFeedbackModal}
+        type={feedbackModalType}
+        message={feedbackModalMessage}
       />
     </AppSafeArea>
   );
 };
 
 const styles = StyleSheet.create({
+  headerGradient: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   header: {
     backgroundColor: '#FFFFFF',
     elevation: 0,
@@ -922,92 +1433,72 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 30,
   },
   card: {
-    backgroundColor: '#fff',
-    padding: 16,
     marginBottom: 16,
     borderRadius: 12,
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 2},
-    position: 'relative', // For absolute positioning of status badge
-    paddingTop: 24, // Add space for the status badge
   },
   expandedCard: {
-    elevation: 4,
-    shadowOpacity: 0.12,
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 16,
-    backgroundColor: '#FEF3C7',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
-    zIndex: 1,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#D97706',
+    elevation: 5,
+    shadowOpacity: 0.15,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  leaveTypeContainer: {
+  employeeInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  leaveTypeChip: {
-    height: 32,
+  avatar: {
+    backgroundColor: '#3b82f6',
+    marginRight: 12,
   },
-  employeeInfoSection: {
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    paddingBottom: 10,
+  employeeTextInfo: {
+    flex: 1,
   },
   employeeName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
   },
   employeeDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
     flexWrap: 'wrap',
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   detailIcon: {
     marginRight: 6,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#4B5563',
-    fontWeight: '500',
+    fontWeight: '700',
   },
-  detailDivider: {
-    height: 16,
-    width: 1,
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: 12,
+  leaveTypeChip: {
+    borderRadius: 16,
+    height: 36,
+  },
+  sectionDivider: {
+    marginVertical: 12,
+    backgroundColor: '#E5E7EB',
+    height: 1,
   },
   dateOuterContainer: {
-    marginVertical: 8,
+    marginBottom: 12,
   },
   dateInnerContainer: {
     flexDirection: 'row',
@@ -1015,61 +1506,113 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dateFromToContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  dateBox: {
     flex: 1,
   },
-  dateLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 2,
+  dateCard: {
+    flex: 1,
+    elevation: 1,
+    backgroundColor: '#F9FAFB',
   },
-  dateValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+  dateCardContent: {
+    padding: 10,
   },
   dateArrow: {
     marginHorizontal: 8,
   },
+  dateLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  dateValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
   daysContainer: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#EFF6FF',
     borderRadius: 8,
-    padding: 8,
-    paddingHorizontal: 12,
+    padding: 10,
     alignItems: 'center',
     marginLeft: 12,
+    minWidth: 60,
   },
   daysValue: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#3b82f6',
   },
   daysLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#3b82f6',
+    fontWeight: '500',
   },
   durationTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   durationIcon: {
     marginRight: 6,
   },
   durationText: {
-    fontSize: 14,
-    color: '#4b5563',
+    color: '#4B5563',
+    fontWeight: '500',
+    fontSize: 15,
+    marginRight: 4,
   },
-  expandedSection: {
+  remarksCard: {
+    marginVertical: 8,
+    backgroundColor: '#F9FAFB',
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  remarksSection: {
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    textAlign: 'center',
+    marginLeft: 8,
+  },
+  remarksLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 4,
+  },
+  remarksValue: {
+    fontSize: 16,
+    color: '#1F2937',
+    lineHeight: 20,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  statusSection: {
+    marginBottom: 8,
+  },
+  statusBadgeContainer: {
+    alignItems: 'flex-start',
     marginTop: 8,
   },
+  statusBadge: {
+    backgroundColor: '#FBBF24',
+    color: '#92400E',
+    fontSize: 12,
+  },
+  expandedSection: {
+    marginTop: 12,
+  },
   divider: {
-    marginVertical: 12,
-    backgroundColor: '#e5e7eb',
+    marginVertical: 16,
+    backgroundColor: '#E5E7EB',
+    height: 1,
   },
   sectionContainer: {
     marginBottom: 16,
@@ -1077,160 +1620,93 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#4b5563',
-    marginBottom: 10,
-    letterSpacing: 0.2,
-  },
-  reasonText: {
-    fontSize: 14,
-    color: '#111827',
-    lineHeight: 20,
+    color: '#4B5563',
+    marginBottom: 8,
   },
   documentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderColor: '#3b82f6',
     borderRadius: 8,
-    alignSelf: 'flex-start',
   },
-  documentText: {
-    color: '#3b82f6',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  infoCard: {
+    marginBottom: 16,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: '#F9FAFB',
-    color: '#111827',
-    minHeight: 80,
-  },
-
-  // Enhanced TextInput styles
-  enhancedTextInput: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    fontWeight: '400',
-    backgroundColor: '#F9FAFB',
-    color: '#111827',
-    minHeight: 54,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderColor: '#E5E7EB',
     elevation: 1,
   },
-  remarksInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingTop: 16,
-    lineHeight: 22,
-    letterSpacing: 0.2,
+  infoText: {
+    fontSize: 14,
+    color: '#1F2937',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
   },
-
+  enhancedTextInput: {
+    backgroundColor: '#F9FAFB',
+  },
+  remarksInput: {
+    backgroundColor: '#F9FAFB',
+    textAlignVertical: 'top',
+  },
   buttonContainer: {
     flexDirection: 'row',
-    marginTop: 8,
+    marginTop: 16,
     justifyContent: 'space-between',
   },
   button: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
     flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 6,
     borderRadius: 8,
-  },
-  buttonIcon: {
-    marginRight: 6,
+    paddingVertical: 8,
   },
   approveButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#10B981',
   },
   rejectButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#EF4444',
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: '600',
   },
-  pendingAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    borderRadius: 12,
-    padding: 18,
+  pendingAlertCard: {
     margin: 16,
     marginBottom: 0,
-    borderWidth: 1,
-    borderColor: '#FDBA74',
-  },
-  pendingAlertSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
     borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    margin: 16,
-    marginBottom: 0,
     borderWidth: 1,
     borderColor: '#FDBA74',
-    alignSelf: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    elevation: 0,
   },
-  pendingAlertCount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#f59e42',
+  pendingAlertContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   pendingAlertCountSmall: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#f59e42',
   },
-  pendingAlertText: {
-    fontSize: 14,
-    color: '#92400e',
-    marginTop: 2,
-    fontWeight: '500',
+  emptyCard: {
+    marginTop: 24,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-
-  // Add these new styles
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 32,
     alignItems: 'center',
-    padding: 40,
   },
   emptyText: {
-    marginTop: 2,
+    marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-  },
-  remarksSection: {
-    marginTop: 2,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    flexDirection: 'row',   
-   
-  },
-  statusSection: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   reportingRemarksSection: {
     marginTop: 8,
@@ -1238,71 +1714,58 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
-  remarksLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4b5563',
-    marginBottom: 4,
-  },
-  remarksValue: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '500',    
-    marginLeft: 10
-  },
-  statusLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4b5563',
-    marginRight: 6,
-  },
   statusValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#059669',
     backgroundColor: '#ECFDF5',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
   },
-  infoText: {
-    fontSize: 14,
-    color: '#111827',
-    backgroundColor: '#F3F4F6',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  statusApproved: {
-    color: '#059669', // Green for approved
-    backgroundColor: '#ECFDF5',
-  },
-  statusRejected: {
-    color: '#DC2626', // Red for rejected
-    backgroundColor: '#FEF2F2',
-  },
-  statusPending: {
-    color: '#D97706', // Amber for pending
-    backgroundColor: '#FEF3C7',
-  },
-  // Add styles for the picker
   pickerContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 10,
-    backgroundColor: '#F9FAFB',
     marginBottom: 8,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   picker: {
     height: 54,
     width: '100%',
-    color: '#111827',
+  },
+  pickerItem: {
+    fontSize: 14,
+  },
+  pickerPlaceholder: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  taskAssigneeSelected: {
+    backgroundColor: '#ECFDF5',
+    marginTop: 8,
+  },
+  leaveCountContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  leaveCountField: {
+    flex: 1,
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#FEF2F2',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  paginationContainer: {
+    marginTop: 16,
+    marginBottom: 24,
+    width: '100%',
   },
   pickerItem: {
     fontSize: 15,
@@ -1321,7 +1784,143 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
   },
+
+  // Styles for Leave Balance Table
+  leaveBalanceTable: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tableHeaderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  leaveTypeColumn: {
+    flex: 2,
+    paddingRight: 5,
+  },
+  leaveDataColumn: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  tableBody: {
+    maxHeight: 150, // Limit the height of the table
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tableRowEven: {
+    backgroundColor: '#FFFFFF',
+  },
+  tableRowOdd: {
+    backgroundColor: '#F9FAFB',
+  },
+  tableCell: {
+    fontSize: 14,
+    color: '#111827',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  noDataContainer: {
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  // Add these new styles for validation
+  inputError: {
+    borderColor: '#ef4444',
+    borderWidth: 2,
+    backgroundColor: '#FEF2F2',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  totalErrorText: {
+    color: '#ef4444',
+    fontSize: 13,
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#FEF2F2',
+    padding: 8,
+    borderRadius: 6,
+    textAlign: 'center',
+  },
+  leaveCountContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  leaveCountField: {
+    flex: 1,
+  },
+  // Add a dedicated style for the pagination container
+  paginationContainer: {
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    width: '100%',
+  },
+  totalErrorText: {
+    color: '#ef4444',
+    fontSize: 13,
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#FEF2F2',
+    padding: 8,
+    borderRadius: 6,
+    textAlign: 'center',
+  },
+  leaveCountContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  leaveCountField: {
+    flex: 1,
+  },
+   statusApproved: {
+    color: 'green',
+    fontWeight: 'bold',
+  },
+  statusRejected: {
+    color: 'red',
+    fontWeight: 'bold',
+  },
+  statusPending: {
+    color: '#f59e0b', // amber-500
+    fontWeight: 'bold',
+  },
 });
 
 export default LeaveRequest;
-

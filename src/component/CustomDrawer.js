@@ -158,7 +158,7 @@ const CustomDrawer = ({navigation}) => {
       try {
         if (user?.id) {
           const response = await axios.get(
-            `${BASE_URL}EmpRegistration/GetEmpRegistrationById/${user.id}`,
+            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
           );
           setEmployeeData(response.data);
         }

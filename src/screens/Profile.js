@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   ScrollView,
@@ -9,8 +9,21 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  RefreshControl,
+  Dimensions,
 } from 'react-native';
-import {Card, Appbar, Divider, ActivityIndicator} from 'react-native-paper';
+import {
+  Card,
+  Appbar,
+  Divider,
+  ActivityIndicator,
+  FAB,
+  Button,
+  Modal,
+  Portal,
+  Surface,
+  Provider as PaperProvider,
+} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, {
   useSharedValue,
@@ -18,57 +31,78 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolate,
+  withSpring,
 } from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
-import {pick} from '@react-native-documents/picker'; // <-- Add this import
+import {pick} from '@react-native-documents/picker';
 
-// EditableField Component
+const {width: screenWidth} = Dimensions.get('window');
+
+// Enhanced EditableField Component
 const EditableField = ({
   icon,
   label,
   value,
-  editable,
+  editable = false,
   isEditing,
   editedFields,
   setEditedFields,
   onEdit,
-}) => (
-  <View key={label} style={styles.row}>
-    <Icon name={icon} size={20} color="#666" style={styles.icon} />
-    <View style={styles.textWrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.colon}>:</Text>
-      {isEditing && editable ? (
-        <TextInput
-          style={styles.editInput}
-          value={
-            editedFields[label] !== undefined ? editedFields[label] : value
-          }
-          onChangeText={text =>
-            setEditedFields({...editedFields, [label]: text})
-          }
-        />
-      ) : (
-        <Text style={styles.value}>{value}</Text>
-      )}
-    </View>
-    {editable && !isEditing && (
-      <TouchableOpacity onPress={() => onEdit(label)} style={styles.editIcon}>
-        <View style={styles.editIconContainer}>
-          <Icon name="pencil" size={20} color="#3B82F6" />
-          {/* <Text style={styles.editIconText}>Edit</Text> */}
-        </View>
-      </TouchableOpacity>
-    )}
-    <Divider style={{marginVertical: 4}} />
-  </View>
-);
+  keyboardType = 'default',
+  multiline = false,
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const currentValue = editedFields[label] !== undefined ? editedFields[label] : value;
 
-// ProfileSection Component
+  return (
+    <View style={styles.fieldContainer}>
+      <View style={styles.fieldRow}>
+        <View style={styles.fieldIconContainer}>
+          <Icon name={icon} size={20} color="#666" />
+        </View>
+        <View style={styles.fieldContent}>
+          <Text style={styles.fieldLabel}>{label}</Text>
+          {isEditing && editable ? (
+            <TextInput
+              style={[
+                styles.fieldInput,
+                isFocused && styles.fieldInputFocused,
+                multiline && styles.fieldInputMultiline,
+              ]}
+              value={currentValue?.toString() || ''}
+              onChangeText={(text) => 
+                setEditedFields(prev => ({...prev, [label]: text}))
+              }
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              keyboardType={keyboardType}
+              multiline={multiline}
+              placeholder={`Enter ${label.toLowerCase()}`}
+            />
+          ) : (
+            <Text style={styles.fieldValue}>{currentValue || 'Not specified'}</Text>
+          )}
+        </View>
+        {editable && !isEditing && (
+          <TouchableOpacity
+            onPress={() => onEdit(label)}
+            style={styles.fieldEditButton}
+            activeOpacity={0.7}
+          >
+            <Icon name="pencil" size={16} color="#3B82F6" />
+          </TouchableOpacity>
+        )}
+      </View>
+      <Divider style={styles.fieldDivider} />
+    </View>
+  );
+};
+
+// Enhanced ProfileSection Component
 const ProfileSection = ({
   title,
   icon,
@@ -79,55 +113,62 @@ const ProfileSection = ({
   onEdit,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const rotation = useSharedValue(0);
-  const height = useSharedValue(0);
+  const animatedHeight = useSharedValue(0);
+  const animatedRotation = useSharedValue(0);
+
+  useEffect(() => {
+    animatedHeight.value = withSpring(isOpen ? 1 : 0, {
+      damping: 15,
+      stiffness: 100,
+    });
+    animatedRotation.value = withTiming(isOpen ? 180 : 0, {
+      duration: 300,
+    });
+  }, [isOpen]);
 
   const toggleSection = () => {
     setIsOpen(!isOpen);
-    rotation.value = withTiming(isOpen ? 0 : 1, {duration: 300});
-    height.value = withTiming(isOpen ? 0 : 1, {duration: 300});
   };
 
-  const iconStyle = useAnimatedStyle(() => ({
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: interpolate(
+      animatedHeight.value,
+      [0, 1],
+      [0, data.length * 80 + 20],
+      Extrapolate.CLAMP,
+    ),
+    opacity: animatedHeight.value,
+  }));
+
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
-      {rotate: `${interpolate(rotation.value, [0, 1], [0, 180])}deg`},
+      {rotate: `${animatedRotation.value}deg`},
     ],
   }));
 
-  const contentStyle = useAnimatedStyle(() => ({
-    height: interpolate(
-      height.value,
-      [0, 1],
-      [0, data.length * 60 + (data.length - 1) * 4],
-      Extrapolate.CLAMP,
-    ),
-    opacity: height.value,
-    overflow: 'hidden',
-  }));
-
   return (
-    <Card style={styles.sectionCard}>
-      <TouchableOpacity activeOpacity={0.7} onPress={toggleSection}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <Icon
-              name={icon}
-              size={22}
-              color="#333"
-              style={styles.sectionIcon}
-            />
-            <Text style={styles.sectionTitle}>{title}</Text>
+    <Card style={styles.sectionCard} elevation={2}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={toggleSection}
+        style={styles.sectionHeader}
+      >
+        <View style={styles.sectionTitleContainer}>
+          <View style={styles.sectionIconContainer}>
+            <Icon name={icon} size={22} color="#3B82F6" />
           </View>
-          <Animated.View style={iconStyle}>
-            <Icon name="chevron-down" size={24} color="#333" />
-          </Animated.View>
+          <Text style={styles.sectionTitle}>{title}</Text>
         </View>
+        <Animated.View style={iconAnimatedStyle}>
+          <Icon name="chevron-down" size={24} color="#666" />
+        </Animated.View>
       </TouchableOpacity>
-      <Animated.View style={contentStyle}>
-        <View style={styles.sectionContent}>
-          {data.map(item => (
+      
+      <Animated.View style={[styles.sectionContent, animatedStyle]}>
+        <View style={styles.sectionInnerContent}>
+          {data.map((item, index) => (
             <EditableField
-              key={item.label}
+              key={`${item.label}-${index}`}
               {...item}
               isEditing={isEditing}
               editedFields={editedFields}
@@ -141,102 +182,200 @@ const ProfileSection = ({
   );
 };
 
-// ChangePasswordSection Component
-const ChangePasswordSection = ({
-  editedFields,
-  setEditedFields,
-  handleUpdatePassword,
+// Enhanced ChangePasswordModal Component
+const ChangePasswordModal = ({
+  visible,
+  onDismiss,
+  onSubmit,
+  loading = false,
 }) => {
-  const [showPassword, setShowPassword] = useState({
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: '',
+  });
+  const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
-   
+    confirm: false,
   });
+  const [errors, setErrors] = useState({});
 
-  const togglePasswordVisibility = field => {
-    setShowPassword(prev => ({...prev, [field]: !prev[field]}));
+  const validatePasswords = () => {
+    const newErrors = {};
+    
+    if (!passwords.current) {
+      newErrors.current = 'Current password is required';
+    }
+    
+    if (!passwords.new) {
+      newErrors.new = 'New password is required';
+    } else if (passwords.new.length < 6) {
+      newErrors.new = 'Password must be at least 6 characters';
+    }
+    
+    if (!passwords.confirm) {
+      newErrors.confirm = 'Please confirm your password';
+    } else if (passwords.new !== passwords.confirm) {
+      newErrors.confirm = 'Passwords do not match';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
+  const handleSubmit = () => {
+    if (validatePasswords()) {
+      onSubmit(passwords);
+    }
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const resetForm = () => {
+    setPasswords({current: '', new: '', confirm: ''});
+    setErrors({});
+    setShowPasswords({current: false, new: false, confirm: false});
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      resetForm();
+    }
+  }, [visible]);
+
   return (
-    <Card style={styles.sectionCard}>
-      <View style={styles.sectionContent}>
-        {['current', 'new' ].map(field => (
-          <View key={field} style={styles.passwordInputContainer}>
-            <Icon name="lock" size={20} color="#666" style={styles.icon} />
-            <View style={styles.passwordInputWrapper}>
-              <Text style={styles.passwordLabel}>{`${
-                field.charAt(0).toUpperCase() + field.slice(1)
-              } Password`}</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  placeholder={`Enter ${field} password`}
-                  secureTextEntry={!showPassword[field]}
-                  value={editedFields[`${field}Password`]}
-                  style={styles.input}
-                  onChangeText={text =>
-                    setEditedFields({
-                      ...editedFields,
-                      [`${field}Password`]: text,
-                    })
-                  }
-                />
-                <TouchableOpacity
-                  onPress={() => togglePasswordVisibility(field)}
-                  style={styles.eyeButton}>
-                  <Icon
-                    name={showPassword[field] ? 'eye' : 'eye-off'}
-                    size={20}
-                    color="#000"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+    <Portal>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={styles.modalContainer}
+      >
+        <Surface style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <TouchableOpacity onPress={onDismiss} style={styles.modalCloseButton}>
+              <Icon name="close" size={24} color="#666" />
+            </TouchableOpacity>
           </View>
-        ))}
-        <TouchableOpacity
-          onPress={handleUpdatePassword}
-          style={styles.updateButton}>
-          <Icon name="lock-reset" size={20} color="#fff" />
-          <Text style={styles.updateButtonText}>Update Password</Text>
-        </TouchableOpacity>
-      </View>
-    </Card>
+          
+          <View style={styles.modalBody}>
+            {['current', 'new', 'confirm'].map((field) => (
+              <View key={field} style={styles.passwordFieldContainer}>
+                <Text style={styles.passwordLabel}>
+                  {field === 'current' ? 'Current Password' : 
+                   field === 'new' ? 'New Password' : 'Confirm Password'}
+                </Text>
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={[
+                      styles.passwordInput,
+                      errors[field] && styles.passwordInputError,
+                    ]}
+                    secureTextEntry={!showPasswords[field]}
+                    value={passwords[field]}
+                    onChangeText={(text) => 
+                      setPasswords(prev => ({...prev, [field]: text}))
+                    }
+                    placeholder={`Enter ${field} password`}
+                  />
+                  <TouchableOpacity
+                    onPress={() => togglePasswordVisibility(field)}
+                    style={styles.passwordToggle}
+                  >
+                    <Icon
+                      name={showPasswords[field] ? 'eye' : 'eye-off'}
+                      size={20}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors[field] && (
+                  <Text style={styles.passwordError}>{errors[field]}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+          
+          <View style={styles.modalFooter}>
+            <Button
+              mode="outlined"
+              onPress={onDismiss}
+              style={styles.modalButton}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={[styles.modalButton, styles.modalSubmitButton]}
+              loading={loading}
+              disabled={loading}
+            >
+              Update Password
+            </Button>
+          </View>
+        </Surface>
+      </Modal>
+    </Portal>
   );
 };
 
-// ProfileScreen Component
+// Main ProfileScreen Component
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState({});
-  const [isChangePasswordVisible, setIsChangePasswordVisible] = useState(false);
-  const [showCredentialsDropdown, setShowCredentialsDropdown] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
-  const toggleChangePasswordVisibility = () => {
-    setIsChangePasswordVisible(prev => !prev);
-  };
-  // debugger
-  const handleUpdatePassword = async () => {
+  // Refresh functionality
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      
-      const newPassword =
-        editedFields.newPassword ||
-        editedFields.Password ||
-        editedFields.password ||
-        '';
-
-      if (!newPassword) {
-        Alert.alert('Error', 'Please enter a new password.');
-        return;
+      if (typeof employeeDetails.refreshData === 'function') {
+        await employeeDetails.refreshData();
       }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [employeeDetails]);
 
-      // Build the payload with only the required fields for password update
+  // Auto-refresh after successful operations
+  const refreshAfterSuccess = useCallback(() => {
+    setTimeout(() => {
+      onRefresh();
+    }, 1000);
+  }, [onRefresh]);
+
+  // Format date for backend
+  const formatDateForBackend = (date) => {
+    if (!date || isNaN(new Date(date).getTime())) return null;
+    const d = new Date(date);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
+  // Handle password change
+  const handlePasswordChange = async (passwords) => {
+    setPasswordLoading(true);
+    try {
       const payload = {
         Id: employeeDetails.id,
         EmployeeId: employeeDetails.employeeId,
-        Password: newPassword,
+        Password: passwords.new,
         EmployeeName: employeeDetails.employeeName,
         Username: employeeDetails.username,
         Gender: employeeDetails.gender,
@@ -253,63 +392,106 @@ const ProfileScreen = () => {
         ModifiedDate: formatDateForBackend(new Date()),
       };
 
-      console.log('Payload for password update:', payload);
-
+      console.log('Sending password update to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+      
       const response = await axios.post(
-        `${BASE_URL}EmpRegistration/SaveEmpRegistration`,
+        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
         payload,
-      );
-
-      // Show backend response in an alert for debugging
-      console.log('Password update backend response:', response);
-      Alert.alert(
-        'Backend Response',
-        `Status: ${response.status}\nData: ${JSON.stringify(
-          response.data,
-          null,
-          2,
-        )}`,
-      );
+      ).catch(error => {
+        console.error('API Error Details:', error.response ? error.response.data : error.message);
+        throw error;
+      });
 
       if (response.status === 200) {
-        Alert.alert('Success', 'Password updated successfully!');
-        setEditedFields({});
+        Alert.alert('Success', 'Password updated successfully!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsPasswordModalVisible(false);
+              refreshAfterSuccess();
+            },
+          },
+        ]);
       } else {
-        throw new Error('Failed to update password.');
+        throw new Error('Failed to update password');
       }
     } catch (error) {
-      console.error('Error updating password:', error);
+      console.error('Password update error:', error);
+      let errorMessage = 'Failed to update password';
+      
       if (error.response) {
-        Alert.alert('Error', JSON.stringify(error.response.data, null, 2));
-      } else {
-        Alert.alert('Error', error.message || 'Something went wrong.');
+        errorMessage = error.response.data?.message || 
+                      (typeof error.response.data === 'string' ? error.response.data : errorMessage);
       }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setPasswordLoading(false);
     }
   };
-  function formatDateForBackend(date) {
-    if (!date || isNaN(new Date(date).getTime())) return null;
-    const d = new Date(date);
-    const pad = n => String(n).padStart(2, '0');
-    return (
-      d.getFullYear() +
-      '-' +
-      pad(d.getMonth() + 1) +
-      '-' +
-      pad(d.getDate()) +
-      'T' +
-      pad(d.getHours()) +
-      ':' +
-      pad(d.getMinutes()) +
-      ':' +
-      pad(d.getSeconds())
-    );
-  }
 
-  const handleEdit = field => {
-    setIsEditing(true);
-    setEditedFields({...editedFields, [field]: employeeDetails[field]});
+  // Handle profile photo update
+  const handleProfilePhotoUpdate = async () => {
+    try {
+      const result = await pick({
+        type: ['image/*'],
+        allowMultiSelection: false,
+      });
+
+      if (!result || !result[0]) return;
+
+      setUploading(true);
+      const photo = result[0];
+      const formData = new FormData();
+      
+      formData.append('file', {
+        uri: photo.uri,
+        type: photo.type,
+        name: photo.name || 'profile.jpg',
+      });
+      formData.append('EmployeeId', employeeDetails.id);
+
+      console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/UploadProfilePhoto`);
+      
+      const response = await axios.post(
+        `${BASE_URL}/EmpRegistration/UploadProfilePhoto`,
+        formData,
+        {
+          headers: {'Content-Type': 'multipart/form-data'},
+        },
+      ).catch(error => {
+        console.error('API Error Details:', error.response ? error.response.data : error.message);
+        throw error;
+      });
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Profile photo updated successfully!', [
+          {
+            text: 'OK',
+            onPress: () => refreshAfterSuccess(),
+          },
+        ]);
+      } else {
+        throw new Error('Failed to update profile photo');
+      }
+    } catch (error) {
+      console.error('Profile photo update error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
+    } finally {
+      setUploading(false);
+    }
   };
-  // debugger;
+
+  // Handle field edit
+  const handleEdit = (field) => {
+    setIsEditing(true);
+    setEditedFields(prev => ({
+      ...prev,
+      [field]: employeeDetails[field] || '',
+    }));
+  };
+
+  // Handle save profile with improved error handling
   const handleSave = async () => {
     try {
       // Map UI labels to backend property names for edited fields
@@ -447,11 +629,15 @@ const ProfileScreen = () => {
         key => payload[key] === undefined && delete payload[key],
       );
 
-      // console.log('Payload================= sent to backend:', payload);
+      console.log('Sending profile update to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+      
       const response = await axios.post(
-        `${BASE_URL}EmpRegistration/SaveEmpRegistration`,
+        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
         payload,
-      );
+      ).catch(error => {
+        console.error('API Error Details:', error.response ? error.response.data : error.message);
+        throw error;
+      });
 
       // Log backend response for debugging (show as alert for visibility)
       console.log('Backend==================== response:', response.data);
@@ -466,79 +652,59 @@ const ProfileScreen = () => {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to update profile.',
-      );
-    }
-  };
-
-  const handleProfilePhotoUpdate = async () => {
-    try {
-      const result = await pick({
-        type: ['image/*'],
-        allowMultiSelection: false,
-      });
-      if (!result || !result[0]) return;
-
-      setUploading(true);
-
-      const photo = result[0];
-      const formData = new FormData();
-      formData.append('file', {
-        uri: photo.uri,
-        type: photo.type,
-        name: photo.name || 'profile.jpg',
-      });
-      formData.append('EmployeeId', employeeDetails.id);
-
-      const response = await axios.post(
-        `${BASE_URL}EmpRegistration/UploadProfilePhoto`,
-        formData,
-        {
-          headers: {'Content-Type': 'multipart/form-data'},
-        },
-      );
-
-      setUploading(false);
-
-      if (response.status === 200) {
-        Alert.alert('Success', 'Profile photo updated!');
-        // Optionally, refresh employeeDetails here
-      } else {
-        throw new Error('Failed to update profile photo.');
+      let errorMessage = 'Failed to update profile.';
+      
+      if (error.response) {
+        console.log('Error Status:', error.response.status);
+        console.log('Error Headers:', error.response.headers);
+        console.log('Error Data:', error.response.data);
+        
+        errorMessage = error.response.data?.message || 
+                      (typeof error.response.data === 'string' ? error.response.data : errorMessage);
       }
-    } catch (error) {
-      setUploading(false);
-      Alert.alert('Error', 'Failed to update profile photo.');
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
-  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
-  const imageUrl = employeeDetails?.empImage
-    ? `${IMG_BASE_URL}${employeeDetails.empImage}`
-    : null;
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedFields({});
+  };
 
   if (!employeeDetails) {
     return (
       <AppSafeArea>
-        <Appbar.Header>
-          <Appbar.Content title="Profile" />
-        </Appbar.Header>
-        <Text style={{padding: 20, textAlign: 'center'}}>
-          Loading profile...
-        </Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
       </AppSafeArea>
     );
   }
 
+  // Remove this duplicate BASE_URL declaration
+  // const BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
+  
+  // Use the imported BASE_URL with the correct path for images
+  const imageBaseUrl = `${BASE_URL}/assets/UploadImg/`;
+  const imageUrl = employeeDetails?.empImage
+    ? `${imageBaseUrl}${employeeDetails.empImage}`
+    : null;
+
+  // Data configurations
   const generalInfoData = [
     {
       icon: 'badge-account',
       label: 'Employee ID',
       value: employeeDetails.employeeId,
     },
-    {icon: 'map-marker', label: 'Branch', value: employeeDetails.branchName},
+    {
+      icon: 'map-marker',
+      label: 'Branch',
+      value: employeeDetails.branchName,
+    },
     {
       icon: 'water',
       label: 'Blood Group',
@@ -577,36 +743,51 @@ const ProfileScreen = () => {
       label: 'Email',
       value: employeeDetails.emailAddress,
       editable: true,
+      keyboardType: 'email-address',
     },
     {
       icon: 'phone',
       label: 'Primary No',
       value: employeeDetails.pcontactNo,
       editable: true,
+      keyboardType: 'phone-pad',
     },
     {
       icon: 'cellphone',
       label: 'Emergency No',
       value: employeeDetails.emergencyContactNo,
       editable: true,
+      keyboardType: 'phone-pad',
     },
   ];
 
   const credentialsData = [
-    {icon: 'email', label: 'Email', value: employeeDetails.emailAddress},
-    {icon: 'account', label: 'Username', value: employeeDetails.username},
-    {icon: 'id-card', label: 'User ID', value: employeeDetails.employeeId},
+    {
+      icon: 'email',
+      label: 'Email',
+      value: employeeDetails.emailAddress,
+    },
+    {
+      icon: 'account',
+      label: 'Username',
+      value: employeeDetails.username,
+    },
+    {
+      icon: 'id-card',
+      label: 'User ID',
+      value: employeeDetails.employeeId,
+    },
   ];
 
   const professionalData = [
     {
       icon: 'domain',
-      label: 'Vertical',
-      value: employeeDetails.companyVerticalId?.toString() ?? 'N/A',
+      label: 'Company',
+      value: employeeDetails.companyName || 'N/A',
     },
     {
       icon: 'briefcase',
-      label: 'Branch Name',
+      label: 'Branch',
       value: employeeDetails.branchName,
     },
     {
@@ -620,180 +801,184 @@ const ProfileScreen = () => {
       value: employeeDetails.designationName,
     },
     {
-      icon: 'account-supervisor',
+      icon: 'office-building',
       label: 'Department',
       value: employeeDetails.departmentName,
     },
   ];
 
   return (
-    <AppSafeArea>
-      <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Profile" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+    <PaperProvider>
+      <AppSafeArea>
+        <Appbar.Header style={styles.header}>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Profile" titleStyle={styles.headerTitle} />
+          {isEditing ? (
+            <>
+              <Appbar.Action
+                icon="check"
+                iconColor="#4CAF50"
+                onPress={handleSave}
+              />
+              <Appbar.Action
+                icon="close"
+                iconColor="#F44336"
+                onPress={handleCancelEdit}
+              />
+            </>
+          ) : (
+            <>
+              <Appbar.Action
+                icon="lock-reset"
+                onPress={() => setIsPasswordModalVisible(true)}
+              />
+              <Appbar.Action icon="pencil" onPress={() => setIsEditing(true)} />
+            </>
+          )}
+        </Appbar.Header>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}>
-        <Card style={styles.profileCard} elevation={2}>
-          <View style={styles.profileContent}>
-            <View style={styles.profilePhotoContainer}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Profile Header Card */}
+          <Card style={styles.profileCard}>
+            <View style={styles.profileContent}>
               <TouchableOpacity
                 onPress={handleProfilePhotoUpdate}
-                style={styles.profilePhotoTouchable}>
-                <Image
-                  source={
-                    imageUrl
-                      ? {uri: imageUrl}
-                      : require('../assets/image/boy.png')
-                  }
-                  style={styles.profileImage}
-                />
-                <View style={styles.profilePhotoEditIcon}>
-                  {uploading ? (
-                    <ActivityIndicator size={18} color="#2196F3" />
-                  ) : (
-                    <Icon name="camera" size={22} color="#fff" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.name}>{employeeDetails.employeeName}</Text>
-            <Text style={styles.role}>
-              {employeeDetails.designationName},{' '}
-              {employeeDetails.departmentName}
-            </Text>
-          </View>
-        </Card>
-
-        {isEditing && (
-          <View style={styles.editActions}>
-            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setIsEditing(false)}
-              style={styles.cancelButton}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <ProfileSection
-          title="General Info"
-          icon="information-outline"
-          data={generalInfoData}
-          isEditing={isEditing}
-          editedFields={editedFields}
-          setEditedFields={setEditedFields}
-          onEdit={handleEdit}
-        />
-
-        <ProfileSection
-          title="Contact"
-          icon="phone-outline"
-          data={contactData}
-          isEditing={isEditing}
-          editedFields={editedFields}
-          setEditedFields={setEditedFields}
-          onEdit={handleEdit}
-        />
-
-        {/* Credentials Section with Change Password Dropdown */}
-        <Card style={styles.sectionCard}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setShowCredentialsDropdown(v => !v)}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <Icon
-                  name="shield-account-outline"
-                  size={22}
-                  color="#333"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>Credentials</Text>
-              </View>
-              <Icon
-                name={showCredentialsDropdown ? 'chevron-up' : 'chevron-down'}
-                size={24}
-                color="#333"
-              />
-            </View>
-          </TouchableOpacity>
-          {showCredentialsDropdown && (
-            <View>
-              <View style={styles.sectionContent}>
-                {credentialsData.map(item => (
-                  <EditableField
-                    key={item.label}
-                    {...item}
-                    isEditing={isEditing}
-                    editedFields={editedFields}
-                    setEditedFields={setEditedFields}
-                    onEdit={handleEdit}
-                  />
-                ))}
-              </View>
-              {/* Change Password Section inside Credentials dropdown */}
-              <TouchableOpacity
-                onPress={toggleChangePasswordVisibility}
-                style={styles.sectionToggle}>
-                <View style={styles.sectionToggleContent}>
-                  <View style={styles.sectionToggleTextContainer}>
-                    <Icon
-                      name="lock-outline"
-                      size={20}
-                      color="#333"
-                      style={styles.sectionToggleIcon}
-                    />
-                    <Text style={styles.sectionToggleText}>
-                      Change Password
-                    </Text>
-                  </View>
-                  <Icon
-                    name={
-                      isChangePasswordVisible ? 'chevron-up' : 'chevron-down'
+                style={styles.profilePhotoContainer}
+                activeOpacity={0.8}
+              >
+                <View style={styles.profileImageContainer}>
+                  <Image
+                    source={
+                      imageUrl
+                        ? {uri: imageUrl}
+                        : require('../assets/image/boy.png')
                     }
-                    size={20}
-                    color="#333"
+                    style={styles.profileImage}
                   />
+                  <View style={styles.profilePhotoOverlay}>
+                    {uploading ? (
+                      <ActivityIndicator size={20} color="#fff" />
+                    ) : (
+                      <Icon name="camera" size={20} color="#fff" />
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
-              {isChangePasswordVisible && (
-                <ChangePasswordSection
-                  editedFields={editedFields}
-                  setEditedFields={setEditedFields}
-                  handleUpdatePassword={handleUpdatePassword}
-                />
-              )}
+              <Text style={styles.profileName}>
+                {employeeDetails.employeeName}
+              </Text>
+              <Text style={styles.profileRole}>
+                {employeeDetails.designationName}
+              </Text>
+              <Text style={styles.profileDepartment}>
+                {employeeDetails.departmentName}
+              </Text>
             </View>
-          )}
-        </Card>
+          </Card>
 
-        <ProfileSection
-          title="Professional Details"
-          icon="briefcase-outline"
-          data={professionalData}
-          isEditing={isEditing}
-          editedFields={editedFields}
-          setEditedFields={setEditedFields}
-          onEdit={handleEdit}
+          {/* Profile Sections */}
+          <ProfileSection
+            title="General Information"
+            icon="information-outline"
+            data={generalInfoData}
+            isEditing={isEditing}
+            editedFields={editedFields}
+            setEditedFields={setEditedFields}
+            onEdit={handleEdit}
+          />
+
+          <ProfileSection
+            title="Contact Information"
+            icon="phone-outline"
+            data={contactData}
+            isEditing={isEditing}
+            editedFields={editedFields}
+            setEditedFields={setEditedFields}
+            onEdit={handleEdit}
+          />
+
+          <ProfileSection
+            title="Account Credentials"
+            icon="shield-account-outline"
+            data={credentialsData}
+            isEditing={false}
+            editedFields={editedFields}
+            setEditedFields={setEditedFields}
+            onEdit={handleEdit}
+          />
+
+          <ProfileSection
+            title="Professional Details"
+            icon="briefcase-outline"
+            data={professionalData}
+            isEditing={false}
+            editedFields={editedFields}
+            setEditedFields={setEditedFields}
+            onEdit={handleEdit}
+          />
+        </ScrollView>
+
+        {/* Change Password Modal */}
+        <ChangePasswordModal
+          visible={isPasswordModalVisible}
+          onDismiss={() => setIsPasswordModalVisible(false)}
+          onSubmit={handlePasswordChange}
+          loading={passwordLoading}
         />
-      </ScrollView>
-    </AppSafeArea>
+
+        {/* Floating Action Button */}
+        {!isEditing && (
+          <FAB
+            style={styles.fab}
+            icon="pencil"
+            onPress={() => setIsEditing(true)}
+          />
+        )}
+      </AppSafeArea>
+    </PaperProvider>
   );
 };
 
 const styles = StyleSheet.create({
+  // Header styles
   header: {
     backgroundColor: '#fff',
     elevation: Platform.OS === 'android' ? 3 : 0,
   },
-  headerTitle: {fontSize: 18, fontWeight: 'bold', color: '#333'},
-  container: {flex: 1, backgroundColor: '#f4f6f8'},
-  scrollContent: {paddingHorizontal: 16, paddingBottom: 50, paddingTop: 10},
+  headerTitle: {
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#333'
+  },
+  
+  // Container styles
+  container: {
+    flex: 1, 
+    backgroundColor: '#f4f6f8'
+  },
+  scrollContent: {
+    paddingHorizontal: 16, 
+    paddingBottom: 50, 
+    paddingTop: 10
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  
+  // Profile card styles
   profileCard: {
     borderRadius: 12,
     marginBottom: 16,
@@ -801,16 +986,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  profileContent: {alignItems: 'center'},
+  profileContent: {
+    alignItems: 'center'
+  },
+  profileName: {
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 4, 
+    color: '#222'
+  },
+  profileRole: {
+    fontSize: 14, 
+    color: '#666'
+  },
+  profileDepartment: {
+    fontSize: 14, 
+    color: '#666'
+  },
+  
+  // Profile photo styles
   profilePhotoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  profilePhotoTouchable: {
+  profileImageContainer: {
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   profileImage: {
     width: 100,
@@ -820,20 +1021,18 @@ const styles = StyleSheet.create({
     borderColor: '#2196F3',
     backgroundColor: '#f0f0f0',
   },
-  profilePhotoEditIcon: {
+  profilePhotoOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#2196F3',
-    borderRadius: 16,
-    padding: 4,
-    borderWidth: 2,
-    borderColor: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 15,
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: {fontSize: 18, fontWeight: 'bold', marginBottom: 4, color: '#222'},
-  role: {fontSize: 14, color: '#666'},
+  
+  // Section styles
   sectionCard: {
     borderRadius: 12,
     marginBottom: 16,
@@ -847,132 +1046,149 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f9f9f9',
   },
-  sectionTitleContainer: {flexDirection: 'row', alignItems: 'center'},
-  sectionIcon: {marginRight: 10},
-  sectionTitle: {fontSize: 16, fontWeight: '800', color: '#333'},
-  sectionContent: {padding: 12},
-  row: {flexDirection: 'row', alignItems: 'flex-start', marginVertical: 6},
-  icon: {marginTop: 2, marginRight: 10, width: 20, textAlign: 'center'},
-  textWrapper: {
-    flex: 1,
+  sectionTitleContainer: {
+    flexDirection: 'row', 
+    alignItems: 'center'
+  },
+  sectionIconContainer: {
+    marginRight: 10,
+  },
+  sectionTitle: {
+    fontSize: 16, 
+    fontWeight: '800', 
+    color: '#333'
+  },
+  sectionContent: {
+    padding: 12
+  },
+  sectionInnerContent: {
+    paddingVertical: 8,
+  },
+  
+  // Field styles
+  fieldContainer: {
+    marginBottom: 10,
+  },
+  fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    paddingVertical: 8,
   },
-  label: {width: 110, fontWeight: '800', fontSize: 16, color: '#333'},
-  colon: {marginRight: 4, fontSize: 14, fontWeight: '800', color: '#333'},
-  value: {flexShrink: 1, fontSize: 16, color: '#555', fontWeight: '600'},
-  editIcon: {marginLeft: 10},
-  editInput: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    fontSize: 16,
-    color: '#555',
+  fieldIconContainer: {
+    marginRight: 12,
+    width: 24,
+    alignItems: 'center',
+  },
+  fieldContent: {
     flex: 1,
   },
-  editActions: {
+  fieldLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  fieldValue: {
+    fontSize: 16,
+    color: '#333',
+  },
+  fieldEditButton: {
+    padding: 8,
+  },
+  fieldInput: {
+    fontSize: 16,
+    color: '#333',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    paddingVertical: 4,
+  },
+  fieldInputFocused: {
+    borderBottomColor: '#3B82F6',
+  },
+  fieldInputMultiline: {
+    minHeight: 60,
+  },
+  fieldDivider: {
+    marginTop: 8,
+  },
+  
+  // Password modal styles
+  modalContainer: {
+    marginHorizontal: 20,
+  },
+  modalContent: {
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 1,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    paddingVertical: 10,
-  },
-  saveButton: {
-    backgroundColor: '#3B82F6',
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 10,
     alignItems: 'center',
+    marginBottom: 20,
   },
-  saveButtonText: {
-    color: '#fff',
+  modalTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-  },
-  cancelButton: {
-    backgroundColor: '#ccc',
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
     color: '#333',
-    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  modalBody: {
+    marginBottom: 20,
+  },
+  passwordFieldContainer: {
+    marginBottom: 16,
+  },
+  passwordLabel: {
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 8,
   },
   passwordInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  passwordInputWrapper: {
-    flex: 1,
-  },
-  passwordLabel: {
-    fontWeight: '800',
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 4,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#fff',
-    height: 50,
+    paddingHorizontal: 12,
   },
-  input: {
+  passwordInput: {
     flex: 1,
+    paddingVertical: 10,
     fontSize: 16,
-    paddingVertical: 8,
   },
-  eyeButton: {
+  passwordInputError: {
+    borderColor: '#F44336',
+  },
+  passwordToggle: {
     padding: 8,
   },
-  updateButton: {
+  passwordError: {
+    color: '#F44336',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    marginLeft: 10,
+  },
+  modalSubmitButton: {
     backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-    flexDirection: 'row', // Added for icon and text alignment
-    justifyContent: 'center',
   },
-  updateButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginLeft: 8, // Added spacing between icon and text
-  },
-  sectionToggle: {
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  sectionToggleContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionToggleTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionToggleIcon: {
-    marginRight: 8, // Added spacing between the clock icon and text
-  },
-  sectionToggleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+  
+  // FAB styles
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#3B82F6',
   },
 });
+
 
 export default ProfileScreen;
