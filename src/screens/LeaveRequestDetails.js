@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Linking,
   ScrollView,
+  Modal,
 } from 'react-native';
 import AppSafeArea from '../component/AppSafeArea';
 import {
@@ -64,7 +65,7 @@ const LeaveRequest = ({navigation}) => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5); // Number of items to display per page
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Number of items to display per page
   const [paginatedData, setPaginatedData] = useState([]);
 
   // Add state for task assignment
@@ -79,6 +80,13 @@ const LeaveRequest = ({navigation}) => {
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [feedbackModalType, setFeedbackModalType] = useState('success');
   const [feedbackModalMessage, setFeedbackModalMessage] = useState('');
+
+  // State to control the visibility of the leave balance details modal
+  const [leaveBalanceModalVisible, setLeaveBalanceModalVisible] =
+    useState(false);
+
+  // Add state for required field validation
+  const [remarkErrors, setRemarkErrors] = useState({});
 
   // Function to show feedback modal
   const showFeedbackModal = (type, message) => {
@@ -323,6 +331,19 @@ const LeaveRequest = ({navigation}) => {
         return;
       }
 
+      // Validate required remarks for final approval
+      if (
+        isAuthorizedForFinalApproval &&
+        (!rmRemarks[id] || !rmRemarks[id].trim())
+      ) {
+        setRemarkErrors(prev => ({
+          ...prev,
+          [id]: 'Final approval remarks are required',
+        }));
+        showFeedbackModal('fail', 'Please provide remarks for final approval');
+        return;
+      }
+
       const leaveNo = leaveDetails.leaveNo || leaveItem.leaveNo || 0;
 
       if (leaveNo === 0) {
@@ -519,10 +540,20 @@ const LeaveRequest = ({navigation}) => {
       }
 
       // Validate that remarks are provided for rejection
-      if (!rmRemarks[id]) {
+      if (!rmRemarks[id] || !rmRemarks[id].trim()) {
+        setRemarkErrors(prev => ({
+          ...prev,
+          [id]: isAuthorizedForFinalApproval
+            ? 'Final rejection remarks are required'
+            : 'Remarks are required for rejection',
+        }));
         showFeedbackModal(
           'fail',
-          'Please provide remarks for rejecting this leave request',
+          `Please provide remarks for ${
+            isAuthorizedForFinalApproval
+              ? 'final rejection'
+              : 'rejecting this leave request'
+          }`,
         );
         return;
       }
@@ -633,7 +664,8 @@ const LeaveRequest = ({navigation}) => {
       );
     }
   };
-
+  // if true 244	LeaveApproval	/api/LeaveApproval/GetLeaveApprovalDetailsById/{Id}	GET	Id (Path)
+  // else 44	ApplyLeave	/api/ApplyLeave/GetApplyLeaveDetailsById/{Id}	GET	Id (Path)
   const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -644,17 +676,84 @@ const LeaveRequest = ({navigation}) => {
   };
   // debugger
   // Function to fetch leave details by ID
+
+  // const fetchLeaveDetailsById = async id => {
+  //   try {
+  //     console.log(`Fetching leave details for ID: ${id}`);
+
+  //      const id = {
+  //       DepartmentId: user?.departmentId || 0,
+  //       DesignationId: user?.designtionId || 0,
+  //       EmployeeId: user?.id || 0,
+  //       ControllerName: 'Leaveapproval',
+  //       ActionName: 'LeaveapprovalList',
+  //       ChildCompanyId: user?.childCompanyId || 1,
+  //       BranchId: user?.branchId || 2,
+  //       UserType: user?.userType || 1,
+  //     };
+
+  //     const response = await axios.get(
+  //       `${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`,
+  //     );
+  //     console.log(
+  //       'Leave Details API ==============================Response:',
+  //       JSON.stringify(response.data, null, 2),
+  //     );
+  //     setLeaveDetails(response.data);
+
+  //     // Fetch leave balances for this employee
+  //     if (response.data && response.data.employeeId) {
+  //       fetchLeaveData(response.data.employeeId);
+  //     }
+
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error('Error fetching leave details:', error);
+  //     console.error('Error details:', error.response?.data || error.message);
+  //     return null;
+  //   }
+  // };
+
   const fetchLeaveDetailsById = async id => {
     try {
       console.log(`Fetching leave details for ID: ${id}`);
 
-      const response = await axios.get(
-        `${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`,
-      );
+      const payload = {
+        DepartmentId: user?.departmentId || 0,
+        DesignationId: user?.designtionId || 0,
+        EmployeeId: user?.id || 0,
+        ControllerName: 'Leaveapproval',
+        ActionName: 'LeaveapprovalList',
+        ChildCompanyId: user?.childCompanyId || 1,
+        BranchId: user?.branchId || 2,
+        UserType: user?.userType || 1,
+      };
+
+      let apiUrl = '';
+      let source = '';
+
+      // Conditional logic
+      if (isAuthorizedForFinalApproval) {
+        // Use LeaveApproval endpoint
+        apiUrl = `${BASE_URL}/LeaveApproval/GetLeaveApprovalDetailsById/${id}`;
+        source = 'LeaveApproval';
+      } else {
+        // Use ApplyLeave endpoint
+        apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`;
+        source = 'ApplyLeave';
+      }
+
+      console.log(`API Source: ${source}`);
+      console.log(`Calling API: ${apiUrl}`);
+      console.log('Request Payload:', payload);
+
+      const response = await axios.get(apiUrl);
+
       console.log(
-        'Leave Details API ==============================Response:',
+        `${source} API Response:`,
         JSON.stringify(response.data, null, 2),
       );
+
       setLeaveDetails(response.data);
 
       // Fetch leave balances for this employee
@@ -904,6 +1003,7 @@ const LeaveRequest = ({navigation}) => {
     const leaveColor = LeaveTypeColors[leaveType] || '#6b7280';
     const itemId = item.id || item.applyLeaveId;
     const itemErrors = leaveCountErrors[itemId] || {};
+    const remarkError = remarkErrors[itemId];
 
     return (
       <Card
@@ -912,40 +1012,60 @@ const LeaveRequest = ({navigation}) => {
         <Card.Content>
           {/* Header with employee info and avatar */}
           <View style={styles.cardHeader}>
-            <View style={styles.employeeInfoContainer}>
-              <View style={styles.employeeTextInfo}>
-                <Title style={styles.employeeName}>{item.employeeName}</Title>
-                <View style={styles.employeeDetails}>
-                  <View style={styles.detailItem}>
-                    <Icon
-                      name="briefcase"
-                      size={14}
-                      color="#6B7280"
-                      style={styles.detailIcon}
-                    />
-                    <Text style={styles.detailText}>
-                      {item.designation || 'Not specified'}
-                    </Text>
-                  </View>
-                  {/* <View style={styles.detailDivider} /> */}
-                  <View style={styles.detailItem}>
-                    <Icon
-                      name="users"
-                      size={14}
-                      color="#6B7280"
-                      style={styles.detailIcon}
-                    />
-                    <Text style={styles.detailText}>
-                      {item.department || 'Not specified'}
-                    </Text>
-                  </View>
-                </View>
+            <View style={styles.employeenamwee}>
+              <Text style={styles.detailText}>
+                {item.employeeName || 'Not specified'}
+              </Text>
+
+              <View
+                style={[
+                  styles.statusBadge,
+                  item.status?.toLowerCase().includes('approved')
+                    ? styles.statusApprovedBadge
+                    : item.status?.toLowerCase().includes('rejected')
+                    ? styles.statusRejectedBadge
+                    : styles.statusPendingBadge,
+                ]}>
+                <Text
+                  style={[
+                    styles.statusText,
+                    item.status?.toLowerCase().includes('approved')
+                      ? styles.statusApprovedText
+                      : item.status?.toLowerCase().includes('rejected')
+                      ? styles.statusRejectedText
+                      : styles.statusPendingText,
+                  ]}>
+                  {item.status || 'Pending'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.detailItem}>
+              <Icon
+                name="briefcase"
+                size={14}
+                color="#6B7280"
+                style={styles.detailIcon}
+              />
+              <Text style={styles.detailText}>
+                {item.designation || 'Not specified'}
+              </Text>
+
+              <View style={styles.detailItem}>
+                <Icon
+                  name="users"
+                  size={14}
+                  color="#6B7280"
+                  style={styles.detailIcon}
+                />
+                <Text style={styles.detailText}>
+                  {item.department || 'Not specified'}
+                </Text>
               </View>
             </View>
           </View>
 
           <Divider style={styles.sectionDivider} />
-
           {/* Date and duration info */}
           <View style={styles.dateOuterContainer}>
             <View style={styles.dateInnerContainer}>
@@ -977,87 +1097,48 @@ const LeaveRequest = ({navigation}) => {
                 </Text>
               </View>
             </View>
+          </View>
 
-            {/* Duration type */}
-            <View style={styles.durationTypeContainer}>
-              <Icon
-                name="calendar" // 📅 better for "Leave Type"
-                size={16}
-                color="#6b7280"
-                style={styles.durationIcon}
-              />
-              <Text style={styles.durationText}>Leave Type:</Text>
-              <Text style={styles.durationText}>
-                {item.leaveDuration || 'Full Day'}
-              </Text>
+          <View style={styles.durationTypeContainer}>
+            <View style={styles.detailItemcard}>
+              <View style={styles.detailItemcardLeave}>
+                <Icon
+                  name="clock" // Better for Leave Type (duration)
+                  size={18}
+                  color="#6b7280"
+                  style={styles.durationIcon}
+                />
+                <Text style={styles.durationText}>Leave Type:</Text>
+                <Text style={styles.durationText}>
+                  {item.leaveDuration || 'Full Day'}
+                </Text>
+              </View>
+              <View style={styles.detailItemcardLeave}>
+                <Icon
+                  name="calendar" // 📅 better for "Leave Type"
+                  size={16}
+                  color="#6b7280"
+                  style={styles.durationIcon}
+                />
+                <Text style={styles.durationText}>Leave :</Text>
+                <Text style={styles.durationText}>
+                  {item.leaveName || 'Full Day'}
+                </Text>
+              </View>
             </View>
-
-            <View style={styles.durationTypeContainer}>
+            <View style={styles.detailItemcardLeave}>
               <Icon
-                name="user-check" // 👤✅ for leave approval/status
+                name="message-circle" // 📅 better for "Leave Type"
                 size={16}
                 color="#6b7280"
                 style={styles.durationIcon}
               />
-              <Text style={styles.durationText}>Leave:</Text>
-              <Text style={[styles.durationText, {color: leaveColor}]}>
-                {leaveType}
+              <Text style={styles.durationText}>Reason :</Text>
+              <Text style={styles.durationText}>
+                {item.remarks || 'No reason '}
               </Text>
             </View>
           </View>
-
-          {/* Reason/Remarks Section */}
-          <Card style={styles.remarksCard}>
-            <Card.Content>
-              {/* Reason Section */}
-              <View style={styles.remarksSection}>
-                <Subheading style={styles.remarksLabel}>Reason:</Subheading>
-                <Text style={styles.remarksValue}>
-                  {item.remarks || 'No reason provided'}
-                </Text>
-              </View>
-
-              {/* Status Section */}
-              <View style={styles.remarksSection}>
-                <Subheading style={styles.remarksLabel}>Status:</Subheading>
-                <Text
-                  style={[
-                    styles.remarksValue,
-                    item.status?.toLowerCase().includes('approved')
-                      ? styles.statusApproved
-                      : item.status?.toLowerCase().includes('rejected')
-                      ? styles.statusRejected
-                      : styles.statusPending,
-                  ]}>
-                  {item.status }
-                </Text>
-              </View>
-            </Card.Content>
-          </Card>
-
-          {/* Status Section with color-coded status */}
-          {isAuthorizedForFinalApproval && (
-            <Card style={[styles.remarksCard, {marginTop: 12}]}>
-              <Card.Content>
-                <View style={styles.statusSection}>
-                  <Subheading style={styles.remarksLabel}>
-                    Reporting Manager Remarks:
-                  </Subheading>
-                  <Text style={styles.remarksValue}>
-                    {item.reportingRemarks || 
-                     item.reportingManagerRemarks || 
-                     item.rmRemarks || 
-                     'No remarks provided'}
-                  </Text>
-                </View>
-                <View style={styles.statusBadgeContainer}>
-                  <Badge style={styles.statusBadge} size={20}>
-                    {item.reportingStatus || 'Pending'}
-                  </Badge>
-                </View>
-              </Card.Content>
-            </Card>
-          )}
 
           {/* Expanded section */}
           {isExpanded && (
@@ -1094,6 +1175,58 @@ const LeaveRequest = ({navigation}) => {
                 </Card>
               )}
 
+              {isAuthorizedForFinalApproval && leaveDetails && (
+                <>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={styles.cardHeaderRow2}>
+                      <Icon
+                        name="message-square"
+                        size={18}
+                        color="#4B5563"
+                        style={styles.cardIcon}
+                      />
+                      <Text style={styles.cardHeaderText}>RM Remarks :</Text>
+                    </View>
+
+                    <Text style={styles.remarksText}>
+                      {leaveDetails.reportingRemarks?.trim() || 'No remarks'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.cardHeaderRow}>
+                    <View style={styles.cardHeaderRow2}>
+                      <Icon
+                        name="calendar"
+                        size={18}
+                        color="#4B5563"
+                        style={styles.cardIcon}
+                      />
+                      <Text style={styles.cardHeaderText}>
+                        Leave Balances :
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setLeaveBalanceModalVisible(true)}
+                      style={styles.viewButton}>
+                      <Icon
+                        name="eye"
+                        size={16}
+                        color="#3b82f6"
+                        style={styles.buttonIcon}
+                      />
+                      <Text
+                        style={{
+                          color: '#3b82f6',
+                          fontWeight: '500',
+                          fontSize: 14,
+                        }}>
+                        View Balance
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
               {/* Assignment Employee Designation if available */}
               {item.assignmentEmpDesignation && (
                 <Card style={styles.infoCard}>
@@ -1116,7 +1249,7 @@ const LeaveRequest = ({navigation}) => {
                       {/* How many days approved? */}
                       <View style={styles.leaveCountField}>
                         <Subheading style={styles.sectionTitle}>
-                          No of Approved Leave
+                          Approve Leave
                         </Subheading>
                         <TextInput
                           style={[
@@ -1159,7 +1292,7 @@ const LeaveRequest = ({navigation}) => {
                       {/* How many days unapproved? */}
                       <View style={styles.leaveCountField}>
                         <Subheading style={styles.sectionTitle}>
-                          No of UnApproval Leave
+                          Unapprove Leave
                         </Subheading>
                         <TextInput
                           style={[
@@ -1205,55 +1338,113 @@ const LeaveRequest = ({navigation}) => {
                 </Card>
               )}
 
-              {/* Leave Balance Table - Only for HR */}
-              {isAuthorizedForFinalApproval && (
-                <Card style={styles.infoCard}>
-                  <Card.Content>
-                    <Subheading style={styles.sectionTitle}>
-                      Employee Leave Balances
-                    </Subheading>
-                    <LeaveBalanceTable
-                      leaveData={leaveData}
-                      isLoadingLeaveData={isLoadingLeaveData}
-                    />
-                  </Card.Content>
-                </Card>
-              )}
-
-              {/* Reporting Manager Remarks /////////////'////////////////*/}
               <Card style={styles.infoCard}>
                 <Card.Content>
                   <Subheading style={styles.sectionTitle}>
-                    {isAuthorizedForFinalApproval
-                      ? 'Final Approval Manager Remarks'
-                      : 'Reporting Manager Remarks'}
+                    Task Assignment
                   </Subheading>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={
+                        selectedTaskAssignee[itemId]?.employeeId || null
+                      }
+                      style={styles.picker}
+                      dropdownIconColor="#4B5563"
+                      onValueChange={itemValue =>
+                        updateTaskAssignee(itemId, itemValue)
+                      }>
+                      {/* Default placeholder */}
+                      <Picker.Item
+                        label={
+                          taskAssignmentEmployees.length === 0
+                            ? 'No data found'
+                            : 'Select employee'
+                        }
+                        value={null}
+                        style={styles.pickerPlaceholder}
+                      />
+
+                      {/* Show employee list only if available */}
+                      {taskAssignmentEmployees.length > 0 &&
+                        taskAssignmentEmployees.map(employee => (
+                          <Picker.Item
+                            key={employee.id}
+                            label={`${employee.employeeName} (${
+                              employee.employeeId || 'N/A'
+                            })`}
+                            value={employee.id}
+                            style={styles.pickerItem}
+                          />
+                        ))}
+                    </Picker>
+                  </View>
+
+                  {/* Display selected employee info */}
+                  {selectedTaskAssignee[itemId] && (
+                    <Chip
+                      icon="account-check"
+                      style={styles.taskAssigneeSelected}>
+                      Task assigned to:{' '}
+                      {selectedTaskAssignee[itemId].employeeName}
+                    </Chip>
+                  )}
+                </Card.Content>
+              </Card>
+
+              <Card style={styles.infoCard}>
+                <Card.Content>
+                  <View style={styles.remarksHeaderContainer}>
+                    <Subheading style={styles.sectionTitle}>
+                      {isAuthorizedForFinalApproval
+                        ? 'Final Remark'
+                        : 'RM Remark'}
+                      <Text style={styles.requiredField}>*</Text>
+                      <Text style={styles.maxCharText}>
+                        {' '}
+                        (max 400 characters)
+                      </Text>
+                    </Subheading>
+                  </View>
+
                   <TextInput
-                    style={styles.remarksInput}
-                    placeholder={`Add your ${
+                    style={[
+                      styles.remarksInput,
+                      remarkError && styles.inputError,
+                    ]}
+                    placeholder={`Write ${
                       isAuthorizedForFinalApproval
-                        ? 'final approval'
-                        : 'reporting manager'
-                    } remarks here (required)`}
+                        ? 'final remarks '
+                        : 'remarks'
+                    } `}
                     placeholderTextColor="#9ca3af"
                     maxLength={400}
                     multiline
                     value={rmRemarks[itemId] || ''}
-                    onChangeText={text =>
+                    onChangeText={text => {
                       setRmRemarks(prev => ({
                         ...prev,
                         [itemId]: text,
-                      }))
-                    }
+                      }));
+                      if (text.trim()) {
+                        setRemarkErrors(prev => ({
+                          ...prev,
+                          [itemId]: null,
+                        }));
+                      }
+                    }}
                     mode="outlined"
                     theme={{colors: {primary: '#3b82f6'}}}
                     numberOfLines={4}
                   />
+
+                  {remarkError && (
+                    <Text style={styles.errorText}>{remarkError}</Text>
+                  )}
                 </Card.Content>
               </Card>
 
               {/* Task Assignment Dropdown - Fixed to show for any non-HR approver */}
-              {!isAuthorizedForFinalApproval && (
+              {/* {!isAuthorizedForFinalApproval && (
                 <Card style={styles.infoCard}>
                   <Card.Content>
                     <Subheading style={styles.sectionTitle}>
@@ -1269,25 +1460,33 @@ const LeaveRequest = ({navigation}) => {
                         onValueChange={itemValue =>
                           updateTaskAssignee(itemId, itemValue)
                         }>
+                        
                         <Picker.Item
-                          label="Select an employee for task assignment"
+                          label={
+                            taskAssignmentEmployees.length === 0
+                              ? 'No data found'
+                              : 'Select employee'
+                          }
                           value={null}
                           style={styles.pickerPlaceholder}
                         />
-                        {taskAssignmentEmployees.map(employee => (
-                          <Picker.Item
-                            key={employee.id}
-                            label={`${employee.employeeName} (${
-                              employee.employeeId || 'N/A'
-                            })`}
-                            value={employee.id}
-                            style={styles.pickerItem}
-                          />
-                        ))}
+
+                     
+                        {taskAssignmentEmployees.length > 0 &&
+                          taskAssignmentEmployees.map(employee => (
+                            <Picker.Item
+                              key={employee.id}
+                              label={`${employee.employeeName} (${
+                                employee.employeeId || 'N/A'
+                              })`}
+                              value={employee.id}
+                              style={styles.pickerItem}
+                            />
+                          ))}
                       </Picker>
                     </View>
 
-                    {/* Display selected employee information if available */}
+                
                     {selectedTaskAssignee[itemId] && (
                       <Chip
                         icon="account-check"
@@ -1298,7 +1497,7 @@ const LeaveRequest = ({navigation}) => {
                     )}
                   </Card.Content>
                 </Card>
-              )}
+              )} */}
 
               {/* Action Buttons */}
               <View style={styles.buttonContainer}>
@@ -1322,9 +1521,46 @@ const LeaveRequest = ({navigation}) => {
             </View>
           )}
         </Card.Content>
+        <View />
       </Card>
     );
   };
+
+  const LeaveBalanceModal = () => (
+    <Modal
+      visible={leaveBalanceModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setLeaveBalanceModalVisible(false)}>
+      <View style={styles.modalContainer}>
+     
+        {/* centers content */}
+        <View style={styles.modalPopup}>
+         
+          {/* styled popup */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Leave Balance Details</Text>
+            <TouchableOpacity
+              onPress={() => setLeaveBalanceModalVisible(false)}>
+              <Icon name="x" size={24} color="#4B5563" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            <LeaveBalanceTable
+              leaveData={leaveData}
+              isLoadingLeaveData={isLoadingLeaveData}
+            />
+          </ScrollView>
+          <PaperButton
+            mode="contained"
+            onPress={() => setLeaveBalanceModalVisible(false)}
+            style={styles.closeModalButton}>
+            Close
+          </PaperButton>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <AppSafeArea>
@@ -1334,7 +1570,7 @@ const LeaveRequest = ({navigation}) => {
           color="#4B5563"
         />
         <Appbar.Content
-          title="Leave Request Details"
+          title="Employee's Leave Request"
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -1403,6 +1639,9 @@ const LeaveRequest = ({navigation}) => {
         }
       />
 
+      {/* Add the modal to the root of the component */}
+      <LeaveBalanceModal />
+
       {/* Add the feedback modal */}
       <FeedbackModal
         visible={feedbackModalVisible}
@@ -1413,6 +1652,8 @@ const LeaveRequest = ({navigation}) => {
     </AppSafeArea>
   );
 };
+
+export default LeaveRequest;
 
 const styles = StyleSheet.create({
   headerGradient: {
@@ -1444,15 +1685,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 2},
   },
+  headerWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   expandedCard: {
     elevation: 5,
     shadowOpacity: 0.15,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   employeeInfoContainer: {
     flexDirection: 'row',
@@ -1463,22 +1706,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     marginRight: 12,
   },
-  employeeTextInfo: {
-    flex: 1,
-  },
+  // employeeTextInfo: {
+  //   flex: 1,
+  // },
   employeeName: {
     fontSize: 20,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 2,
   },
-  employeeDetails: {
-    flexWrap: 'wrap',
+
+  employeenamwee: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    justifyContent: 'space-between',
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
+  },
+  detailItemcard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  detailItemcard1: {
+    // backgroundColor: '#F9FAFB',
+    marginBottom: 8,
+  },
+  detailItemcardLeave: {
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   detailIcon: {
     marginRight: 6,
@@ -1487,13 +1749,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4B5563',
     fontWeight: '700',
+    marginRight: 10,
+  },
+  requiredField: {
+    color: 'red',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   leaveTypeChip: {
     borderRadius: 16,
     height: 36,
   },
   sectionDivider: {
-    marginVertical: 12,
+    marginVertical: 10,
     backgroundColor: '#E5E7EB',
     height: 1,
   },
@@ -1550,21 +1818,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   durationTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: 8,
-    backgroundColor: '#F3F4F6',
-    padding: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
   },
   durationIcon: {
     marginRight: 6,
+    color: '#6B7280',
+    size: 16,
   },
   durationText: {
     color: '#4B5563',
-    fontWeight: '500',
-    fontSize: 15,
+    fontWeight: '800',
+    fontSize: 16,
     marginRight: 4,
   },
   remarksCard: {
@@ -1602,9 +1866,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusBadge: {
-    backgroundColor: '#FBBF24',
-    color: '#92400E',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
     fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+    textTransform: 'capitalize',
   },
   expandedSection: {
     marginTop: 12,
@@ -1628,7 +1899,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   infoCard: {
-    marginBottom: 16,
+    marginBottom: 10,
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1651,8 +1922,9 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    marginTop: 16,
+    // marginTop: 16,
     justifyContent: 'space-between',
+    marginBottom: 19,
   },
   button: {
     flex: 1,
@@ -1739,40 +2011,6 @@ const styles = StyleSheet.create({
   },
   pickerPlaceholder: {
     fontSize: 14,
-    color: '#9CA3AF',
-  },
-  taskAssigneeSelected: {
-    backgroundColor: '#ECFDF5',
-    marginTop: 8,
-  },
-  leaveCountContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  leaveCountField: {
-    flex: 1,
-  },
-  inputError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#FEF2F2',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  paginationContainer: {
-    marginTop: 16,
-    marginBottom: 24,
-    width: '100%',
-  },
-  pickerItem: {
-    fontSize: 15,
-    color: '#111827',
-  },
-  pickerPlaceholder: {
-    fontSize: 15,
     color: '#9CA3AF',
   },
   taskAssigneeSelected: {
@@ -1874,6 +2112,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 8,
     borderRadius: 6,
+    borderColor: '#ef4444',
+    borderWidth: 2,
+    backgroundColor: '#FEF2F2',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  totalErrorText: {
+    color: '#ef4444',
+    fontSize: 13,
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#FEF2F2',
+    padding: 8,
+    borderRadius: 6,
     textAlign: 'center',
   },
   leaveCountContainer: {
@@ -1904,23 +2160,198 @@ const styles = StyleSheet.create({
   leaveCountContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
-  },
-  leaveCountField: {
-    flex: 1,
-  },
-   statusApproved: {
-    color: 'green',
-    fontWeight: 'bold',
-  },
-  statusRejected: {
-    color: 'red',
-    fontWeight: 'bold',
-  },
-  statusPending: {
     color: '#f59e0b', // amber-500
     fontWeight: 'bold',
   },
-});
+  statusApprovedBadge: {
+    backgroundColor: '#d1fae5', // Emerald 100
+    borderColor: '#10b981', // Emerald 600
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusRejectedBadge: {
+    backgroundColor: '#fee2e2', // Rose 100
+    borderColor: '#ef4444', // Rose 600
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusPendingBadge: {
+    backgroundColor: '#fffbeb', // Amber 50
+    borderColor: '#f59e0b', // Amber 600
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusApprovedText: {
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  statusRejectedText: {
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  statusPendingText: {
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
+  // New styles for Leave Balance Details Modal
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // translucent black
+  },
 
-export default LeaveRequest;
+  modalPopup: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    width: '90%',
+    maxWidth: 450,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  closeModalButton: {
+    marginTop: 16,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+  },
+
+  cardIcon: {
+    marginRight: 8,
+    alignSelf: 'center',
+    color: '#4B5563',
+  },
+  cardHeaderText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#4B5563',
+    marginLeft: 4,
+  },
+
+  remarksText: {
+    color: '#4B5563', // Final chosen color
+    marginLeft: 8,
+    marginRight: 4,
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: 8,
+    fontWeight: '800', // Final chosen weight
+    fontSize: 16,
+  },
+  buttonIcon: {
+    marginRight: 4,
+    alignSelf: 'center',
+  },
+
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    marginLeft: 8,
+  },
+  rmRemarksContent: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  rmRemarksText: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  noRemarksText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+
+    marginBottom: 8,
+  },
+  cardHeaderRow2: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    paddingLeft: 8,
+    alignItems: 'center',
+  },
+  // Add this to your existing styles object at the bottom of the file
+  cardIcon: {
+    marginRight: 8,
+    alignSelf: 'center',
+    color: '#4B5563',
+  },
+  cardHeaderText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#4B5563',
+    marginLeft: 4,
+  },
+
+  remarksText: {
+    color: '#4B5563', // Final chosen color
+    marginLeft: 8,
+    marginRight: 4,
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: 8,
+    fontWeight: '800', // Final chosen weight
+    fontSize: 16,
+  },
+  buttonIcon: {
+    marginRight: 4,
+    alignSelf: 'center',
+  },
+
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    marginLeft: 8,
+  },
+});
+//     borderRadius: 6,
+//     borderWidth: 1,
+//     borderColor: '#DBEAFE',
+//     marginLeft: 8,
+//   },
+// });

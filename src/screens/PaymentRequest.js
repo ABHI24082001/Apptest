@@ -782,13 +782,13 @@ const PaymentRequest = ({navigation, route}) => {
             value={
               requestType === 'advance'
                 ? totalAmount.toString()
-                : `₹${totalAmount.toFixed(2)}`
+                : `₹${totalAmount}`
             }
             editable={requestType === 'advance' && !expenceData?.status?.toLowerCase()?.includes('approved')} 
             onChangeText={value => {
               if (requestType === 'advance') {
-                const numericValue = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
-                setTotalAmount(numericValue);
+                // const numericValue = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
+                setTotalAmount(value);
               }
             }}
             style={[
@@ -799,6 +799,9 @@ const PaymentRequest = ({navigation, route}) => {
             keyboardType="numeric"
           />
         </View>
+
+ 
+
         {/* Remarks */}
         <Text style={styles.label}>
           Remarks <Text style={styles.required}>*</Text>

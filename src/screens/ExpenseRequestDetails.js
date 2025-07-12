@@ -4,24 +4,42 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   Linking,
+  Modal,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import AppSafeArea from '../component/AppSafeArea';
-import {Appbar, Avatar, Chip, Divider} from 'react-native-paper';
+import {
+  Appbar,
+  Avatar,
+  Chip,
+  Divider,
+  Badge,
+  Button,
+  Card,
+  TextInput,
+  IconButton,
+  Portal,
+  Provider,
+} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+
 import {useAuth} from '../constants/AuthContext';
 // Import the Pagination component
 import Pagination from '../components/Pagination';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
+import LinearGradient from 'react-native-linear-gradient';
+import WebView from 'react-native-webview';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import FeedbackModal from '../component/FeedbackModal';
 
 const ExpenseTypeColors = {
-  'Advance': '#3b82f6', // Blue
-  'Expense': '#ef4444', // Red
-  'Reimbursement': '#10b981', // Green
+  Advance: '#3b82f6', // Blue
+  Expense: '#ef4444', // Red
+  Reimbursement: '#10b981', // Green
 };
 
 // Removing static expense data and replacing with empty array as initial state
@@ -29,6 +47,7 @@ const ExpenseTypeColors = {
 
 const ExpenseRequestDetails = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
+  // console.log(employeeDetails, 'Employee Details in Expense Request Details');
   const {user} = useAuth();
 
   // State variables for expense management
@@ -39,32 +58,57 @@ const ExpenseRequestDetails = ({navigation}) => {
   const [expenceApprovalAccess, setexpenceApprovalAccess] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expenseDetails, setExpenseDetails] = useState(null);
+  const [employeeData, setEmployeeData] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5); // Increased from 2 to show more items
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Increased from 2 to show more items
   const [paginatedData, setPaginatedData] = useState([]);
-    const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] = useState(false);
+  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] =
+    useState(false);
+  const [approveamount, setApproveAmount] = useState('');
+  // New state variables for the modal and document viewer
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
+  const [documentViewerVisible, setDocumentViewerVisible] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState('');
+  const [approvedAmount, setApprovedAmount] = useState('');
+
+  // Add feedback modal state
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState('success');
 
   // Helper function to format date string
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', {
         day: '2-digit',
         month: 'short',
-        year: 'numeric'
+        year: 'numeric',
       });
     } catch (e) {
       return dateString || 'N/A';
     }
   };
 
+  // Helper function to get initials from name
+  const getInitials = name => {
+    if (!name) return 'NA';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  };
+
   // Field mapping helper to handle API response structure differences
   const getFieldValue = (item, fieldNames, defaultValue = 'N/A') => {
     if (!item) return defaultValue;
-    
+
     // Try each field name in order
     for (const field of fieldNames) {
       if (item[field] !== undefined && item[field] !== null) {
@@ -77,73 +121,135 @@ const ExpenseRequestDetails = ({navigation}) => {
   useEffect(() => {
     // Initialize paginated data
     updatePaginatedData(expenseList, 1);
-    
+
     // Set pending count
     setPendingRequestsCount(expenseList.length);
   }, [expenseList]);
-  
+
   // Update paginated data whenever current page changes
   useEffect(() => {
     updatePaginatedData(expenseList, currentPage);
   }, [currentPage]);
-  
+
   // Add useEffect to call ExpenseRequestAccessMenus when component loads
   useEffect(() => {
     const fetchExpenseAccessData = async () => {
       try {
-        console.log('Fetching expense request access data...');
+        // console.log('Fetching expense request access data...');
         const accessData = await ExpenseRequestAccessMenus();
-        console.log('EXPENSE REQUEST ACCESS DATA:', accessData);
+        // console.log('EXPENSE REQUEST ACCESS DATA:', accessData);
       } catch (error) {
-        console.error('Error fetching expense access data:', error);
+        // console.error('Error fetching expense access data:', error);
       }
     };
-    
+
     fetchExpenseAccessData();
   }, [user]); // Add user as dependency to re-run when user data is available
-  
+
   // Function to paginate data
   const updatePaginatedData = (data, page) => {
     if (!Array.isArray(data) || data.length === 0) {
       setPaginatedData([]);
       return;
     }
-    
+
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedItems = data.slice(startIndex, endIndex);
-    
-    console.log(`Paginating: Page ${page}, showing items ${startIndex + 1}-${Math.min(endIndex, data.length)} of ${data.length}`);
-    
+
+    // console.log(
+    //   `Paginating: Page ${page}, showing items ${startIndex + 1}-${Math.min(
+    //     endIndex,
+    //     data.length,
+    //   )} of ${data.length}`,
+    // );
+
     setPaginatedData(paginatedItems);
   };
-  
+
   // Handle page change
-  const handlePageChange = (newPage) => {
-    console.log(`Changing to page ${newPage}`);
+  const handlePageChange = newPage => {
+    // console.log(`Changing to page ${newPage}`);
     setCurrentPage(newPage);
   };
 
-
-  const fetchExpenseById = async (id) => {
+  const fetchExpenseById = async id => {
     try {
-      console.log(`Fetching expense details for ID: ${id}`);
-      const companyId = user?.childCompanyId;
-      
-      if (!companyId) {
-        console.error('Missing company ID for expense details fetch');
-        return null;
+      // console.log(`Fetching expense details for ID: ${id}`);
+
+      const payload = {
+        DepartmentId: user?.departmentId || 0,
+        DesignationId: user?.designtionId || 0,
+        EmployeeId: user?.id || 0,
+        ControllerName: 'ExpenseMgt',
+        ActionName: 'EmpPaymentRequestList',
+        ChildCompanyId: user?.childCompanyId || 1,
+        BranchId: user?.branchId || 2,
+        UserType: user?.userType || 1,
+      };
+
+      let apiUrl = '';
+      let source = '';
+      const companyId = user?.childCompanyId || 1;
+
+      if (isAuthorizedForFinalApproval) {
+        apiUrl = `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequestForFinalApproval/${companyId}/${id}`;
+        source = 'FinalApproval';
+      } else {
+        apiUrl = `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${companyId}/${id}`;
+        source = 'StandardRequest';
       }
-      
-      const response = await axios.get(
-        `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${companyId}/${id}`
-      );
-      
-      console.log('Expense Details API Response:', JSON.stringify(response.data, null, 2));
-      
-      // Store the fetched details in state
-      setExpenseDetails(response.data);
-      return response.data;
+
+      console.log(`API Source: ${source}`);
+      console.log(`Calling API: ${apiUrl}`);
+      console.log('Request Payload:', payload);
+
+      const response = await axios.get(apiUrl);
+
+      // Log the complete response for debugging
+      console.log('Expense Details from API:', response.data);
+
+      // Ensure we're storing the complete response data
+      // Create a properly structured expense details object
+      const expenseData = {
+        ...response.data,
+        // Extract common fields for easier access throughout the component
+        requestId: response.data?.paymentRequest?.requestId || id,
+        employeeId: response.data?.paymentRequest?.employeeId,
+        requestTypeId: response.data?.paymentRequest?.requestTypeId,
+        companyId:
+          response.data?.paymentRequest?.companyId || user?.childCompanyId,
+        branchId: response.data?.paymentRequest?.branchId || user?.branchId,
+        totalAmount:
+          response.data?.paymentRequest?.totalAmount ||
+          response.data?.amountApproved ||
+          0,
+        remarks: response.data?.paymentRequest?.remarks,
+        status: response.data?.paymentRequest?.status,
+        reportingMgrId: response.data?.paymentRequest?.reportingMgrId,
+      };
+
+      // Now set the properly structured data
+      setExpenseDetails(expenseData);
+
+      // === Extract employeeId from nested paymentRequest ===
+      const employeeId = response.data?.paymentRequest?.employeeId;
+      if (employeeId) {
+        try {
+          const empResponse = await axios.get(
+            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${employeeId}`,
+          );
+
+          setEmployeeData(empResponse.data);
+          console.log('Employee data retrieved successfully');
+        } catch (empError) {
+          console.error('Error fetching employee details:', empError);
+        }
+      } else {
+        console.warn('Employee ID not found in response.paymentRequest');
+      }
+
+      return expenseData; // Return the structured data
     } catch (error) {
       console.error('Error fetching expense details:', error);
       console.error('Error details:', error.response?.data || error.message);
@@ -151,33 +257,18 @@ const ExpenseRequestDetails = ({navigation}) => {
     }
   };
 
-  const toggleCardExpansion = async (id) => {
+  const toggleCardExpansion = async id => {
     // If we're closing the current expanded card
     if (expandedCard === id) {
       setExpandedCard(null);
       setExpenseDetails(null);
       return;
     }
-    
+
     // If we're opening a new card, fetch its details
     setExpandedCard(id);
     await fetchExpenseById(id);
   };
-
-  // const handleApprove = (id) => {
-  //   if (!approvalRemarks[id]) {
-  //     alert('Please add remarks before approving');
-  //     return;
-  //   }
-    
-  //   alert(`Expense request #${id} approved with remarks: ${approvalRemarks[id]}`);
-    
-  //   // Remove the approved item from the list
-  //   const updatedList = expenseList.filter(item => item.id !== id);
-  //   setExpenseList(updatedList);
-  //   setPendingRequestsCount(updatedList.length);
-  //   updatePaginatedData(updatedList, currentPage);
-  // };
 
   function formatDateForBackend(date) {
     if (!date || isNaN(new Date(date).getTime())) return null;
@@ -200,32 +291,84 @@ const ExpenseRequestDetails = ({navigation}) => {
 
   const handleApprove = async id => {
     try {
-      // Fetch expense details
       const expenceDetails = await fetchExpenseById(id);
       if (!expenceDetails) {
-        alert('Failed to fetch expense details. Please try again.');
+        Alert.alert(
+          'Error',
+          'Failed to fetch expense details. Please try again.',
+        );
         return;
       }
 
-      // Find matching item in expense list
       const expenceItem = expenseList.find(
         item => (item.id || item.requestId) === id,
       );
       if (!expenceItem) {
-        alert('Expense item not found. Please try again.');
+        Alert.alert('Error', 'Expense item not found. Please try again.');
         return;
       }
 
-      // Check if approval remarks are provided
       if (!approvalRemarks[id]) {
-        alert('Please add approval remarks before proceeding.');
+        Alert.alert(
+          'Validation',
+          'Please add approval remarks before proceeding.',
+        );
         return;
       }
 
-      // Check if expense amount is zero
-      const amount = expenceDetails.totalAmount || expenceDetails.approvalAmount || expenceDetails.amount || 0;
-      if (amount <= 0) {
-        alert('Cannot approve an expense with zero amount.');
+      // Improved validation for approvedAmount
+      const approvedAmountValue = parseFloat(approvedAmount);
+
+      if (
+        !approvedAmount ||
+        isNaN(approvedAmountValue) ||
+        approvedAmountValue <= 0
+      ) {
+        Alert.alert(
+          'Validation',
+          'Please enter a valid approved amount greater than zero.',
+        );
+        return;
+      }
+
+      console.log('Approved amount value:', approvedAmountValue);
+
+      // Get the original amount from the structured expense details
+      const originalAmount = expenceDetails.totalAmount || 0;
+
+      // Additional check to ensure we don't proceed with zero amount
+      if (approvedAmountValue <= 0) {
+        Alert.alert('Error', 'Cannot approve an expense with zero amount.');
+        return;
+      }
+
+      // ⚠️ Show alert if approved amount exceeds original
+      if (approvedAmountValue > originalAmount) {
+        const confirmExcessAmount = () => {
+          return new Promise(resolve => {
+            Alert.alert(
+              'Confirm Approval',
+              `The approved amount (₹${approvedAmountValue}) is greater than the requested amount (₹${originalAmount}).\n\nDo you want to continue?`,
+              [
+                {
+                  text: 'Cancel',
+                  onPress: () => resolve(false),
+                  style: 'cancel',
+                },
+                {text: 'Continue', onPress: () => resolve(true)},
+              ],
+              {cancelable: false},
+            );
+          });
+        };
+
+        const shouldProceed = await confirmExcessAmount();
+        if (!shouldProceed) return;
+      }
+
+      // Check if expense amount is zero - modified to use approvedAmountValue directly
+      if (approvedAmountValue <= 0) {
+        Alert.alert('Error', 'Cannot approve an expense with zero amount.');
         return;
       }
 
@@ -234,93 +377,230 @@ const ExpenseRequestDetails = ({navigation}) => {
         EmployeeId: expenceDetails.employeeId,
         CompanyId: expenceDetails.companyId,
         BranchId: expenceDetails.branchId || 0,
-        fromLeaveDate: formatDateForBackend(expenceDetails.transactionDate || expenceDetails.createdDate)
+        appliedDate: formatDateForBackend(
+          expenceDetails?.paymentRequest?.createdDate ||
+            expenceDetails?.createdDate ||
+            expenceDetails?.appliedDate,
+        ),
       };
 
       console.log('Checking payroll with data:', payrollCheckBody);
-      
+
       const payrollRes = await axios.post(
         `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
-        payrollCheckBody
+        payrollCheckBody,
       );
-      
+
       console.log('Payroll check response:', payrollRes.data);
-      
+
       if (payrollRes?.data?.isSuccess) {
-        alert(
-          'Payroll already generated for this employee. Expense cannot be approved.'
+        Alert.alert(
+          'Payroll Conflict',
+          'Payroll already generated for this employee. Expense cannot be approved.',
         );
         return;
       }
 
-      // If all checks pass, proceed with approval
-      // Construct approval payload
-      const approvalPayload = {
-        CompanyId: expenceDetails.companyId,
-        Id: expenceDetails.id || id,
-        RequestId: expenceDetails.requestId || id,
-        EmployeeId: expenceDetails.employeeId,
-        ApprovalRemarks: approvalRemarks[id] || "",
-        ApprovalStatus: 1, // 1 means approved
-        TotalAmount: amount,
-        createdBy: employeeDetails?.id || 0,
-        createdDate: new Date().toISOString(),
-        modifiedBy: employeeDetails?.id || 0,
-        modifiedDate: new Date().toISOString()
+      // Extract payment details from expense details
+      const paymentDetails = expenceDetails.paymentDetails || [];
+
+      // Update approved amounts for each payment detail
+      const updatedPaymentDetails = paymentDetails.map(detail => {
+        // For simple distribution, we allocate approved amount proportionally
+        // Only do this if there are multiple payment details
+        let itemApprovedAmount = detail.amount;
+
+        if (paymentDetails.length > 1) {
+          const ratio = detail.amount / originalAmount;
+          itemApprovedAmount =
+            Math.round(approvedAmountValue * ratio * 100) / 100; // Round to 2 decimal places
+        } else if (paymentDetails.length === 1) {
+          // If only one payment detail, assign full approved amount
+          itemApprovedAmount = approvedAmountValue;
+        }
+
+        return {
+          ...detail,
+          approvedAmount: itemApprovedAmount,
+          status: 'Approved',
+        };
+      });
+
+      // Create comprehensive payment request object
+      const paymentRequest = {
+        requestId: expenceDetails.requestId || id,
+        requestTypeId:
+          expenceDetails.paymentRequest?.requestTypeId ||
+          expenceDetails.requestTypeId ||
+          expenceItem.requestTypeId ||
+          1,
+        employeeId:
+          expenceDetails.paymentRequest?.employeeId ||
+          expenceDetails.employeeId ||
+          expenceItem.employeeId ||
+          0,
+        reportingMgrId:
+          expenceDetails.paymentRequest?.reportingMgrId ||
+          expenceDetails.reportingMgrId ||
+          expenceItem.reportingId ||
+          user?.id ||
+          0,
+        totalAmount: originalAmount,
+        remarks:
+          expenceDetails.paymentRequest?.remarks ||
+          expenceDetails.remarks ||
+          approvalRemarks[id] ||
+          '',
+        companyId: expenceDetails.companyId || 2,
+        isDelete: 0,
+        flag: 1,
+        createdBy: expenceDetails.paymentRequest?.createdBy || user?.id || 0,
+        createdDate:
+          expenceDetails.paymentRequest?.createdDate ||
+          new Date().toISOString(),
+        modifiedBy: user?.id || 0,
+        modifiedDate: new Date().toISOString(),
+        paymentStatus: 'Approved',
+        employeeCode:
+          expenceDetails.paymentRequest?.employeeCode ||
+          expenceItem.employeeCode ||
+          '',
+        reason:
+          expenceDetails.paymentRequest?.reason ||
+          expenceDetails.reason ||
+          approvalRemarks[id] ||
+          '',
+        approvalStatus: 1, // 1 = Approved
+        approvalAmount: approvedAmountValue,
+        // Additional fields from your prompt model
+        visible:
+          expenceDetails.paymentRequest?.visible !== undefined
+            ? expenceDetails.paymentRequest?.visible
+            : true,
+        branchId: expenceDetails.branchId || 0,
+        employeeName:
+          expenceDetails.paymentRequest?.employeeName ||
+          expenceDetails.employeeName ||
+          expenceItem.employeeName ||
+          '',
+        department:
+          expenceDetails.paymentRequest?.department ||
+          expenceDetails.department ||
+          expenceItem.department ||
+          '',
+        designation:
+          expenceDetails.paymentRequest?.designation ||
+          expenceDetails.designation ||
+          expenceItem.designation ||
+          '',
+        branchName: expenceDetails.paymentRequest?.branchName || 'cutttuck',
+        employeeEmail: expenceDetails.paymentRequest?.employeeEmail || 'sonu',
+        reportingMgerEmail:
+          expenceDetails.paymentRequest?.reportingMgerEmail ||
+          expenceDetails.reportingMgerEmail ||
+          'aa@thecloudtree.ai',
+        managerReason: approvalRemarks[id] || '',
       };
 
-      console.log('Sending approval with payload:', approvalPayload);
+      // Create comprehensive approval payload with all required fields
+      const approvalPayload = {
+        paymentRequest: paymentRequest,
+        paymentDetails: updatedPaymentDetails,
+      };
 
-      // Determine which endpoint to use based on authorization status
       const endpoint = isAuthorizedForFinalApproval
-        ? `${BASE_URL}/api/PaymentAdvanceRequest/SaveClaimRequestFinalApproval`
-        : `${BASE_URL}PaymentAdvanceRequest/SaveClaimRequestMGRApproval`;
+        ? `${BASE_URL}/PaymentAdvanceRequest/SaveClaimRequestFinalApproval`
+        : `${BASE_URL}/PaymentAdvanceRequest/SaveClaimRequestMGRApproval`;
 
-      console.log('Using approval endpoint:', endpoint);
+      console.log('⬇️⬇️⬇️ APPROVAL PAYLOAD ⬇️⬇️⬇️');
+      console.log(JSON.stringify(approvalPayload, null, 2));
+      console.log(
+        `Endpoint: ${
+          isAuthorizedForFinalApproval ? 'FINAL APPROVAL' : 'MANAGER APPROVAL'
+        }`,
+      );
+      console.log(`Using API URL: ${endpoint}`);
+      console.log('⬆️⬆️⬆️ APPROVAL PAYLOAD ⬆️⬆️⬆️');
 
-      // Submit the approval
       const approvalRes = await axios.post(endpoint, approvalPayload);
       console.log('Approval response:', approvalRes.data);
 
       if (approvalRes.data?.isSuccess) {
-        alert(
-          `✅ Expense Approved!\n\nEmployee: ${expenceItem.employeeName || expenceDetails.employeeName}\nAmount: ${typeof amount === 'number' ? `₹${amount.toLocaleString('en-IN')}` : amount}`
+        // Show the feedback modal instead of Alert
+        setFeedbackType('success');
+        setFeedbackMessage(
+          `${
+            isAuthorizedForFinalApproval ? 'Final Approval' : 'Approval'
+          } Successful!`,
         );
+        setFeedbackVisible(true);
 
-        // After successful approval, refresh the list
+        setApprovedAmount('');
         FetchExpenceApprovalData();
       } else {
         console.error('Backend returned error:', approvalRes.data);
-        alert(`❌ Approval Failed: ${approvalRes.data?.message || 'Unknown error'}`);
+        // Show error feedback
+        setFeedbackType('fail');
+        setFeedbackMessage(approvalRes.data?.message || 'Approval failed');
+        setFeedbackVisible(true);
       }
     } catch (error) {
       console.error('Exception during approval:', error);
       console.error('Error details:', error.response?.data || error.message);
-      alert(
-        'An unexpected error occurred during expense approval. Please try again.'
+      // Show error feedback
+      setFeedbackType('fail');
+      setFeedbackMessage(
+        'An unexpected error occurred during expense approval',
       );
+      setFeedbackVisible(true);
     }
   };
 
-  const handleReject = (id) => {
+  const handleReject = async id => {
+    // Add implementation for reject function if needed
     if (!approvalRemarks[id]) {
-      alert('Please add remarks before rejecting');
+      Alert.alert('Validation', 'Please add remarks before rejecting');
       return;
     }
-    
-    alert(`Expense request #${id} rejected with remarks: ${approvalRemarks[id]}`);
-    
-    // Remove the rejected item from the list
-    const updatedList = expenseList.filter(item => item.id !== id);
-    setExpenseList(updatedList);
-    setPendingRequestsCount(updatedList.length);
-    updatePaginatedData(updatedList, currentPage);
+
+    // Show confirmation before rejection
+    Alert.alert(
+      'Confirm Rejection',
+      'Are you sure you want to reject this expense request?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Show feedback modal for rejection
+              setFeedbackType('fail');
+              setFeedbackMessage('Expense request has been rejected');
+              setFeedbackVisible(true);
+
+              // Additional implementation for rejection API call would go here
+
+              // Update the list after rejection
+              const updatedList = expenseList.filter(
+                item => (item.id || item.requestId) !== id,
+              );
+              setExpenseList(updatedList);
+              setPendingRequestsCount(updatedList.length);
+              updatePaginatedData(updatedList, currentPage);
+            } catch (error) {
+              console.error('Error in rejection:', error);
+            }
+          },
+        },
+      ],
+    );
   };
 
-  
-// debugger
-
-   const ExpenseRequestAccessMenus = async () => {
+  const ExpenseRequestAccessMenus = async () => {
     try {
       // debugger
       const requestData = {
@@ -343,8 +623,11 @@ const ExpenseRequestDetails = ({navigation}) => {
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
-// debugger
-      console.log('Expense================== fetchFunctionalAccessMenus:', response.data);
+      // debugger
+      console.log(
+        'Expense================== fetchFunctionalAccessMenus:',
+        response.data,
+      );
 
       return response.data;
     } catch (error) {
@@ -353,104 +636,119 @@ const ExpenseRequestDetails = ({navigation}) => {
     }
   };
 
-
-const FetchExpenceApprovalData = async () => {
-  try {
-    setIsLoading(true);
-    
-    // Step 1: Extract required user data early to avoid redundant checks
-    const userType = user?.userType;
-    const employeeId = user?.id;
-    const companyId = user?.childCompanyId;
-
-    if (!companyId || !employeeId) {
-      console.error('Missing required user data (companyId or employeeId)');
-      setIsLoading(false);
-      return [];
-    }
-
-    // Step 2: Get access menu data
-    const accessData = await ExpenseRequestAccessMenus();
-    setexpenceApprovalAccess(accessData);
-    
-    // Step 3: Check if user has approval access
-    const hasAccess = Array.isArray(accessData) && 
-      (accessData.some(item => item.employeeId === employeeId) || userType === 2);
-    console.log('User has approval access:', hasAccess);
-
-    // Step 4: Get role configuration data
-    let roleData = null;
+  const FetchExpenceApprovalData = async () => {
     try {
-      const roleUrl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
-      const roleResponse = await axios.get(roleUrl);
-      console.log('Role Details from API:', JSON.stringify(roleResponse.data, null, 2));
-      
-      if (Array.isArray(roleResponse.data)) {
-        // Check if employee ID exists in role details
-        const isAuthorized = roleResponse.data.some(role => 
-          role.employeeId === employeeDetails?.id
-        );
-        setIsAuthorizedForFinalApproval(isAuthorized);
-        
-        // If employeeId matches, get that role data, else get the first role as fallback
-        roleData = roleResponse.data.find(item => item.employeeId === employeeDetails?.id) || 
-                   roleResponse.data[0] || null;
+      setIsLoading(true);
+
+      // Step 1: Extract required user data early to avoid redundant checks
+      const userType = user?.userType;
+      const employeeId = user?.id;
+      const companyId = user?.childCompanyId;
+
+      if (!companyId || !employeeId) {
+        console.error('Missing required user data (companyId or employeeId)');
+        setIsLoading(false);
+        return [];
       }
-    } catch (roleError) {
-      console.error('Error fetching role configuration:', roleError);
-    }
 
-    // Step 5: Fetch approval data
-    let approvalData = [];
-    try {
-      const apiUrl = hasAccess
-        ? `${BASE_URL}/PaymentAdvanceRequest/GetRequestForFinalApproval/${companyId}/${employeeId}`
-        : `${BASE_URL}/PaymentAdvanceRequest/GetRequestsForMgrApproval/${companyId}/${employeeId}`;
-      
-      console.log(`Fetching approval data from: ${apiUrl}`);
-      const response = await axios.get(apiUrl);
-      
-      if (Array.isArray(response.data)) {
-        // Filter out user's own requests
-        approvalData = response.data.filter(item => item.employeeId !== employeeDetails?.id);
-        
-        // Filter by branch if role has branch restriction
-        if (roleData && roleData.branchId !== 0) {
-          const branchId = roleData.branchId;
-          approvalData = approvalData.filter(item => item.branchId === branchId);
-          console.log(`Filtered approvals by branch ID ${branchId}`);
+      // Step 2: Get access menu data
+      const accessData = await ExpenseRequestAccessMenus();
+      setexpenceApprovalAccess(accessData);
+
+      // Step 3: Check if user has approval access
+      const hasAccess =
+        Array.isArray(accessData) &&
+        (accessData.some(item => item.employeeId === employeeId) ||
+          userType === 2);
+      // console.log('User has approval access:', hasAccess);
+
+      // Step 4: Get role configuration data
+      let roleData = null;
+      try {
+        const roleUrl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
+        const roleResponse = await axios.get(roleUrl);
+        console.log(
+          'Role Details from API:',
+          JSON.stringify(roleResponse.data, null, 2),
+        );
+
+        if (Array.isArray(roleResponse.data)) {
+          // Check if employee ID exists in role details
+          const isAuthorized = roleResponse.data.some(
+            role => role.employeeId === employeeDetails?.id,
+          );
+          setIsAuthorizedForFinalApproval(isAuthorized);
+
+          // If employeeId matches, get that role data, else get the first role as fallback
+          roleData =
+            roleResponse.data.find(
+              item => item.employeeId === employeeDetails?.id,
+            ) ||
+            roleResponse.data[0] ||
+            null;
         }
-        
-        // Log the filtered approval data
-        console.log(`Fetched===================================== ${approvalData.length} expense approval records after filtering`);
-        console.log('Filtered========================================= Approval List:', JSON.stringify(approvalData, null, 2));
-        
-        // Update state with filtered data
-        setExpenseList(approvalData);
-        setPendingRequestsCount(approvalData.length);
-        updatePaginatedData(approvalData, 1);
-      } else {
-        console.warn('Unexpected response format from API');
+      } catch (roleError) {
+        console.error('Error fetching role configuration:', roleError);
+      }
+
+      // Step 5: Fetch approval data
+      let approvalData = [];
+      try {
+        const apiUrl = hasAccess
+          ? `${BASE_URL}/PaymentAdvanceRequest/GetRequestForFinalApproval/${companyId}/${employeeId}`
+          : `${BASE_URL}/PaymentAdvanceRequest/GetRequestsForMgrApproval/${companyId}/${employeeId}`;
+
+        console.log(`Fetching approval data from: ${apiUrl}`);
+        const response = await axios.get(apiUrl);
+
+        if (Array.isArray(response.data)) {
+          // Filter out user's own requests
+          approvalData = response.data.filter(
+            item => item.employeeId !== employeeDetails?.id,
+          );
+
+          // Filter by branch if role has branch restriction
+          if (roleData && roleData.branchId !== 0) {
+            const branchId = roleData.branchId;
+            approvalData = approvalData.filter(
+              item => item.branchId === branchId,
+            );
+            console.log(`Filtered approvals by branch ID ${branchId}`);
+          }
+
+          // Log the filtered approval data
+          // console.log(
+          //   `Fetched===================================== ${approvalData.length} expense approval records after filtering`,
+          // );
+          console.log(
+            'Filtered========================================= Approval List:',
+            JSON.stringify(approvalData, null, 2),
+          );
+
+          // Update state with filtered data
+          setExpenseList(approvalData);
+          setPendingRequestsCount(approvalData.length);
+          updatePaginatedData(approvalData, 1);
+        } else {
+          console.warn('Unexpected response format from API');
+          setExpenseList([]);
+          setPendingRequestsCount(0);
+        }
+      } catch (error) {
+        console.error('Error fetching approval list:', error);
         setExpenseList([]);
         setPendingRequestsCount(0);
       }
-    } catch (error) {
-      console.error('Error fetching approval list:', error);
-      setExpenseList([]);
-      setPendingRequestsCount(0);
-    }
-    
-    setIsLoading(false);
-    return approvalData;
-  } catch (error) {
-    console.error('Unexpected error in FetchExpenceApprovalData:', error);
-    setIsLoading(false);
-    return [];
-  }
-};
 
-  
-  
+      setIsLoading(false);
+      return approvalData;
+    } catch (error) {
+      console.error('Unexpected error in FetchExpenceApprovalData:', error);
+      setIsLoading(false);
+      return [];
+    }
+  };
+
   useEffect(() => {
     if (user && employeeDetails) {
       console.log('Fetching expense approval data...');
@@ -464,312 +762,624 @@ const FetchExpenceApprovalData = async () => {
     }
   }, [user, employeeDetails]);
 
+  // Helper function to determine if request is an Expense request
+  const isExpenseRequest = item => {
+    // Check direct properties first
+    if (item && item.requestTypeId === 1) return true;
+
+    // Check in expense details if available
+    if (expenseDetails && expenseDetails.paymentRequest) {
+      return expenseDetails.paymentRequest.requestTypeId === 1;
+    }
+
+    // Try to determine from request type string
+    if (item && item.requestType) {
+      return item.requestType.toLowerCase().includes('expense');
+    }
+
+    // Default to false if can't determine
+    return false;
+  };
+
+  // Function to open the payment details modal - updated with null check
+  const openPaymentDetailsModal = item => {
+    if (!expenseDetails) {
+      Alertalert('Payment details not available');
+      return;
+    }
+
+    // Check if this is an expense request with payment details
+    if (
+      !isExpenseRequest(item) ||
+      !expenseDetails.paymentDetails ||
+      !Array.isArray(expenseDetails.paymentDetails)
+    ) {
+      Alert.alert('No payment details available for this request type');
+      return;
+    }
+
+    setSelectedPaymentDetail(expenseDetails.paymentDetails);
+    setModalVisible(true);
+  };
+
   const renderItem = ({item}) => {
-    const isExpanded = expandedCard === item.id || expandedCard === item.requestId;
-    
+    const isExpanded =
+      expandedCard === item.id || expandedCard === item.requestId;
+
     // Get expense type with fallback options
-    const expenseType = getFieldValue(item, ['requestType', 'paymentType'], 'Expense');
+    const expenseType = getFieldValue(
+      item,
+      ['requestType', 'paymentType'],
+      'Expense',
+    );
     const expenseColor = ExpenseTypeColors[expenseType] || '#6b7280';
-    
+
     // Get item ID - either 'id' or 'requestId'
     const itemId = item.id || item.requestId;
-    
+
+    // Check if this is an expense request (requestTypeId = 1)
+    const showInfoButton = isExpenseRequest(item);
+
     // Get employee name with fallback
     const employeeName = getFieldValue(item, ['employeeName', 'name']);
-    
+
     // Get employee code with fallback
     const employeeCode = getFieldValue(item, ['employeeCode', 'empId']);
-    
+
     // Get amount with fallback and formatting
-    const amount = getFieldValue(item, ['totalAmount', 'approvalAmount', 'amount']);
-    const formattedAmount = typeof amount === 'number' ? `₹${amount.toLocaleString('en-IN')}` : amount;
-    
-    // Get project name with fallback
-    const projectName = getFieldValue(item, ['projectName', 'project']);
-    
+    const amount = getFieldValue(item, [
+      'totalAmount',
+      'approvalAmount',
+      'amount',
+    ]);
+    const formattedAmount =
+      typeof amount === 'number'
+        ? `₹${amount.toLocaleString('en-IN')}`
+        : amount;
+
+    // Get branch name with fallback options
+    const branchName = getFieldValue(item, ['branchName', 'branch']);
+
+    // Get branch ID if name is not available (to show something rather than nothing)
+    const branchId = item.branchId || expenseDetails?.branchId;
+
     // Get status with fallback
     const status = getFieldValue(item, ['status'], 'Pending');
-    
+
     // Get remarks/reason with fallback
     const remarks = getFieldValue(item, ['remarks', 'reason']);
-    
+
     // Get date with fallback
-    const appliedDate = formatDate(getFieldValue(item, ['transactionDate', 'createdDate', 'appliedDate']));
+    const appliedDate = formatDate(
+      getFieldValue(item, ['transactionDate', 'createdDate', 'appliedDate']),
+    );
 
     return (
-      <TouchableOpacity
+      <Card
         style={[styles.card, isExpanded && styles.expandedCard]}
-        onPress={() => toggleCardExpansion(itemId)}
-        activeOpacity={0.9}>
-        {/* Status badge */}
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>{status}</Text>
-        </View>
+        onPress={() => toggleCardExpansion(itemId)}>
+        <Card.Content>
+          {/* Employee info section with info button - always visible */}
+          <View style={styles.employeeInfoSection}>
+            <View style={styles.employeeHeaderRow}>
+              <View style={styles.employeeNameContainer}>
+                <View style={styles.employeenamwee}>
+                  <Text style={styles.employeeName}>{employeeName}</Text>
 
-        {/* Header with expense type and toggle icon */}
-        <View style={styles.cardHeader}>
-          <View style={styles.leaveTypeContainer}>
-            <Chip
-              style={[
-                styles.leaveTypeChip,
-                {backgroundColor: `${expenseColor}20`},
-              ]}
-              textStyle={{color: expenseColor, fontWeight: '800'}}>
-              {expenseType}
-            </Chip>
-          </View>
-          <Icon
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#6b7280"
-          />
-        </View>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginRight: 10,
+                    }}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        item.status?.toLowerCase().includes('approved')
+                          ? styles.statusApprovedBadge
+                          : item.status?.toLowerCase().includes('rejected')
+                          ? styles.statusRejectedBadge
+                          : styles.statusPendingBadge,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.statusText,
+                          item.status?.toLowerCase().includes('approved')
+                            ? styles.statusApprovedText
+                            : item.status?.toLowerCase().includes('rejected')
+                            ? styles.statusRejectedText
+                            : styles.statusPendingText,
+                        ]}>
+                        {item.status || 'Pending'}
+                      </Text>
+                    </View>
 
-        {/* Employee info section - always visible */}
-        <View style={styles.employeeInfoSection}>
-          <Text style={styles.employeeName}>{employeeName}</Text>
-          <View style={styles.employeeDetails}>
-            <View style={styles.detailItem}>
-              <Icon
-                name="briefcase"
-                size={14}
-                color="#6B7280"
-                style={styles.detailIcon}
-              />
-              <Text style={styles.detailText}>
-                {item.designation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailDivider} />
-            <View style={styles.detailItem}>
-              <Icon
-                name="users"
-                size={14}
-                color="#6B7280"
-                style={styles.detailIcon}
-              />
-              <Text style={styles.detailText}>
-                {item.department || 'Not specified'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Date and amount info */}
-        <View style={styles.dateOuterContainer}>
-          <View style={styles.dateInnerContainer}>
-            <View style={styles.dateFromToContainer}>
-              <View style={styles.dateBox}>
-                <Text style={styles.dateLabel}>Applied Date</Text>
-                <Text style={styles.dateValue}>
-                  {appliedDate}
-                </Text>
-              </View>
-              <View style={styles.dateArrow}>
-                <Icon name="file-text" size={18} color="#9ca3af" />
-              </View>
-              <View style={styles.dateBox}>
-                <Text style={styles.dateLabel}>Project</Text>
-                <Text style={styles.dateValue}>
-                  {projectName || 'Not Specified'}
-                </Text>
+                    <View style={{marginLeft: 10}}>
+                      <Chip
+                        style={[
+                          styles.leaveTypeChip,
+                          {backgroundColor: `${expenseColor}20`},
+                        ]}
+                        textStyle={{color: expenseColor, fontWeight: '800'}}>
+                        {expenseType}
+                      </Chip>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.employeeDetails}>
+                  <Text style={styles.detailText}>
+                    {item.designation || 'Not specified'}
+                  </Text>
+                  <View style={styles.detailDivider} />
+                  <Text style={styles.detailText}>
+                    {item.department || 'Not specified'}
+                  </Text>
+                </View>
               </View>
             </View>
-            <View style={styles.daysContainer}>
-              <Text style={styles.daysValue}>{formattedAmount}</Text>
-              <Text style={styles.daysLabel}>Amount</Text>
-            </View>
           </View>
 
-          {/* Employee ID */}
-          <View style={styles.durationTypeContainer}>
-            <Icon
-              name="user"
-              size={16}
-              color="#6b7280"
-              style={styles.durationIcon}
-            />
-            <Text style={styles.durationText}>
-              Employee ID: {employeeCode}
-            </Text>
+          <Divider style={styles.sectionDivider} />
+
+          {/* Date and amount info */}
+          <View style={styles.dateOuterContainer}>
+            <Card style={styles.dateCard}>
+              <Card.Content style={styles.dateCardContent}>
+                <View style={styles.dateFromToContainer}>
+                  <View style={styles.dateBox}>
+                    <Text style={styles.dateLabel}>Applied Date</Text>
+                    <Text style={styles.dateValue}>{appliedDate}</Text>
+                  </View>
+                  <View style={styles.dateBox}>
+                    <Text style={styles.dateLabel}>Branch</Text>
+                    <Text style={styles.dateValue}>
+                      {employeeData?.branchName || 'Not Specified'}
+                    </Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
           </View>
 
-          {/* Reason/Remarks Section */}
-          <View style={styles.remarksSection}>
-            <Text style={styles.remarksLabel}>Purpose:</Text>
-            <Text style={styles.remarksValue}>{remarks || 'No purpose provided'}</Text>
-          </View>
-          
-          {/* Status Section with color-coded status */}
-          <View style={styles.statusSection}>
-            <Text style={styles.statusLabel}>Status:</Text>
-            <Text style={[
-              styles.statusValue,
-              status?.toLowerCase().includes('approved') 
-                ? styles.statusApproved 
-                : status?.toLowerCase().includes('rejected')
-                  ? styles.statusRejected
-                  : styles.statusPending
-            ]}>
-              {status}
-            </Text>
-          </View>
-        </View>
+          {/* Expanded section */}
+          {isExpanded && (
+            <View style={styles.expandedSection}>
+              <Divider style={styles.divider} />
 
-        {/* Expanded section */}
-        {isExpanded && (
-          <View style={styles.expandedSection}>
-            <Divider style={styles.divider} />
+              {expandedCard === itemId && !expenseDetails && (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>
+                    Fetching expense details...
+                  </Text>
+                </View>
+              )}
 
-            {/* Fetching indicator */}
-            {expandedCard === itemId && !expenseDetails && (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Fetching expense details...</Text>
+              {/* Project Details Section */}
+              <Card style={styles.detailCard}>
+                <Card.Content>
+                  <Text style={styles.sectionTitle}>Request Details</Text>
+                  <View style={styles.detailsContainer}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Request Type:</Text>
+                      <Text style={styles.detailValue}>
+                        {expenseDetails?.paymentRequest?.requestTypeId === 1
+                          ? 'Expense'
+                          : expenseDetails?.paymentRequest?.requestTypeId === 2
+                          ? 'Advance'
+                          : expenseType}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Amount:</Text>
+
+                      <View style={styles.amountContainer}>
+                        <Text style={styles.detailValue}>
+                          {formattedAmount}
+                        </Text>
+
+                        {showInfoButton && (
+                          <Button
+                            compact
+                            icon="eye"
+                            onPress={() => openPaymentDetailsModal(item)}
+                            style={styles.viewDetailsButton}>
+                            View money
+                          </Button>
+                        )}
+                      </View>
+                    </View>
+
+                    {expenseDetails && expenseDetails.projectId && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Project ID:</Text>
+                        <Text style={styles.detailValue}>
+                          {expenseDetails.projectId}
+                        </Text>
+                      </View>
+                    )}
+
+                    {expenseDetails && expenseDetails.paymentType && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Payment Type:</Text>
+                        <Text style={styles.detailValue}>
+                          {expenseDetails.paymentType}
+                        </Text>
+                      </View>
+                    )}
+
+                    {item.purpose && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Purpose:</Text>
+                        <Text style={styles.detailValue}>{item.purpose}</Text>
+                      </View>
+                    )}
+
+                    {item.remarks && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Reason:</Text>
+                        <Text style={styles.detailValue}>{item.remarks}</Text>
+                      </View>
+                    )}
+                  </View>
+                </Card.Content>
+              </Card>
+
+              {isAuthorizedForFinalApproval && (
+                <Card style={styles.detailCard}>
+                  <Card.Content>
+                    <Text style={styles.sectionTitle}>Amount Request Details</Text>
+                    <View style={styles.detailsContainer}>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Total Amount:</Text>
+                        <View style={styles.amountContainer}>
+                          <Text style={styles.detailValue}>
+                            ₹{expenseDetails?.paymentRequest?.approvalAmount?.toLocaleString('en-IN') || '0'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>RM Reason:</Text>
+                        <Text style={styles.detailValue}>
+                          {expenseDetails?.paymentRequest?.reason || 'No reason provided'}
+                        </Text>
+                      </View>
+
+                    
+                    </View>
+                  </Card.Content>
+                </Card>
+              )}
+
+              {/* Total amount of approve - Changed to Approved Amount */}
+              <Card style={styles.detailCard}>
+                <Card.Content>
+                  <View style={styles.remarksTitleContainer}>
+                    <Text style={styles.sectionTitle}>Approved Amount</Text>
+                    <Text style={styles.requiredField}>*</Text>
+                  </View>
+
+                  <TextInput
+                    style={styles.amountInput}
+                    placeholder="Enter approved amount"
+                    placeholderTextColor="#9ca3af"
+                    mode="outlined"
+                    value={approvedAmount}
+                    onChangeText={text => {
+                      // Ensure we only accept numbers and validate as we type
+                      if (!text || text === '' || /^\d*\.?\d*$/.test(text)) {
+                        setApprovedAmount(text);
+                      }
+                    }}
+                    maxLength={10}
+                    keyboardType="numeric"
+                  />
+                </Card.Content>
+              </Card>
+              {/* Approval Remarks */}
+              <Card style={styles.detailCard}>
+                <Card.Content>
+                  <View style={styles.remarksTitleContainer}>
+                    <Text style={styles.sectionTitle}>Approval Remarks</Text>
+                    <Text style={styles.remarksLimit}>
+                      (Max 100 Characters)
+                    </Text>
+                    <Text style={styles.requiredField}>*</Text>
+                  </View>
+
+                  <TextInput
+                    mode="outlined"
+                    style={styles.remarksInput}
+                    placeholder="Add your remarks"
+                    placeholderTextColor="#9ca3af"
+                    maxLength={100}
+                    multiline
+                    value={approvalRemarks[itemId] || ''}
+                    onChangeText={text =>
+                      setApprovalRemarks(prev => ({
+                        ...prev,
+                        [itemId]: text,
+                      }))
+                    }
+                  />
+                  <Text style={styles.characterCount}>
+                    {(approvalRemarks[itemId] || '').length}/100
+                  </Text>
+                </Card.Content>
+              </Card>
+
+              {/* Action Buttons */}
+              <View style={styles.buttonContainer}>
+                <Button
+                  mode="contained"
+                  style={[styles.actionButton, styles.approveButton]}
+                  labelStyle={styles.buttonText}
+                  icon="check"
+                  onPress={() => handleApprove(item.id || item.requestId)}
+                  // onPress={() => handleApprove(itemId)}
+                >
+                  {isAuthorizedForFinalApproval ? 'Final Approve' : 'Approve'}
+                </Button>
+                <Button
+                  mode="contained"
+                  style={[styles.actionButton, styles.rejectButton]}
+                  labelStyle={styles.buttonText}
+                  icon="close"
+                  onPress={() => handleReject(item.id || item.requestId)}>
+                  Reject
+                </Button>
               </View>
-            )}
-
-            {/* Project Details Section */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Request Details</Text>
-              <Text style={styles.infoText}>
-                {`Request ID: ${itemId}\nRequest Type: ${expenseType}\nTotal Amount: ${formattedAmount}`}
-                {expenseDetails && expenseDetails.projectId ? `\nProject ID: ${expenseDetails.projectId}` : ''}
-                {expenseDetails && expenseDetails.paymentType ? `\nPayment Type: ${expenseDetails.paymentType}` : ''}
-              </Text>
             </View>
-
-            {/* Payment Details Section - Only show if we have fetched details */}
-            {expenseDetails && (
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Payment Details</Text>
-                <Text style={styles.infoText}>
-                  {`Transaction ID: ${expenseDetails.transactionId || 'N/A'}`}
-                  {expenseDetails.bankName ? `\nBank: ${expenseDetails.bankName}` : ''}
-                  {expenseDetails.accountNumber ? `\nAccount: ${expenseDetails.accountNumber}` : ''}
-                  {expenseDetails.requestStatus ? `\nStatus: ${expenseDetails.requestStatus}` : ''}
-                </Text>
-              </View>
-            )}
-
-            {/* Department & Designation */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Department & Designation</Text>
-              <Text style={styles.infoText}>
-                {`Department: ${item.department || expenseDetails?.department || 'Not Specified'}\nDesignation: ${item.designation || expenseDetails?.designation || 'Not Specified'}`}
-              </Text>
-            </View>
-
-            {/* Approval Remarks */}
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>
-                Approval Remarks
-              </Text>
-              <TextInput
-                style={[styles.enhancedTextInput, styles.remarksInput]}
-                placeholder="Add your approval remarks here (required)"
-                placeholderTextColor="#9ca3af"
-                maxLength={400}
-                multiline
-                value={approvalRemarks[itemId] || ''}
-                onChangeText={text =>
-                  setApprovalRemarks(prev => ({
-                    ...prev,
-                    [itemId]: text,
-                  }))
-                }
-              />
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.approveButton]}
-                onPress={() => handleApprove(itemId)}>
-                <Icon
-                  name="check"
-                  size={18}
-                  color="#fff"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>
-                  Approve
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.rejectButton]}
-                onPress={() => handleReject(itemId)}>
-                <Icon
-                  name="x"
-                  size={18}
-                  color="#fff"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>Reject</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
+          )}
+        </Card.Content>
+      </Card>
     );
   };
 
-  return (
-    <AppSafeArea>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
-        <Appbar.Content
-          title="Expense Requests"
-          titleStyle={styles.headerTitle}
-        />
-      </Appbar.Header>
-
-      {/* Pending Requests Card - Updated to show actual count */}
-      <View style={styles.pendingAlertSmall}>
-        <Icon
-          name="alert-circle"
-          size={20}
-          color="#f59e42"
-          style={{marginRight: 8}}
-        />
-        <Text style={styles.pendingAlertCountSmall}>{pendingRequestsCount} Pending Request{pendingRequestsCount !== 1 ? 's' : ''}</Text>
-      </View>
-
-      <FlatList
-        contentContainerStyle={styles.listContainer}
-        data={paginatedData} // Use paginated data instead of full expenseList
-        keyExtractor={(item, index) => {
-          // Create a truly unique key by using multiple properties or fallback to index
-          const uniqueId = item.requestId || item.id || `item-${index}`;
-          return uniqueId.toString();
-        }}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={
-          expenseList.length > 0 ? (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(expenseList.length / itemsPerPage)}
-              onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={expenseList.length}
+  // Updated Payment Details Modal to handle the structured API response
+  const renderPaymentDetailsModal = () => (
+    <Portal>
+      <Modal
+        visible={modalVisible}
+        onDismiss={() => setModalVisible(false)}
+        contentContainerStyle={styles.centeredModalContainer}>
+        <View style={styles.modalOverlay}>
+          <Card style={styles.centeredModalCard}>
+            <Card.Title
+              title="Payment Details"
+              titleStyle={styles.modalTitle}
+              right={props => (
+                <IconButton
+                  {...props}
+                  icon="close"
+                  size={20}
+                  onPress={() => setModalVisible(false)}
+                />
+              )}
             />
-          ) : null
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={40} color="#9CA3AF" />
-            <Text style={styles.emptyText}>No pending expense requests found</Text>
-          </View>
-        }
-      />
-    </AppSafeArea>
+            <Card.Content>
+              <ScrollView style={styles.modalScrollView}>
+                {selectedPaymentDetail &&
+                Array.isArray(selectedPaymentDetail) &&
+                selectedPaymentDetail.length > 0 ? (
+                  selectedPaymentDetail.map((detail, index) => (
+                    <View
+                      key={`payment-${detail.id || index}`}
+                      style={styles.paymentDetailItem}>
+                      <View style={styles.paymentDetailHeader}>
+                        <Text style={styles.paymentDetailTitle}>
+                          {detail.expenseHead || 'Expense'}
+                        </Text>
+                        <Chip mode="outlined" style={styles.amountChip}>
+                          ₹{detail.amount?.toLocaleString('en-IN') || '0'}
+                        </Chip>
+                      </View>
+
+                      <Divider style={styles.itemDivider} />
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Date:</Text>
+                        <Text style={styles.detailValue}>
+                          {formatDate(detail.transactionDate)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Expense Type:</Text>
+                        <Text style={styles.detailValue}>
+                          {detail.expenseHead || 'Not Specified'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Expense ID:</Text>
+                        <Text style={styles.detailValue}>
+                          {detail.id || 'N/A'}
+                        </Text>
+                      </View>
+
+                      {detail.approvedAmount !== null && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>
+                            Approved Amount:
+                          </Text>
+                          <Text style={styles.detailValue}>
+                            ₹
+                            {detail.approvedAmount?.toLocaleString('en-IN') ||
+                              '0'}
+                          </Text>
+                        </View>
+                      )}
+
+                      {detail.documentPath && (
+                        <Button
+                          mode="outlined"
+                          icon="file-document-outline"
+                          onPress={() =>
+                            handleViewDocument(detail.documentPath)
+                          }
+                          style={styles.viewDocumentButton}>
+                          View Document
+                        </Button>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noDataText}>
+                    No payment details available
+                  </Text>
+                )}
+              </ScrollView>
+            </Card.Content>
+            <Card.Actions style={styles.modalActions}>
+              <Button
+                mode="contained"
+                onPress={() => setModalVisible(false)}
+                style={styles.closeButton}>
+                Close
+              </Button>
+            </Card.Actions>
+          </Card>
+        </View>
+      </Modal>
+    </Portal>
+  );
+
+  return (
+    <Provider>
+      <AppSafeArea>
+        <Appbar.Header style={styles.header}>
+          <Appbar.BackAction
+            onPress={() => navigation.goBack()}
+            color="#4B5563"
+          />
+          <Appbar.Content
+            title="Employee's Expense Request"
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+
+        {/* Pending Requests Badge */}
+        <Card style={styles.pendingAlertCard}>
+          <Card.Content style={styles.pendingAlertContent}>
+            <Icon
+              name="alert-circle"
+              size={20}
+              color="#f59e42"
+              style={{marginRight: 8}}
+            />
+            <Text style={styles.pendingAlertCountSmall}>
+              {pendingRequestsCount} Pending Request
+              {pendingRequestsCount !== 1 ? 's' : ''}
+            </Text>
+          </Card.Content>
+        </Card>
+
+        <FlatList
+          contentContainerStyle={styles.listContainer}
+          data={paginatedData}
+          keyExtractor={(item, index) => {
+            const uniqueId = `${item.requestId || item.id || 'item'}-${index}`;
+            return uniqueId.toString();
+          }}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            expenseList.length > 0 ? (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(expenseList.length / itemsPerPage)}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={expenseList.length}
+              />
+            ) : null
+          }
+          ListEmptyComponent={
+            <Card style={styles.emptyCard}>
+              <Card.Content style={styles.emptyContainer}>
+                <Icon name="inbox" size={40} color="#9CA3AF" />
+                <Text style={styles.emptyText}>
+                  No pending expense requests found
+                </Text>
+              </Card.Content>
+            </Card>
+          }
+        />
+
+        {/* Payment Details Modal */}
+        {renderPaymentDetailsModal()}
+
+        {/* Document Viewer Modal */}
+        <Portal>
+          <Modal
+            visible={documentViewerVisible}
+            onDismiss={() => setDocumentViewerVisible(false)}
+            contentContainerStyle={styles.documentViewerContainer}>
+            <Card style={styles.documentViewerCard}>
+              <Card.Title
+                title="Document Viewer"
+                right={props => (
+                  <IconButton
+                    {...props}
+                    icon="close"
+                    onPress={() => setDocumentViewerVisible(false)}
+                  />
+                )}
+              />
+              <Card.Content style={styles.webViewContainer}>
+                {documentUrl ? (
+                  <WebView
+                    source={{uri: documentUrl}}
+                    style={styles.webView}
+                    startInLoadingState={true}
+                    onError={syntheticEvent => {
+                      const {nativeEvent} = syntheticEvent;
+                      console.error('WebView error: ', nativeEvent);
+                      alert(
+                        `Error loading document: ${nativeEvent.description}`,
+                      );
+                    }}
+                  />
+                ) : (
+                  <View style={styles.noDocumentContainer}>
+                    <Icon name="file-text" size={50} color="#9CA3AF" />
+                    <Text style={styles.noDocumentText}>
+                      No document to display
+                    </Text>
+                  </View>
+                )}
+              </Card.Content>
+              <Card.Actions>
+                <Button
+                  mode="contained"
+                  onPress={() => setDocumentViewerVisible(false)}
+                  style={styles.closeButton}>
+                  Close
+                </Button>
+              </Card.Actions>
+            </Card>
+          </Modal>
+        </Portal>
+
+        {/* Add Feedback Modal */}
+        <FeedbackModal
+          visible={feedbackVisible}
+          onClose={() => setFeedbackVisible(false)}
+          type={feedbackType}
+          message={feedbackMessage}
+        />
+      </AppSafeArea>
+    </Provider>
   );
 };
 
 const styles = StyleSheet.create({
+  headerGradient: {
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
   header: {
     backgroundColor: '#FFFFFF',
     elevation: 0,
@@ -778,116 +1388,123 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    color: '#111827',
-    fontWeight: '800',
     fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
   },
   listContainer: {
     padding: 16,
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: '#fff',
-    padding: 16,
     marginBottom: 16,
     borderRadius: 12,
+    overflow: 'hidden',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 2},
-    position: 'relative', // For absolute positioning of status badge
-    paddingTop: 24, // Add space for the status badge
   },
   expandedCard: {
     elevation: 4,
-    shadowOpacity: 0.12,
   },
-  statusBadge: {
+  cardStatusHeader: {
     position: 'absolute',
     top: 0,
-    right: 16,
-    backgroundColor: '#FEF3C7',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
-    zIndex: 1,
+    right: 12,
+    zIndex: 10,
   },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  statusApproved: {
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    fontWeight: '500',
+  },
+  statusRejected: {
+    color: '#DC2626',
+    backgroundColor: '#FEF2F2',
+    fontWeight: '500',
+  },
+  statusPending: {
     color: '#D97706',
+    backgroundColor: '#FEF3C7',
+    fontWeight: '500',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  leaveTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 16,
+    paddingTop: 8,
   },
   leaveTypeChip: {
     height: 32,
+    borderWidth: 2,
   },
   employeeInfoSection: {
     marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    paddingBottom: 10,
+  },
+  employeeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  employeeNameContainer: {
+    marginLeft: 12,
+    flex: 1,
   },
   employeeName: {
-    fontSize: 18,
+    fontSize: 23,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   employeeDetails: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  detailIcon: {
-    marginRight: 6,
-  },
   detailText: {
-    fontSize: 14,
-    color: '#4B5563',
+    fontSize: 18,
     fontWeight: '500',
+    color: '#4B5563',
   },
   detailDivider: {
-    height: 16,
+    height: 14,
     width: 1,
     backgroundColor: '#D1D5DB',
-    marginHorizontal: 12,
+    marginHorizontal: 8,
+  },
+  sectionDivider: {
+    marginVertical: 12,
+    height: 1,
+    backgroundColor: '#E5E7EB',
   },
   dateOuterContainer: {
     marginVertical: 8,
   },
-  dateInnerContainer: {
+  dateCard: {
+    marginBottom: 8,
+    borderRadius: 8,
+    elevation: 1,
+  },
+  dateCardContent: {
+    padding: 8,
+  },
+  dateFromToContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  dateFromToContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   dateBox: {
     flex: 1,
   },
   dateLabel: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#6b7280',
     marginBottom: 2,
+    fontWeight: '500',
   },
   dateValue: {
     fontSize: 14,
@@ -897,13 +1514,15 @@ const styles = StyleSheet.create({
   dateArrow: {
     marginHorizontal: 8,
   },
-  daysContainer: {
-    backgroundColor: '#f3f4f6',
+  amountCard: {
+    marginBottom: 8,
     borderRadius: 8,
-    padding: 8,
-    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    elevation: 1,
+  },
+  amountCardContent: {
     alignItems: 'center',
-    marginLeft: 12,
+    padding: 10,
   },
   daysValue: {
     fontSize: 16,
@@ -917,7 +1536,8 @@ const styles = StyleSheet.create({
   durationTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginVertical: 8,
+    paddingLeft: 4,
   },
   durationIcon: {
     marginRight: 6,
@@ -926,175 +1546,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4b5563',
   },
-  expandedSection: {
-    marginTop: 8,
-  },
-  divider: {
-    marginVertical: 12,
-    backgroundColor: '#e5e7eb',
-  },
-  sectionContainer: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4b5563',
-    marginBottom: 10,
-    letterSpacing: 0.2,
-  },
-  reasonText: {
-    fontSize: 14,
-    color: '#111827',
-    lineHeight: 20,
-  },
-  documentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  remarksCard: {
+    marginVertical: 8,
     borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  documentText: {
-    color: '#3b82f6',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: '#F9FAFB',
-    color: '#111827',
-    minHeight: 80,
-  },
-
-  // Enhanced TextInput styles
-  enhancedTextInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    fontWeight: '400',
-    backgroundColor: '#F9FAFB',
-    color: '#111827',
-    minHeight: 54,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
     elevation: 1,
   },
-  remarksInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingTop: 16,
-    lineHeight: 22,
-    letterSpacing: 0.2,
-  },
-
-  buttonContainer: {
-    flexDirection: 'row',
-    marginTop: 8,
-    justifyContent: 'space-between',
-  },
-  button: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 8,
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  approveButton: {
-    backgroundColor: '#10b981',
-  },
-  rejectButton: {
-    backgroundColor: '#ef4444',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  pendingAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    borderRadius: 12,
-    padding: 18,
-    margin: 16,
-    marginBottom: 0,
-    borderWidth: 1,
-    borderColor: '#FDBA74',
-  },
-  pendingAlertSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    margin: 16,
-    marginBottom: 0,
-    borderWidth: 1,
-    borderColor: '#FDBA74',
-    alignSelf: 'flex-start',
-  },
-  pendingAlertCount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#f59e42',
-  },
-  pendingAlertCountSmall: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f59e42',
-  },
-  pendingAlertText: {
-    fontSize: 14,
-    color: '#92400e',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-
-  // Add these new styles
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    marginTop: 2,
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
   remarksSection: {
-    marginTop: 2,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    flexDirection: 'row',   
-  },
-  statusSection: {
-    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  reportingRemarksSection: {
-    marginTop: 8,
+    marginTop: 2,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
@@ -1107,9 +1567,114 @@ const styles = StyleSheet.create({
   },
   remarksValue: {
     fontSize: 15,
+    fontWeight: '500',
     color: '#111827',
-    fontWeight: '500',    
-    marginLeft: 10
+    marginLeft: 10,
+    flex: 1,
+  },
+  expandedSection: {
+    marginTop: 16,
+  },
+  divider: {
+    marginBottom: 16,
+    backgroundColor: '#e5e7eb',
+  },
+  detailCard: {
+    marginBottom: 12,
+    borderRadius: 8,
+    elevation: 1,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#4b5563',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  infoText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#111827',
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  remarksInput: {
+    backgroundColor: '#F9FAFB',
+    minHeight: 100,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    paddingVertical: 6,
+  },
+  approveButton: {
+    backgroundColor: '#10b981',
+  },
+  rejectButton: {
+    backgroundColor: '#ef4444',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pendingAlertCard: {
+    margin: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    elevation: 0,
+  },
+  pendingAlertContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  pendingAlertCountSmall: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f59e42',
+  },
+  emptyCard: {
+    marginVertical: 24,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    marginTop: 2,
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: '#4b5563',
   },
   statusLabel: {
     fontSize: 13,
@@ -1126,27 +1691,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 4,
   },
-  infoText: {
-    fontSize: 14,
-    color: '#111827',
-    backgroundColor: '#F3F4F6',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  statusApproved: {
-    color: '#059669', // Green for approved
-    backgroundColor: '#ECFDF5',
-  },
-  statusRejected: {
-    color: '#DC2626', // Red for rejected
-    backgroundColor: '#FEF2F2',
-  },
-  statusPending: {
-    color: '#D97706', // Amber for pending
-    backgroundColor: '#FEF3C7',
-  },
-  // Add styles for the picker
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -1164,6 +1708,7 @@ const styles = StyleSheet.create({
     height: 54,
     width: '100%',
     color: '#111827',
+    fontSize: 15,
   },
   pickerItem: {
     fontSize: 15,
@@ -1175,42 +1720,340 @@ const styles = StyleSheet.create({
   },
   taskAssigneeSelected: {
     fontSize: 14,
-    color: '#10b981',
     fontWeight: '500',
+    color: '#10b981',
     marginBottom: 8,
     backgroundColor: '#ECFDF5',
     padding: 8,
     borderRadius: 6,
   },
-   picker: {
-    height: 54,
-    width: '100%',
-    color: '#111827',
-  },
-  pickerItem: {
-    fontSize: 15,
-    color: '#111827',
-  },
-  pickerPlaceholder: {
-    fontSize: 15,
-    color: '#9CA3AF',
-  },
-  loadingContainer: {
-    padding: 12,
+  employeenamwee: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingVertical: 4,
+    justifyContent: 'space-between',
   },
-  loadingText: {
+  statusApprovedBadge: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#10b981',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusRejectedBadge: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#ef4444',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusPendingBadge: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusApprovedText: {
     fontSize: 14,
-    color: '#4b5563',
-    fontStyle: 'italic',
+    fontWeight: '500',
+    color: '#10b981',
   },
-}); 
-
+  statusRejectedText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#ef4444',
+  },
+  statusPendingText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#f59e0b',
+  },
+  detailsContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  detailLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#4B5563',
+    width: 120,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    flex: 1,
+  },
+  amountInput: {
+    backgroundColor: '#F9FAFB',
+  },
+  remarksLimit: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  remarksTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  requiredField: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ef4444',
+    marginLeft: 4,
+  },
+  characterCount: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#6b7280',
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  amountContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  viewDetailsButton: {
+    marginLeft: 2,
+    borderColor: '#3b82f6',
+    borderRadius: 4,
+    height: 36,
+  },
+  infoButton: {
+    margin: 0,
+    padding: 0,
+  },
+  modalContainer: {
+    padding: 20,
+    margin: 20,
+    backgroundColor: 'transparent',
+  },
+  modalCard: {
+    borderRadius: 12,
+    elevation: 5,
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  modalActions: {
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  paymentDetailItem: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  paymentDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paymentDetailTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  amountChip: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  itemDivider: {
+    marginVertical: 8,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  closeButton: {
+    borderRadius: 8,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    textAlign: 'center',
+    padding: 20,
+  },
+  documentViewerContainer: {
+    flex: 1,
+    margin: 20,
+  },
+  documentViewerCard: {
+    flex: 1,
+    borderRadius: 12,
+  },
+  webViewContainer: {
+    flex: 1,
+    padding: 0,
+  },
+  webView: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+  },
+  noDocumentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  noDocumentText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  // Updated modal styles for centered popup design
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // translucent black
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centeredModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    margin: 0,
+  },
+  centeredModalCard: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 12,
+    elevation: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+   modalContainer: {
+    padding: 20,
+    margin: 20,
+    backgroundColor: 'transparent',
+  },
+  modalCard: {
+    borderRadius: 12,
+    elevation: 5,
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  modalActions: {
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  paymentDetailItem: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  paymentDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paymentDetailTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  amountChip: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  itemDivider: {
+    marginVertical: 8,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  closeButton: {
+    borderRadius: 8,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    textAlign: 'center',
+    padding: 20,
+  },
+  documentViewerContainer: {
+    flex: 1,
+    margin: 20,
+  },
+  documentViewerCard: {
+    flex: 1,
+    borderRadius: 12,
+  },
+  webViewContainer: {
+    flex: 1,
+    padding: 0,
+  },
+  webView: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+  },
+  noDocumentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  noDocumentText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  // Updated modal styles for centered popup design
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // translucent black
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centeredModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    margin: 0,
+  },
+  centeredModalCard: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 12,
+    elevation: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});
 
 
 export default ExpenseRequestDetails;
-
