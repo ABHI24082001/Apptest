@@ -29,7 +29,7 @@ import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
 import {useAuth} from '../constants/AuthContext';
 import DatePicker from 'react-native-date-picker';
-
+import FeedbackModal from '../component/FeedbackModal';
 // Helper to format date string as DD-MM-YYYY
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -319,22 +319,145 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       .substring(0, 2);
   };
 
-  const handleApprove = () => {
+  // Add state variables for the feedback modal
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('success');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+
+  const handleApprove = async () => {
     if (!remarks.trim()) {
       Alert.alert('Required', 'Please enter remarks before approving.');
       return;
     }
-    Alert.alert('Success', 'Request has been approved.');
-  
+    
+    if (isAuthorizedForFinalApproval && !fromDate) {
+      Alert.alert('Required', 'Please select an exit date before approving.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Create a copy of the selected request to update
+      const updatedRequest = { ...selectedRequest };
+      
+      // Set the correct fields based on who's approving
+      if (isAuthorizedForFinalApproval) {
+        // HR approval flow
+        updatedRequest.hrstatus = 'Approved';
+        updatedRequest.hrremarks = remarks;
+        updatedRequest.applicationStatus = 'Approved';
+        updatedRequest.exitDt = fromDate ? fromDate.toISOString() : updatedRequest.exitDt;
+        updatedRequest.contingentEmpId = selectedEmployee || null;
+      } else {
+        // Supervisor/reporting manager approval flow
+        updatedRequest.supervisorStatus = 'Approved';
+        updatedRequest.supervisorRemarks = remarks;
+      }
+      
+      // Common updates
+      updatedRequest.modifiedBy = user?.id;
+      updatedRequest.modifiedDate = new Date().toISOString();
+      
+      console.log('Sending approval request with data:', updatedRequest);
+      
+      // Make API call
+      const response = await axios.post(
+        `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
+        updatedRequest
+      );
+      
+      console.log('API Response:', response.data);
+      
+      if (response.status === 200 || response.status === 201) {
+        // Show feedback modal instead of alert
+        setFeedbackType('success');
+        setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'approved by HR' : 'approved by supervisor'}`);
+        setFeedbackVisible(true);
+        
+        // Refresh data after a short delay
+        setTimeout(() => {
+          currentEmploye();
+          setSelectedRequest(null);
+          setRemarks('');
+        }, 3000);
+      } else {
+        throw new Error('Failed to update request');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      // Show error in feedback modal
+      setFeedbackType('fail');
+      setFeedbackMessage(`Failed to approve request: ${error.message || 'Unknown error occurred'}`);
+      setFeedbackVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!remarks.trim()) {
       Alert.alert('Required', 'Please enter remarks before rejecting.');
       return;
     }
-    Alert.alert('Rejected', 'Request has been rejected.');
-    // Here you would add the API call to update the status
+    
+    try {
+      setLoading(true);
+      
+      // Create a copy of the selected request to update
+      const updatedRequest = { ...selectedRequest };
+      
+      // Set the correct fields based on who's rejecting
+      if (isAuthorizedForFinalApproval) {
+        // HR rejection flow
+        updatedRequest.hrstatus = 'Rejected';
+        updatedRequest.hrremarks = remarks;
+        updatedRequest.applicationStatus = 'Rejected';
+      } else {
+        // Supervisor/reporting manager rejection flow
+        updatedRequest.supervisorStatus = 'Rejected';
+        updatedRequest.supervisorRemarks = remarks;
+        updatedRequest.applicationStatus = 'Rejected'; // Also reject the application if supervisor rejects
+      }
+      
+      // Common updates
+      updatedRequest.modifiedBy = user?.id;
+      updatedRequest.modifiedDate = new Date().toISOString();
+      
+      console.log('Sending rejection request with data:', updatedRequest);
+      
+      // Make API call
+      const response = await axios.post(
+        `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
+        updatedRequest
+      );
+      
+      console.log('API Response:', response.data);
+      
+      if (response.status === 200 || response.status === 201) {
+        // Show feedback modal instead of alert
+        setFeedbackType('fail'); // Using 'fail' type as it's visually appropriate for rejection
+        setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'rejected by HR' : 'rejected by supervisor'}`);
+        setFeedbackVisible(true);
+        
+        // Refresh data after a short delay
+        setTimeout(() => {
+          currentEmploye();
+          setSelectedRequest(null);
+          setRemarks('');
+        }, 3000);
+      } else {
+        throw new Error('Failed to update request');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      // Show error in feedback modal
+      setFeedbackType('fail');
+      setFeedbackMessage(`Failed to reject request: ${error.message || 'Unknown error occurred'}`);
+      setFeedbackVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Define status actions available for selection
@@ -358,6 +481,14 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        type={feedbackType}
+        message={feedbackMessage}
+        onClose={() => setFeedbackVisible(false)}
+      />
 
       {/* Exit Request Cards */}
       <ScrollView contentContainerStyle={styles.scrollContainer}>
