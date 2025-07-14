@@ -28,6 +28,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
 import {useAuth} from '../constants/AuthContext';
+import DatePicker from 'react-native-date-picker';
 
 // Helper to format date string as DD-MM-YYYY
 function formatDate(dateStr) {
@@ -52,50 +53,71 @@ const getStatusColor = status => {
   }
 };
 
-const ExitRequestStatusScreen = ({navigation}) => {
+const ExitRequestStatusScreen = ({navigation, route}) => {
   // const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [withdrawingId, setWithdrawingId] = useState(null);
-  const [canApplyNew, setCanApplyNew] = useState(true);
-  const [exitDate, setExitDate] = useState('');
-  const [reason, setReason] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState(null); // Add state for the selected request
+
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [employees] = useState([
-    {id: 'AA_43', name: 'Employee 1'},
-    {id: 'AA_45', name: 'Employee 2'},
-  ]);
-  const [allExitRecords, setAllExitRecords] = useState([]);
+  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] =
+    useState(false);
+  const [statusAction, setStatusAction] = useState(''); // Add this new state for status actions
+
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
 
   // Get user details from Auth context
   const {user} = useAuth();
 
   console.log('User details:', user);
 
-  // Fetch all exit records using the API
-  const fetchAllExitRecords = async () => {
-    if (!user?.childCompanyId) {
-      console.log('No child company ID found in user data');
-      return;
-    }
-    
+  // Fetch all employees from the registration API
+  const fetchEmployees = async () => {
+    setLoadingEmployees(true);
     try {
-      console.log(`Fetching exit records for company ID: ${user.childCompanyId}`);
-      const response = await axios.get(
-        `${BASE_URL}/EmployeeExit/GetAllEmpExitRecords/${user.childCompanyId}`
-      );
-      
-      if (response.status === 200) {
-        const records = response.data;
-        setAllExitRecords(records);
-        console.log('All exit records:', records);
-      } else {
-        console.error('Failed to fetch all exit records:', response.status);
+      const childCompanyId = user?.childCompanyId;
+
+      if (!childCompanyId) {
+        console.warn('❗ Missing childCompanyId. Cannot fetch employees.');
+        return;
       }
+
+      const response = await fetch(
+        `${BASE_URL}/EmpRegistration/GetAllEmpRegistration/${childCompanyId}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(
+        '✅ Employee registration ==========================================data:',
+        data,
+      );
+
+      // Transform data into the format needed for picker
+      const formattedEmployees = Array.isArray(data)
+        ? data.map(emp => ({
+            id: emp.empId || emp.id,
+            name: `(${emp.employeeId || 'No  ID'})`,
+            empCode: emp.empCode,
+          }))
+        : [];
+
+      setEmployees(formattedEmployees);
     } catch (error) {
-      console.error('Error fetching all exit records:', error);
+      console.error('❌ Error fetching employees:', error);
+    } finally {
+      setLoadingEmployees(false);
     }
   };
 
@@ -103,122 +125,189 @@ const ExitRequestStatusScreen = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       if (employeeDetails?.id) {
-        fetchExitRequests();
+        currentEmploye();
+        fetchEmployees();
+
+        // Get selected request from route params if available
+        if (route.params?.selectedRequest) {
+          setSelectedRequest(route.params.selectedRequest);
+        }
       }
-      
-      // Fetch all exit records if user has childCompanyId
-      if (user?.childCompanyId) {
-        fetchAllExitRecords();
-      }
-      
+
       return () => {}; // cleanup if needed
-    }, [employeeDetails?.id, user?.childCompanyId]),
+    }, [
+      employeeDetails?.id,
+      user?.childCompanyId,
+      route.params?.selectedRequest,
+    ]),
   );
 
   const fetchExitRequests = async () => {
-    if (!employeeDetails?.id) return;
     setLoading(true);
+
     try {
-      const res = await fetch(
-        `${BASE_URL}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
-      );
-      const data = await res.json();
-      const exitRequests = Array.isArray(data) ? data : [];
-      setRequests(exitRequests);
+      const childCompanyId = user?.childCompanyId;
 
-      // Check if user can apply new exit request
-      const hasPendingRequest = exitRequests.some(
-        req => req.applicationStatus?.toLowerCase() === 'pending',
+      if (!childCompanyId) {
+        console.warn('❗ Missing childCompanyId. Cannot fetch exit records.');
+        return;
+      }
+
+      const response = await fetch(
+        `${BASE_URL}/EmployeeExit/GetAllEmpExitRecords/${childCompanyId}`,
       );
 
-      // Set canApplyNew based on existing requests
-      setCanApplyNew(!hasPendingRequest);
-    } catch (e) {
-      console.error('Error fetching exit requests:', e);
-      setRequests([]);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ All employee exit records:', data);
+
+      // Store in state if needed
+      // setAllExitRecords(data);
+    } catch (error) {
+      console.error('❌ Error fetching exit records:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle withdraw request
-  const handleWithdraw = async id => {
-    Alert.alert(
-      'Withdraw Application',
-      'Are you sure you want to withdraw this exit application?',
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Withdraw',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setWithdrawingId(id);
-              const response = await axios.get(
-                `${BASE_URL}/EmployeeExit/WithdrawExitApplication/${id}`,
-              );
+  const fetchFunctionAccessMenu = async () => {
+    try {
+      const requestData = {
+        DepartmentId: user?.departmentId || 0,
+        DesignationId: user?.designtionId || 0,
 
-              if (response.status === 200) {
-                Alert.alert(
-                  'Success',
-                  'Exit application withdrawn successfully',
-                  [{text: 'OK'}],
-                );
-                // Refresh the exit requests after withdrawal
-                fetchExitRequests();
-              } else {
-                Alert.alert('Error', 'Failed to withdraw application');
-              }
-            } catch (error) {
-              console.error('Error withdrawing application:', error);
-              Alert.alert(
-                'Error',
-                error.response?.data?.message ||
-                  'Failed to withdraw application',
-              );
-            } finally {
-              setWithdrawingId(null);
-            }
-          },
-        },
-      ],
-    );
-  };
+        EmployeeId: user?.id || 0,
+        ControllerName: 'Employeeexit',
+        ActionName: 'EmpExitApplicationSupervisorList',
+        ChildCompanyId: user?.childCompanyId || 1,
+        BranchId: user?.branchId || 2,
+        UserType: user?.userType || 1,
+      };
 
-  // Handle navigation to apply new exit request
-  const handleApplyNew = () => {
-    if (!canApplyNew) {
-      Alert.alert(
-        'Application In Progress',
-        'You already have a pending exit application. Please withdraw it before submitting a new one.',
-        [{text: 'OK'}],
+      // Post request to fetch all authorization records
+      // for the `Employeeexit` controller and `EmpExitApplicationSupervisorList` action
+      const response = await axios.post(
+        `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        requestData,
       );
-      return;
+
+      // Log fetched authorization records
+      console.log(
+        'Exit fetchFunctionAccessMenu data=================================================:',
+        response.data,
+      );
+
+      // Log specific properties if available
+      if (Array.isArray(response.data)) {
+        console.log('Number of authorization records:', response.data.length);
+
+        // Log the first record for inspection if available
+        if (response.data.length > 0) {
+          console.log('First authorization record sample:', response.data[0]);
+        }
+      }
+
+      return response.data;
+    } catch (error) {
+      // Log error if something went wrong
+      console.error('Error fetching functional access menus:', error);
+      return null;
     }
-    
-    // Add navigation or additional logic here
   };
-  
-  // Default status for new applications
+
+  const currentEmploye = async () => {
+    setLoading(true);
+
+    try {
+      const currentEmployeeId = user?.id;
+
+      if (!currentEmployeeId) {
+        console.warn('❗ No current employee ID found.');
+        return;
+      }
+
+      // Step 1: Fetch functional access data
+      const accessList = await fetchFunctionAccessMenu();
+
+      // Step 2: Fetch all exit requests
+      const exitResponse = await fetch(
+        `${BASE_URL}/EmployeeExit/GetAllEmpExitRecords/${user?.childCompanyId}`,
+      );
+
+      if (!exitResponse.ok) {
+        throw new Error(`HTTP error! status: ${exitResponse.status}`);
+      }
+
+      const allExitRequests = await exitResponse.json();
+      console.log('✅ All employee exit records:', allExitRequests);
+
+      let filteredList = [];
+
+      // Step 3: Check if current employee is in access list
+      const hasApprovalAccess = Array.isArray(accessList)
+        ? accessList.some(item => item.employeeId === currentEmployeeId)
+        : false;
+
+      setIsAuthorizedForFinalApproval(hasApprovalAccess);
+
+      if (hasApprovalAccess) {
+        // Filter where applicationStatus is Pending
+        filteredList = allExitRequests.filter(
+          item => item.applicationStatus === 'Pending',
+        );
+        console.log(
+          '✅ Employee has access. FINAL APPROVAL Filtered approval list============================================================================:',
+          filteredList,
+        );
+      } else {
+        // Filter where reportingId === currentEmployeeId && supervisorStatus === 'Pending'
+        filteredList = allExitRequests.filter(
+          item =>
+            item.reportingId === currentEmployeeId &&
+            item.supervisorStatus === 'Pending',
+        );
+        console.log(
+          '✅ Employee has NO access. Filtered REPORTING MANAGER APPROVAL supervisor list:',
+          filteredList,
+        );
+      }
+
+      // Set the filtered list to the requests state
+      setRequests(filteredList);
+
+      // If no selected request but we have requests, select the first one
+      if (!selectedRequest && filteredList.length > 0) {
+        setSelectedRequest(filteredList[0]);
+      }
+    } catch (error) {
+      console.error('❌ Error in currentEmploye logic:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const defaultStatus = {
     status: 'pending',
-    color: '#F59E0B'
+    color: '#F59E0B',
   };
-  
+
   // Get status color based on status string
-  const getStatusDetails = (statusStr) => {
+  const getStatusDetails = statusStr => {
     if (!statusStr) return defaultStatus;
-    
+
     const status = statusStr.toLowerCase();
     if (status.includes('approved')) {
-      return { status: 'Approved', color: '#10B981' };
+      return {status: 'Approved', color: '#10B981'};
     } else if (status.includes('rejected')) {
-      return { status: 'Rejected', color: '#EF4444' };
+      return {status: 'Rejected', color: '#EF4444'};
     } else {
-      return { status: 'Pending', color: '#F59E0B' };
+      return {status: 'Pending', color: '#F59E0B'};
     }
   };
-  
+
   // Get employee initials for avatar
   const getInitials = name => {
     if (!name) return 'NA';
@@ -229,6 +318,32 @@ const ExitRequestStatusScreen = ({navigation}) => {
       .toUpperCase()
       .substring(0, 2);
   };
+
+  const handleApprove = () => {
+    if (!remarks.trim()) {
+      Alert.alert('Required', 'Please enter remarks before approving.');
+      return;
+    }
+    Alert.alert('Success', 'Request has been approved.');
+  
+  };
+
+  const handleReject = () => {
+    if (!remarks.trim()) {
+      Alert.alert('Required', 'Please enter remarks before rejecting.');
+      return;
+    }
+    Alert.alert('Rejected', 'Request has been rejected.');
+    // Here you would add the API call to update the status
+  };
+
+  // Define status actions available for selection
+  const statusActions = [
+    {id: 'inprogress', label: 'In Progress'},
+    {id: 'approve', label: 'Approve'},
+    {id: 'reject', label: 'Reject'},
+    {id: 'escalate', label: 'Escalate Account'},
+  ];
 
   return (
     <AppSafeArea>
@@ -250,11 +365,54 @@ const ExitRequestStatusScreen = ({navigation}) => {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>
-              Loading your exit requests...
+              Loading exit request details...
             </Text>
           </View>
-        ) : requests.length === 0 ? (
-          canApplyNew ? (
+        ) : requests.length > 0 ? (
+          <>
+            {/* Horizontal Employee Request Cards */}
+            <Text style={styles.sectionTitle}>Pending Exit Requests</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollView}>
+              {requests.map((request, index) => (
+                <TouchableOpacity
+                  key={request.id}
+                  style={[
+                    styles.requestItem,
+                    selectedRequest?.id === request.id &&
+                      styles.selectedRequestItem,
+                  ]}
+                  onPress={() => setSelectedRequest(request)}>
+                  <View style={styles.requestItemContent}>
+                    <View style={styles.requestNameRow}>
+                      <Text style={styles.requestName} numberOfLines={1}>
+                        {request.empName || 'N/A'}
+                      </Text>
+                      <View
+                        style={[
+                          styles.miniStatusIndicator,
+                          {
+                            backgroundColor: getStatusColor(
+                              request.applicationStatus,
+                            ),
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.requestCode} numberOfLines={1}>
+                      {request.employeeCode || 'N/A'}
+                    </Text>
+                    <Text style={styles.requestDate} numberOfLines={1}>
+                      Exit: {formatDate(request.exitDt)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Detail Card */}
             <Card style={styles.formCard}>
               <Card.Content>
                 {/* Employee Info Section */}
@@ -263,61 +421,49 @@ const ExitRequestStatusScreen = ({navigation}) => {
                     <View style={styles.employeeInfoContainer}>
                       <View style={styles.employeeDetails}>
                         <Text style={styles.employeeName}>
-                          {employeeDetails?.empName || 'Employee Name'}
+                          {selectedRequest?.empName || 'Employee Name'}
                         </Text>
-                        <View
-                          style={[
-                            styles.statusBadgeContainer,
-                          ]}>
-                          <View 
+                        <View style={[styles.statusBadgeContainer]}>
+                          <View
                             style={[
-                              styles.statusIndicator, 
-                              { backgroundColor: defaultStatus.color }
-                            ]} 
+                              styles.statusIndicator,
+                              {
+                                backgroundColor: getStatusColor(
+                                  selectedRequest?.applicationStatus,
+                                ),
+                              },
+                            ]}
                           />
                           <Text
                             style={[
                               styles.statusText,
-                              { color: defaultStatus.color }
+                              {
+                                color: getStatusColor(
+                                  selectedRequest?.applicationStatus,
+                                ),
+                              },
                             ]}>
-                            {defaultStatus.status}
+                            {selectedRequest?.applicationStatus || 'Pending'}
                           </Text>
                         </View>
                       </View>
 
                       <View style={styles.employeeDate}>
                         <Text style={styles.employeeDesignation}>
-                          {employeeDetails?.designation || 'Designation'}
+                          {selectedRequest?.empDesignation || 'Designation'}
                         </Text>
                         <Text style={styles.employeeDepartment}>
-                          {employeeDetails?.department || 'Department'}
+                          {selectedRequest?.empDepartment || 'Department'}
                         </Text>
                       </View>
+
+                      {/* Employee Code */}
+                      <Text style={styles.employeeCode}>
+                        Employee Code: {selectedRequest?.employeeCode || 'N/A'}
+                      </Text>
                     </View>
                   </Card.Content>
                 </Card>
-
-                {/* Dropdown for Employee Selection */}
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Contingent Employees' Code</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={selectedEmployee}
-                      style={styles.picker}
-                      onValueChange={itemValue =>
-                        setSelectedEmployee(itemValue)
-                      }>
-                      <Picker.Item label="Select Employee" value="" />
-                      {employees.map(employee => (
-                        <Picker.Item
-                          key={employee.id}
-                          label={employee.name}
-                          value={employee.id}
-                        />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
 
                 {/* Card for date fields and reason in row format */}
                 <Card style={styles.dataCard}>
@@ -328,29 +474,257 @@ const ExitRequestStatusScreen = ({navigation}) => {
                         <Icon name="calendar-plus" size={20} color="#3B82F6" />
                         <Text style={styles.dataLabel}>Applied Date :</Text>
                       </View>
-                     <Text style={styles.dataLabel}>Applied Date </Text>
-                    
+                      <Text style={styles.dataValue}>
+                        {selectedRequest
+                          ? formatDate(selectedRequest.appliedDt)
+                          : 'N/A'}
+                      </Text>
                     </View>
-                    
+
                     {/* Row for Exit Date */}
                     <View style={styles.dataRow}>
                       <View style={styles.dataLabelContainer}>
-                        <Icon name="calendar-remove" size={20} color="#EF4444" />
+                        <Icon
+                          name="calendar-remove"
+                          size={20}
+                          color="#EF4444"
+                        />
                         <Text style={styles.dataLabel}>Exit Date :</Text>
                       </View>
-                       <Text style={styles.dataLabel}>Exit Date </Text>
+                      <Text style={styles.dataValue}>
+                        {selectedRequest
+                          ? formatDate(selectedRequest.exitDt)
+                          : 'N/A'}
+                      </Text>
                     </View>
-                    
+
                     {/* Row for Reasons */}
                     <View style={styles.dataRow}>
                       <View style={styles.dataLabelContainer}>
-                        <Icon name="information-outline" size={20} color="#8B5CF6" />
+                        <Icon
+                          name="information-outline"
+                          size={20}
+                          color="#8B5CF6"
+                        />
                         <Text style={styles.dataLabel}>Reasons :</Text>
                       </View>
-                     <Text style={styles.dataLabel}>Reasons </Text>
+                      <Text style={styles.dataValue}>
+                        {selectedRequest?.exitReasons || 'N/A'}
+                      </Text>
                     </View>
                   </Card.Content>
                 </Card>
+
+                {/* Status Info Card - Only show for users with final approval access */}
+                {isAuthorizedForFinalApproval && (
+                  <Card style={[styles.dataCard, {borderLeftColor: '#F59E0B'}]}>
+                    <Card.Content>
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon
+                            name="account-supervisor"
+                            size={20}
+                            color="#F59E0B"
+                          />
+                          <Text style={styles.dataLabel}>Supervisor:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.supervisorStatus,
+                              ),
+                            },
+                          ]}>
+                          {selectedRequest?.supervisorStatus || 'Pending'}
+                          {selectedRequest?.supervisorRemarks &&
+                            ` (${selectedRequest.supervisorRemarks})`}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-cash" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>Account:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.accountStatus,
+                              ),
+                            },
+                          ]}>
+                          {selectedRequest?.accountStatus || 'Pending'}
+                          {selectedRequest?.accountRemarks &&
+                            ` (${selectedRequest.accountRemarks})`}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-tie" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>HR:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {color: getStatusColor(selectedRequest?.hrstatus)},
+                          ]}>
+                          {selectedRequest?.hrstatus || 'Pending'}
+                          {selectedRequest?.hrremarks &&
+                            ` (${selectedRequest.hrremarks})`}
+                        </Text>
+                      </View>
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-tie" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>
+                            Application Status:
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.applicationStatus,
+                              ),
+                            },
+                          ]}>
+                          {/* {selectedRequest?.applicationStatus'} */}
+                          {selectedRequest?.applicationStatus &&
+                            ` ${selectedRequest.applicationStatus}`}
+                        </Text>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                )}
+
+                {isAuthorizedForFinalApproval && (
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>
+                      Authorized Person's Status
+                    </Text>
+                    <View style={styles.pickerContainer}>
+                      <Picker
+                        selectedValue={statusAction}
+                        style={styles.picker}
+                        onValueChange={itemValue => setStatusAction(itemValue)}>
+                        <Picker.Item label="Select Action" value="" />
+                        {statusActions.map(action => (
+                          <Picker.Item
+                            key={action.id}
+                            label={action.label}
+                            value={action.id}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
+                )}
+
+                {/* Hr selected Date */}
+
+                {isAuthorizedForFinalApproval && (
+                  <Card style={[styles.dataCard, {borderLeftColor: '#8B5CF6'}]}>
+                    <Card.Title title="HR Approval Date Range" />
+                    <Card.Content>
+                      <View style={styles.dateRangeContainer}>
+                        {/* From Date Selection */}
+                        <View style={styles.datePickerField}>
+                          <Text style={styles.datePickerLabel}>
+                            Select Exit Date
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.datePickerButton}
+                            onPress={() => setShowFromPicker(true)}>
+                            <Text style={styles.datePickerText}>
+                              {fromDate ? formatDate(fromDate) : 'Select Date'}
+                            </Text>
+                            <Icon name="calendar" size={20} color="#3B82F6" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                )}
+
+                {/* Date Pickers (Modal) */}
+                <DatePicker
+                  modal
+                  open={showFromPicker}
+                  date={fromDate || new Date()}
+                  mode="date"
+                  title="Select From Date"
+                  confirmText="Confirm"
+                  cancelText="Cancel"
+                  onConfirm={date => {
+                    setShowFromPicker(false);
+                    setFromDate(date);
+                    // If to date is not set or is before from date, update to date
+                    if (!toDate || toDate < date) {
+                      setToDate(
+                        new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000),
+                      ); // Default to 7 days after
+                    }
+                  }}
+                  onCancel={() => setShowFromPicker(false)}
+                />
+
+                <DatePicker
+                  modal
+                  open={showToPicker}
+                  date={
+                    toDate ||
+                    (fromDate
+                      ? new Date(fromDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+                      : new Date())
+                  }
+                  mode="date"
+                  minimumDate={fromDate || undefined}
+                  title="Select To Date"
+                  confirmText="Confirm"
+                  cancelText="Cancel"
+                  onConfirm={date => {
+                    setShowToPicker(false);
+                    setToDate(date);
+                  }}
+                  onCancel={() => setShowToPicker(false)}
+                />
+
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>
+                    Contingent Employees' Code
+                  </Text>
+                  <View style={styles.pickerContainer}>
+                    {loadingEmployees ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#3B82F6"
+                        style={styles.pickerLoading}
+                      />
+                    ) : (
+                      <Picker
+                        selectedValue={selectedEmployee}
+                        style={styles.picker}
+                        onValueChange={itemValue =>
+                          setSelectedEmployee(itemValue)
+                        }>
+                        <Picker.Item label="Select Employee" value="" />
+                        {employees.map(employee => (
+                          <Picker.Item
+                            key={employee.id}
+                            label={employee.name}
+                            value={employee.empCode || employee.id}
+                          />
+                        ))}
+                      </Picker>
+                    )}
+                  </View>
+                </View>
 
                 {/* Remarks Input */}
                 <View style={styles.formField}>
@@ -375,206 +749,30 @@ const ExitRequestStatusScreen = ({navigation}) => {
               <Card.Actions style={styles.cardActions}>
                 <Button
                   mode="contained"
-                  onPress={() =>
-                    Alert.alert(
-                      'Success',
-                      'Request has been approved.',
-                    )
-                  }
+                  onPress={handleApprove}
                   style={styles.approveBtn}>
                   Approve
                 </Button>
                 <Button
                   mode="outlined"
-                  onPress={() => Alert.alert('Rejected', 'Request has been rejected.')}
+                  onPress={handleReject}
                   style={styles.rejectBtn}
                   labelStyle={styles.rejectBtnLabel}>
                   Reject
                 </Button>
               </Card.Actions>
             </Card>
-          ) : (
-            <Card style={styles.warningCard}>
-              <Card.Content style={styles.pendingMessageContainer}>
-                <Icon name="alert-circle-outline" size={48} color="#FFA500" />
-                <Text style={styles.pendingMessageText}>
-                  You already have a pending exit application. Please withdraw
-                  it before submitting a new one.
-                </Text>
-              </Card.Content>
-              <Card.Actions style={styles.cardActions}>
-                <Button
-                  mode="contained"
-                  onPress={() => navigation.navigate('Home')}
-                  style={[styles.cancelBtn, {backgroundColor: '#EF4444'}]}
-                  labelStyle={{color: '#fff'}}>
-                  Cancel
-                </Button>
-              </Card.Actions>
-            </Card>
-          )
-        ) : (
-          <>
-            {requests.map((item, index) => (
-              <Card key={index} style={styles.requestCard}>
-                {/* Employee Info Section */}
-                <Card.Content>
-                  <View style={styles.employeeInfoContainer}>
-                    <Avatar.Text
-                      size={50}
-                      label={getInitials(employeeDetails?.empName)}
-                      style={styles.avatar}
-                    />
-                    <View style={styles.employeeDetails}>
-                      <Text style={styles.employeeName}>
-                        {employeeDetails?.empName || 'Employee Name'}
-                      </Text>
-                      <Text style={styles.employeeDesignation}>
-                        {employeeDetails?.designation || 'Designation'}
-                      </Text>
-                      <Text style={styles.employeeDepartment}>
-                        {employeeDetails?.department || 'Department'}
-                      </Text>
-                    </View>
-                    <Badge
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: getStatusDetails(item.applicationStatus).color,
-                        },
-                      ]}>
-                      {getStatusDetails(item.applicationStatus).status}
-                    </Badge>
-                  </View>
-                </Card.Content>
-
-                <Divider style={styles.divider} />
-
-                {/* Exit Details Section */}
-                <Card.Content>
-                  <View style={styles.detailsContainer}>
-                    {/* Applied Date Card */}
-                    <Card style={styles.detailCard}>
-                      <Card.Content>
-                        <View style={styles.detailRow}>
-                          <Icon
-                            name="calendar-check"
-                            size={24}
-                            color="#3B82F6"
-                          />
-                          <View style={styles.detailTextContainer}>
-                            <Text style={styles.detailLabel}>Applied Date</Text>
-                            <Text style={styles.detailValue}>
-                              {formatDate(item.appliedDt)}
-                            </Text>
-                          </View>
-                        </View>
-                      </Card.Content>
-                    </Card>
-
-                    {/* Exit Date Card */}
-                    <Card style={styles.detailCard}>
-                      <Card.Content>
-                        <View style={styles.detailRow}>
-                          <Icon
-                            name="calendar-remove"
-                            size={24}
-                            color="#EF4444"
-                          />
-                          <View style={styles.detailTextContainer}>
-                            <Text style={styles.detailLabel}>Exit Date</Text>
-                            <Text style={styles.detailValue}>
-                              {formatDate(item.exitDt)}
-                            </Text>
-                          </View>
-                        </View>
-                      </Card.Content>
-                    </Card>
-                  </View>
-
-                  {/* Reason Section */}
-                  <Card style={styles.reasonCard}>
-                    <Card.Content>
-                      <Text style={styles.reasonTitle}>Reason for Exit</Text>
-                      <Paragraph style={styles.reasonText}>
-                        {item.exitReasons}
-                      </Paragraph>
-                    </Card.Content>
-                  </Card>
-
-                  {/* Supervisor Remarks */}
-                  {item.supervisorRemarks && (
-                    <Card style={styles.remarksCard}>
-                      <Card.Content>
-                        <View style={styles.remarksHeader}>
-                          <Icon name="account-tie" size={20} color="#6B7280" />
-                          <Text style={styles.remarksTitle}>
-                            Supervisor Remarks
-                          </Text>
-                        </View>
-                        <Paragraph style={styles.remarksText}>
-                          {item.supervisorRemarks}
-                        </Paragraph>
-                      </Card.Content>
-                    </Card>
-                  )}
-
-                  {/* HR Remarks */}
-                  {item.hrremarks && (
-                    <Card style={styles.remarksCard}>
-                      <Card.Content>
-                        <View style={styles.remarksHeader}>
-                          <Icon
-                            name="account-group"
-                            size={20}
-                            color="#6366F1"
-                          />
-                          <Text
-                            style={[styles.remarksTitle, {color: '#6366F1'}]}>
-                            HR Remarks
-                          </Text>
-                        </View>
-                        <Paragraph
-                          style={[styles.remarksText, {color: '#6366F1'}]}>
-                          {item.hrremarks}
-                        </Paragraph>
-                      </Card.Content>
-                    </Card>
-                  )}
-                </Card.Content>
-
-                {/* Action buttons */}
-                {item.applicationStatus?.toLowerCase() === 'pending' && (
-                  <Card.Actions style={styles.cardActions}>
-                    <Button
-                      mode="outlined"
-                      onPress={() => handleWithdraw(item.id)}
-                      loading={withdrawingId === item.id}
-                      disabled={withdrawingId !== null}
-                      style={styles.withdrawBtn}
-                      labelStyle={styles.withdrawBtnLabel}
-                      icon="close-circle-outline">
-                      Withdraw Application
-                    </Button>
-                  </Card.Actions>
-                )}
-
-                {/* Add reapply button for rejected applications */}
-                {item.applicationStatus?.toLowerCase() === 'rejected' && (
-                  <Card.Actions style={styles.cardActions}>
-                    <Button
-                      mode="contained"
-                      onPress={handleApplyNew}
-                      style={styles.reapplyBtn}
-                      labelStyle={styles.reapplyBtnLabel}
-                      icon="refresh">
-                      Apply Again
-                    </Button>
-                  </Card.Actions>
-                )}
-              </Card>
-            ))}
           </>
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Icon name="account-off-outline" size={60} color="#9CA3AF" />
+            <Text style={styles.noDataText}>
+              No pending exit requests found
+            </Text>
+            <Text style={styles.noDataSubText}>
+              All exit requests will appear here
+            </Text>
+          </View>
         )}
       </ScrollView>
     </AppSafeArea>
@@ -645,14 +843,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  
   },
-   employeeDate: {
+  employeeDate: {
     flex: 1,
     flexDirection: 'row',
     alignContent: 'center',
     alignItems: 'center',
-  
   },
   employeeName: {
     fontSize: 16,
@@ -662,12 +858,11 @@ const styles = StyleSheet.create({
   employeeDesignation: {
     fontSize: 14,
     color: '#64748B',
-    
+
     marginRight: 12,
     textAlign: 'center',
     alignItems: 'center',
     alignContent: 'center',
-
   },
   employeeDepartment: {
     fontSize: 14,
@@ -698,22 +893,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: 12,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  detailsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailCard: {
-    flex: 1,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    elevation: 1,
-  },
-  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -789,6 +968,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#F8FAFC',
     marginBottom: 8,
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  pickerLoading: {
+    padding: 10,
   },
   picker: {
     height: 50,
@@ -868,11 +1052,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  dataInput: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  dataValue: {
     fontSize: 14,
-    height: 20,
+    color: '#1E293B',
+    fontWeight: '500',
+    flex: 1,
+  },
+  employeeCode: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
   },
   approveBtn: {
     backgroundColor: '#10B981', // Green
@@ -903,6 +1092,110 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  horizontalScrollView: {
+    paddingBottom: 16,
+  },
+  requestItem: {
+    width: 140,
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedRequestItem: {
+    borderColor: '#3B82F6',
+    borderWidth: 2,
+    backgroundColor: '#EFF6FF',
+  },
+  requestItemContent: {
+    flex: 1,
+  },
+  requestNameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  requestName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    flex: 1,
+  },
+  miniStatusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  requestCode: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  requestDate: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    marginTop: 40,
+  },
+  noDataText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  noDataSubText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  dateRangeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  datePickerField: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  datePickerLabel: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 4,
+    padding: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  datePickerText: {
+    fontSize: 14,
+    color: '#1F2937',
+  },
 });
- 
+
 export default ExitRequestStatusScreen;
