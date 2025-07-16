@@ -73,6 +73,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [isAuthorizedAccount, setIsAuthorizedAccount] = useState('false');
 
   // Get user details from Auth context
   const {user} = useAuth();
@@ -114,6 +115,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         : [];
 
       setEmployees(formattedEmployees);
+      
     } catch (error) {
       console.error('❌ Error fetching employees:', error);
     } finally {
@@ -467,6 +469,12 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
     {id: 'reject', label: 'Reject'},
     {id: 'escalate', label: 'Escalate Account'},
   ];
+
+
+const AccountStatus = {
+}
+
+
 
   return (
     <AppSafeArea>
