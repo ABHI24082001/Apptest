@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
+import { useAuth } from '../constants/AuthContext';
 
 const RequestCard = ({ item, onPress }) => {
   return (
@@ -71,6 +72,8 @@ const RequestDetailsScreen = () => {
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const employeeDetails = useFetchEmployeeDetails();
+  // Get user authentication details
+  const { user } = useAuth();
 
   // Fetch notifications from API
   useEffect(() => {
@@ -83,8 +86,14 @@ const RequestDetailsScreen = () => {
       setLoading(true);
       console.log('Fetching notifications...');
       
-      // Using hardcoded values as required
-      const response = await axios.get(`${BASE_URL}/api/Email/GetAllNotificationByEmployeeIdWithSenderDetails/1/11`);
+      // Get IDs from user context
+      const userId = user?.id || 1; // Default to 1 if not available
+      const companyId = user?.childCompanyId || 11; // Default to 11 if not available
+      
+      console.log(`Fetching notifications for User ID: ${userId}, Company ID: ${companyId}`);
+      
+      // Use dynamic IDs in the API call
+      const response = await axios.get(`${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${userId}/${companyId}`);
       
       console.log('API Response:', JSON.stringify(response.data));
       
@@ -255,7 +264,7 @@ const RequestDetailsScreen = () => {
     <AppSafeArea>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Request Details</Text>
+       
         {unreadCount > 0 && (
           <TouchableOpacity 
             onPress={markAllAsRead}
@@ -291,13 +300,25 @@ const RequestDetailsScreen = () => {
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
+        ) : notifications.today.length === 0 && notifications.older.length === 0 ? (
+          // Enhanced empty state with better visuals
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="bell-sleep" size={70} color="#BDBDBD" />
+            <Text style={styles.emptyTitle}>No Notifications</Text>
+            <Text style={styles.emptyText}>
+              You don't have any notifications at the moment. 
+              New notifications will appear here.
+            </Text>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={fetchNotifications}
+            >
+              <MaterialCommunityIcons name="refresh" size={18} color="#FFFFFF" />
+              <Text style={styles.refreshText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
-            {/* Debug info */}
-            <Text style={styles.debugText}>
-              Today: {notifications.today.length}, Older: {notifications.older.length}
-            </Text>
-            
             {/* Today Section */}
             {notifications.today.length > 0 && (
               <View style={styles.section}>
@@ -339,13 +360,6 @@ const RequestDetailsScreen = () => {
                 </View>
               </View>
             )}
-
-            {notifications.today.length === 0 && notifications.older.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
-                <Text style={styles.emptyText}>No notifications to display</Text>
-              </View>
-            )}
           </>
         )}
       </ScrollView>
@@ -357,8 +371,8 @@ export default RequestDetailsScreen;
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 12,
+    paddingBottom: 20,
     backgroundColor: '#FAFAFA',
   },
   header: {
@@ -546,14 +560,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    height: 300,
+    padding: 24,
+    height: 400,
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#757575',
   },
   emptyText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: 15,
     color: '#9E9E9E',
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  refreshButton: {
+    marginTop: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  refreshText: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+    marginLeft: 8,
+    fontSize: 15,
   },
   debugText: {
     padding: 8,

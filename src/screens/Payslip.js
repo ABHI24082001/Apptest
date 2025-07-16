@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   StyleSheet,
@@ -11,189 +11,468 @@ import {
   Pressable,
   Modal,
   ScrollView,
+  Linking
 } from 'react-native';
-import { Card, Appbar } from 'react-native-paper';
+import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
-import { WebView } from 'react-native-webview';
-import Pdf from 'react-native-pdf';
 import AppSafeArea from '../component/AppSafeArea';
-import { useNavigation } from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import DownloadSuccessModal from '../component/DownloadSuccessModal';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import BASE_URL from '../constants/apiConfig';
+import axios from 'axios';
+import moment from 'moment';
+import PDFViewer from '../component/Payslipcomponent';
+import RNFS from 'react-native-fs';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import RNPrint from 'react-native-print';
 
 const MyPaySlip = () => {
   const navigation = useNavigation();
-  const allPayslips = [
-    {
-      id: '1',
-      month: 'April, 2025',
-      salary: '₹50,000',
-      date: new Date('2025-04-01'),
-      pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    },
-    {
-      id: '2',
-      month: 'March, 2025',
-      salary: '₹50,000',
-      date: new Date('2025-03-01'),
-      pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    },
-    {
-      id: '3',
-      month: 'February, 2025',
-      salary: '₹50,000',
-      date: new Date('2025-02-01'),
-      pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    },
-    {
-      id: '4',
-      month: 'January, 2025',
-      salary: '₹50,000',
-      date: new Date('2025-01-01'),
-    },
-    {
-      id: '5',
-      month: 'December, 2024',
-      salary: '₹50,000',
-      date: new Date('2024-12-01'),
-      pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    },
-  ];
+  const employeeDetails = useFetchEmployeeDetails();
 
-  const filterOptions = [
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'Last 3 Months', value: 'last_3_months' },
-    { label: 'Quarterly', value: 'quarterly' },
-    { label: 'Yearly', value: 'yearly' },
-  ];
-
+  const [apiPayslips, setApiPayslips] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState(null);
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [filteredPayslips, setFilteredPayslips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [pdfModalVisible, setPdfModalVisible] = useState(false);
-  const [pdfUri, setPdfUri] = useState('');
+  const [selectedPayslip, setSelectedPayslip] = useState(null);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
-  const filterPayslips = useCallback(() => {
-    let filtered = [...allPayslips];
-    const now = new Date();
-    let from = new Date();
+  // const filterOptions = [
+  //   {label: 'Last Month', value: 'last_month'},
+  //   {label: 'Last 3 Months', value: 'last_3_months'},
+  //   {label: 'Quarterly', value: 'quarterly'},
+  //   {label: 'Yearly', value: 'yearly'},
+  // ];
 
-    if (selectedFilter) {
-      switch (selectedFilter) {
-        case 'last_month':
-          from.setMonth(now.getMonth() - 1);
-          break;
-        case 'last_3_months':
-        case 'quarterly':
-          from.setMonth(now.getMonth() - 3);
-          break;
-        case 'yearly':
-          from.setFullYear(now.getFullYear() - 1);
-          break;
+  const formatForDotNet = date => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return `${d.getFullYear()}-${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}T00:00:00`;
+  };
+
+  const formatDate = date => {
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const fetchPayslips = async () => {
+    try {
+      const payload = {
+        EmployeeId: employeeDetails?.id || 0,
+        Month: 0,
+        Year: 0,
+        YearList: null,
+        ChildCompanyId: employeeDetails?.childCompanyId || 0,
+        FromDate: fromDate ? formatForDotNet(fromDate) : null,
+        ToDate: toDate ? formatForDotNet(toDate) : null,
+        BranchName: null,
+        BranchId: 0,
+        EmployeeTypeId: 0,
+        DraftName: null,
+        Did: 0,
+        UserId: 0,
+        status: null,
+        Ids: null,
+        CoverLatter: null,
+        DepartmentId: 0,
+        DesignationId: 0,
+        UserType: 0,
+        CalculationType: 0,
+        childCompanies: null,
+        branchIds: null,
+        departmentsIds: null,
+        designationIds: null,
+        employeeTypeIds: null,
+        employeeIds: null,
+        hasAllReportAccess: false,
+      };
+
+      console.log('📤 Sending Payload to API:', payload);
+
+      const response = await axios.post(
+        `${BASE_URL}/PayRollRun/GetEmployeePaySlipList`,
+        payload,
+      );
+
+      console.log('✅ API Response:', response.data);
+      setApiPayslips(response.data?.payRollDraftViewModels || []); 
+
+      console.log('📥 Received Payslips:', response.data?.payRollDraftViewModels || []);
+    } catch (error) {
+      console.error('❌ Error fetching payslip data:', error);
+      if (error.response) {
+        console.error('❌ API Error Response:', error.response.data);
       }
-      filtered = filtered.filter(p => p.date >= from && p.date <= now);
-    } else if (fromDate && toDate) {
-      filtered = filtered.filter(p => p.date >= fromDate && p.date <= toDate);
     }
-
-    setFilteredPayslips(filtered);
-  }, [selectedFilter, fromDate, toDate]);
+  };
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setIsLoading(false);
-      filterPayslips();
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [filterPayslips]);
+    if (
+      fromDate &&
+      toDate &&
+      employeeDetails?.id &&
+      employeeDetails?.childCompanyId
+    ) {
+      setIsLoading(true);
+      fetchPayslips().finally(() => setIsLoading(false));
+    }
+  }, [fromDate, toDate, employeeDetails]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      filterPayslips();
-      setRefreshing(false);
-    }, 1000);
+    fetchPayslips().finally(() => setRefreshing(false));
   };
 
-  const formatDate = date => date?.toLocaleDateString('en-GB') || '--';
+  const generatePayslipPDF = async (payslipData) => {
+    try {
+      const formatCurrency = (value) => {
+        if (isNaN(parseFloat(value))) return '₹0.00';
+        return `₹${parseFloat(value).toFixed(2)}`;
+      };
 
-  const openPdf = (uri) => {
-    setPdfUri(uri);
-    setPdfModalVisible(true);
+     const formattedData = {
+      empId: payslipData.employeeCodeNo || 'N/A',
+      name: payslipData.employeeName || 'N/A',
+      designation: employeeDetails.designationName || 'N/A',
+      department: employeeDetails.departmentName || 'N/A',
+      doj: payslipData.doj || '10-06-2023',
+      uan: payslipData.uan || 'N/A',
+      pfAccount: payslipData.pafAccNo || 'N/A',
+      bankAccount: payslipData.bankAcNo || 'N/A',
+      netPay: formatCurrency(payslipData.netPayble),
+      paidDays: payslipData.noOfPaybleDays || 0,
+      lopDays: payslipData.unpaidLeave || 0,
+      earnings: [
+        {name: 'Basic', amount: formatCurrency(payslipData.basicSalary)},
+        {name: 'HRA', amount: formatCurrency(payslipData.hra)},
+        {
+          name: 'Conveyance Allowance',
+          amount: formatCurrency(payslipData.convAllowance),
+        },
+        {
+          name: 'Travel Allowance',
+          amount: formatCurrency(payslipData.travelExpense),
+        },
+        {
+          name: 'Telephone Allowance',
+          amount: formatCurrency(payslipData.teleExpense),
+        },
+        {
+          name: 'Medical Allowance',
+          amount: formatCurrency(payslipData.medicalAllowance),
+        },
+        payslipData.performanceBonus > 0 && {
+          name: 'Performance Bonus',
+          amount: formatCurrency(payslipData.performanceBonus),
+        },
+        {
+          name: 'Expense Claim Amount',
+          amount: formatCurrency(payslipData.ExpenseClaimAmount),
+        },
+        {
+          name: 'Overtime Amount',
+          amount: formatCurrency(payslipData.OvertimeAmount),
+        },
+      ].filter(Boolean),
+      deductions: [
+        {
+          name: 'Esic Employee',
+          amount: formatCurrency(payslipData.esicemployee),
+        },
+        {name: 'EPF Employee', amount: formatCurrency(payslipData.epfemployee)},
+        payslipData.tdsAmt > 0 && {
+          name: 'TDS',
+          amount: formatCurrency(payslipData.tdsAmt),
+        },
+        {
+          name: 'Professional Tax',
+          amount: formatCurrency(payslipData.professionalTax),
+        },
+
+        {
+          name: 'Advance Recovery',
+          amount: formatCurrency(payslipData.advancePayment),
+        },
+        {
+          name: 'Professional Tax',
+          amount: formatCurrency(payslipData.professionalTax),
+        },
+        {
+          name: 'Miscellaneous Deduction',
+          amount: formatCurrency(payslipData.miscellaneousDeduction),
+        },
+
+        // payslipData.Advancerecovery > 0 && {
+        //   name: 'Advance Recovery',
+        //   amount: formatCurrency(payslipData.AdvanceRecovery)
+        // },
+        payslipData.lateComminAmount > 0 && {
+          name: 'Late Comimg Deduction',
+          amount: formatCurrency(payslipData.lateComminAmount),
+        },
+        {
+          name: 'Early Going Deduction',
+          amount: formatCurrency(payslipData.earlyGoingDeduction),
+        },
+        {
+          name: 'Un-Approved Leave Amount',
+          amount: formatCurrency(payslipData.unapprovedLeaveAmount),
+        },
+      ].filter(Boolean),
+      payPeriod:
+        payslipData.paySliperiod ||
+        new Date(payslipData.payslipDate).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+    };
+
+
+    const calculateTotal = (items) =>
+      items.reduce((total, item) => total + parseFloat(item.amount.replace(/[^0-9.]/g, '')), 0);
+
+    const totalEarnings = calculateTotal(formattedData.earnings);
+    const totalDeductions = calculateTotal(formattedData.deductions);
+
+    const generateRows = (items) => items.map(item => `
+      <div class="d-flex justify-content-between px-2 py-1">
+        <p class="mb-1 fw-semibold">${item.name}</p>
+        <p class="mb-1 fw-semibold">${item.amount}</p>
+      </div>
+    `).join('');
+
+    const earningsHtml = generateRows(formattedData.earnings);
+    const deductionsHtml = generateRows(formattedData.deductions);
+
+    const logoBase64 = `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAADrL+HoY7K6mL5mpr3kunKrqXz2`;
+
+
+      const dynamicHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+             <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 16px;
+      color: #000;
+      line-height: 1.8;
+    }
+    .payslip {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      padding: 30px 25px;
+    }
+    .d-flex { display: flex; }
+    .justify-content-between { justify-content: space-between; }
+    .align-items-start { align-items: flex-start; }
+    .align-items-end { align-items: flex-end; }
+    .text-right { text-align: right; }
+    .flex-column { flex-direction: column; }
+    .row { display: flex; flex-wrap: wrap; margin: 0 -10px; }
+    .col-md-6 { width: 50%; padding: 0 10px; }
+    .fw-bold { font-weight: 700; }
+    .fw-semibold { font-weight: 600; }
+    .mb-1 { margin-bottom: 10px; }
+    .mt-2 { margin-top: 18px; }
+    .py-1 { padding: 10px 0; }
+    .py-2 { padding: 14px 0; }
+    .px-2 { padding: 0 14px; }
+    .p-2 { padding: 14px; }
+    .text-center { text-align: center; }
+    .text-muted { color: #777; }
+    .border { border: 1px solid #ddd; }
+    .section-header {
+      background: #f4f4f4;
+      padding: 12px 14px;
+      font-weight: bold;
+      font-size: 17px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+    h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    h3 {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+    .signature-line {
+      border-top: 1px dashed #000;
+      width: 180px;
+      margin: 30px auto 6px;
+    }
+    .net-pay {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2e7d32;
+    }
+  </style>
+        </head>
+        <body>
+  <div class="payslip">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h1 class="fw-bold mb-1">Info Trading Pvt Ltd</h1>
+        <p class="text-muted">Delhi Secretariat, I.P. Estate, New Delhi-110002</p>
+      </div>
+      <img src="${logoBase64}" width="70" />
+    </div>
+
+    <hr class="mt-2 mb-1">
+
+    <div class="mt-2">
+      <h2 class="fw-bold mb-1">Payslip for: ${formattedData.payPeriod}</h2>
+      <h3 class="mb-1">${formattedData.name} (Emp ID: ${formattedData.empId})</h3>
+      <p class="mb-1">${formattedData.designation}, ${formattedData.department}</p>
+      <p>Date of Joining: ${formattedData.doj}</p>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
+      <div>
+        <p class="fw-semibold">UAN: ${formattedData.uan}</p>
+        <p class="fw-semibold">PF A/C: ${formattedData.pfAccount}</p>
+        <p class="fw-semibold">Bank A/C: ${formattedData.bankAccount}</p>
+      </div>
+      <div class="text-right">
+        <p class="fw-semibold">Paid Days: ${formattedData.paidDays}</p>
+        <p class="fw-semibold">LOP Days: ${formattedData.lopDays}</p>
+        <p class="net-pay">Net Pay: ${formattedData.netPay}</p>
+      </div>
+    </div>
+
+    <div class="row mt-2">
+      <div class="col-md-6">
+        <div class="section-header">Earnings</div>
+        ${earningsHtml}
+        <div class="d-flex justify-content-between px-2 py-1 border">
+          <p class="fw-bold">Total Earnings</p>
+          <p class="fw-bold">${formatCurrency(totalEarnings)}</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="section-header">Deductions</div>
+        ${deductionsHtml}
+        <div class="d-flex justify-content-between px-2 py-1 border">
+          <p class="fw-bold">Total Deductions</p>
+          <p class="fw-bold">${formatCurrency(totalDeductions)}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+        </html>
+      `;
+
+      const options = {
+        html: dynamicHtml,
+        fileName: `payslip_${formattedData.empId}_${Date.now()}`,
+        directory: 'Documents',
+        base64: true,
+      };
+
+      const file = await RNHTMLtoPDF.convert(options);
+      if (!file.filePath) throw new Error('Failed to generate PDF file');
+      return file.filePath;
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      throw err;
+    }
   };
 
-  const closePdf = () => {
-    setPdfModalVisible(false);
-    setPdfUri('');
+  const downloadPayslip = async (payslipData) => {
+    try {
+      setDownloadLoading(true);
+      setPdfError(null);
+      
+      const filePath = await generatePayslipPDF(payslipData);
+      
+      if (filePath) {
+        // Use RNPrint to print the file
+        await RNPrint.print({filePath});
+        // Show success modal
+        setModalVisible(true);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      setPdfError(error.message || 'Failed to download PDF');
+    } finally {
+      setDownloadLoading(false);
+    }
   };
 
-  const renderItem = ({ item }) => (
+  const openPayslipPreview = (payslipData) => {
+    setSelectedPayslip(payslipData);
+    setShowPayslipModal(true);
+  };
+
+
+
+
+  const renderItem = ({item}) => (
     <Card style={styles.card}>
       <View style={styles.cardRow}>
         <Icon name="file-document-outline" size={30} color="#6D75FF" />
         <View style={styles.cardText}>
-          <Text style={styles.month}>{item.month}</Text>
-          <Text style={styles.salary}>Disbursed Salary: {item.salary}</Text>
+          <Text style={styles.month}>
+            {moment(item.payslipDate).format('MMMM')}
+          </Text>
+
+          <Text style={styles.salary}>Disbursed Salary: ₹{item.netPayble}</Text>
         </View>
-        {item.pdfUrl && (
-          <TouchableOpacity 
-            style={styles.previewBtn} 
-            onPress={() => openPdf(item.pdfUrl)}
-          >
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.previewBtn}
+            onPress={() => openPayslipPreview(item)}>
             <Icon name="eye" size={24} color="#6D75FF" />
           </TouchableOpacity>
-        )}
-        <TouchableOpacity 
-          style={styles.downloadBtn}
-          onPress={() => setModalVisible(true)}
-        >
-          <Icon name="download" size={24} color="#6D75FF" />
-        </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.downloadBtn}
+            onPress={() => downloadPayslip(item)}
+            disabled={downloadLoading}>
+            {downloadLoading ? (
+              <ActivityIndicator size="small" color="#6D75FF" />
+            ) : (
+              <Icon name="download" size={24} color="#6D75FF" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </Card>
   );
 
   const ListHeader = () => (
     <View style={styles.headerContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipRow}
-      >
-        {filterOptions.map(option => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.chip, 
-              selectedFilter === option.value && styles.chipSelected
-            ]}
-            onPress={() => {
-              setSelectedFilter(option.value);
-              setFromDate(null);
-              setToDate(null);
-            }}
-          >
-            <Text style={[
-              styles.chipText, 
-              selectedFilter === option.value && styles.chipTextSelected
-            ]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+     
 
       <View style={styles.dateRow}>
-        <TouchableOpacity 
-          style={styles.dateButton} 
-          onPress={() => setShowFromPicker(true)}
-        >
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowFromPicker(true)}>
           <View style={styles.dateInputContainer}>
             <Icon name="calendar" size={16} color="#6D75FF" />
             <Text style={styles.dateValue}>
@@ -206,10 +485,9 @@ const MyPaySlip = () => {
           <Icon name="arrow-right" size={16} color="#666" />
         </View>
 
-        <TouchableOpacity 
-          style={styles.dateButton} 
-          onPress={() => setShowToPicker(true)}
-        >
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowToPicker(true)}>
           <View style={styles.dateInputContainer}>
             <Icon name="calendar" size={16} color="#6D75FF" />
             <Text style={styles.dateValue}>
@@ -221,21 +499,25 @@ const MyPaySlip = () => {
     </View>
   );
 
+  const ListEmptyComponent = () => (
+    <View style={styles.emptyState}>
+      <Icon name="file-remove-outline" size={48} color="#999" />
+      <Text style={styles.emptyText}>
+        No payslips found for the selected filters.
+      </Text>
+    </View>
+  );
+
   return (
     <AppSafeArea>
     
 
       <FlatList
-        data={filteredPayslips}
-        keyExtractor={item => item.id}
+        data={apiPayslips}
+        keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Icon name="file-remove-outline" size={48} color="#999" />
-            <Text style={styles.emptyText}>No payslips found for selected filters.</Text>
-          </View>
-        )}
+        ListEmptyComponent={ListEmptyComponent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -268,43 +550,46 @@ const MyPaySlip = () => {
         onCancel={() => setShowToPicker(false)}
       />
 
+      {/* Success Modal */}
       <DownloadSuccessModal
         visible={modalVisible}
         fileName="MyPayslip_April.pdf"
         onClose={() => setModalVisible(false)}
       />
 
-      <Modal
-        visible={pdfModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closePdf}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Payslip Preview</Text>
-              <Pressable onPress={closePdf}>
-                <Icon name="close" size={24} color="#666" />
-              </Pressable>
+      {/* Error Modal - optional */}
+      {pdfError && (
+        <Modal
+          transparent={true}
+          visible={!!pdfError}
+          onRequestClose={() => setPdfError(null)}>
+          <View style={styles.errorModalContainer}>
+            <View style={styles.errorModalContent}>
+              <Text style={styles.errorModalTitle}>Error</Text>
+              <Text style={styles.errorModalText}>{pdfError}</Text>
+              <TouchableOpacity 
+                style={styles.errorModalButton}
+                onPress={() => setPdfError(null)}>
+                <Text style={styles.errorModalButtonText}>OK</Text>
+              </TouchableOpacity>
             </View>
-
-            {Platform.OS === 'android' ? (
-              <WebView
-                source={{ uri: `https://docs.google.com/gview?embedded=true&url=${pdfUri}` }}
-                style={styles.pdf}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                startInLoadingState={true}
-              />
-            ) : (
-              <Pdf
-                source={{ uri: pdfUri, cache: true }}
-                style={styles.pdf}
-              />
-            )}
           </View>
-        </View>
+        </Modal>
+      )}
+
+      {/* Payslip Modal */}
+      <Modal
+        visible={showPayslipModal}
+        animationType="slide"
+        onRequestClose={() => setShowPayslipModal(false)}>
+        {selectedPayslip && (
+          <PDFViewer 
+            payslipData={selectedPayslip} 
+            visible={showPayslipModal}
+            onClose={() => setShowPayslipModal(false)}
+            employeeDetails={employeeDetails}
+          />
+        )}
       </Modal>
     </AppSafeArea>
   );
@@ -399,6 +684,10 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     marginTop: 4,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   previewBtn: {
     marginRight: 12,
     padding: 6,
@@ -445,6 +734,41 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  errorModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  errorModalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  errorModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#721c24',
+  },
+  errorModalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  errorModalButton: {
+    backgroundColor: '#6D75FF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  errorModalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
+
+
 
 export default MyPaySlip;

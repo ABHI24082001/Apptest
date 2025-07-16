@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Appbar,
   Button,
@@ -22,12 +22,12 @@ import {
   Paragraph,
 } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
-import {Picker} from '@react-native-picker/picker';
+import { Picker } from '@react-native-picker/picker';
 import AppSafeArea from '../component/AppSafeArea';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
-import {useAuth} from '../constants/AuthContext';
+import { useAuth } from '../constants/AuthContext';
 import DatePicker from 'react-native-date-picker';
 import FeedbackModal from '../component/FeedbackModal';
 // Helper to format date string as DD-MM-YYYY
@@ -53,7 +53,7 @@ const getStatusColor = status => {
   }
 };
 
-const ExitRequestStatusScreen = ({navigation, route}) => {
+const ExitRequestStatusScreen = ({ navigation, route }) => {
   // const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
   const [requests, setRequests] = useState([]);
@@ -73,10 +73,10 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [isAuthorizedAccount, setIsAuthorizedAccount] = useState('false');
+  const [isAuthorizedAccount, setIsAuthorizedAccount] = useState('false ');
 
   // Get user details from Auth context
-  const {user} = useAuth();
+  const { user } = useAuth();
 
   console.log('User details:', user);
 
@@ -108,14 +108,13 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       // Transform data into the format needed for picker
       const formattedEmployees = Array.isArray(data)
         ? data.map(emp => ({
-            id: emp.empId || emp.id,
-            name: `(${emp.employeeId || 'No  ID'})`,
-            empCode: emp.empCode,
-          }))
+          id: emp.empId || emp.id,
+          name: `(${emp.employeeId || 'No  ID'})`,
+          empCode: emp.empCode,
+        }))
         : [];
 
       setEmployees(formattedEmployees);
-      
     } catch (error) {
       console.error('❌ Error fetching employees:', error);
     } finally {
@@ -129,6 +128,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       if (employeeDetails?.id) {
         currentEmploye();
         fetchEmployees();
+        fetchAccountRequest();
 
         // Get selected request from route params if available
         if (route.params?.selectedRequest) {
@@ -136,7 +136,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         }
       }
 
-      return () => {}; // cleanup if needed
+      return () => { }; // cleanup if needed
     }, [
       employeeDetails?.id,
       user?.childCompanyId,
@@ -144,7 +144,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
     ]),
   );
 
-  const fetchExitRequests = async () => {
+  const fetchAccountRequest = async () => {
     setLoading(true);
 
     try {
@@ -154,22 +154,43 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         console.warn('❗ Missing childCompanyId. Cannot fetch exit records.');
         return;
       }
-
-      const response = await fetch(
-        `${BASE_URL}/EmployeeExit/GetAllEmpExitRecords/${childCompanyId}`,
+      
+      console.log('⏳ Fetching account records for childCompanyId:', childCompanyId);
+      
+      const response = await axios.get(
+        `${BASE_URL}/EmployeeExit/GetAllEmpExitAccountRecords/${childCompanyId}`,
       );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // With axios, the response data is already parsed and available in response.data
+      const data = response.data;
+      
+      console.log('✅ API Response status:', response.status);
+      console.log('✅ All account records==============:', data);
+      
+      if (Array.isArray(data)) {
+        console.log('📊 Number of account records:', data.length);
+        
+        // Log first record if available for debugging
+        if (data.length > 0) {
+          console.log('📝 Sample account record:', data[0]);
+        }
+      } else {
+        console.log('⚠️ Data is not an array:', typeof data);
       }
-
-      const data = await response.json();
-      console.log('✅ All employee exit records:', data);
 
       // Store in state if needed
       // setAllExitRecords(data);
+      
+      return data;
     } catch (error) {
       console.error('❌ Error fetching exit records:', error);
+      console.error('❌ Error details:', error.message);
+      
+      // If there's a response object in the error, log it
+      if (error.response) {
+        console.error('❌ Error status:', error.response.status);
+        console.error('❌ Error data:', error.response.data);
+      }
     } finally {
       setLoading(false);
     }
@@ -302,11 +323,11 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
     const status = statusStr.toLowerCase();
     if (status.includes('approved')) {
-      return {status: 'Approved', color: '#10B981'};
+      return { status: 'Approved', color: '#10B981' };
     } else if (status.includes('rejected')) {
-      return {status: 'Rejected', color: '#EF4444'};
+      return { status: 'Rejected', color: '#EF4444' };
     } else {
-      return {status: 'Pending', color: '#F59E0B'};
+      return { status: 'Pending', color: '#F59E0B' };
     }
   };
 
@@ -331,18 +352,18 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       Alert.alert('Required', 'Please enter remarks before approving.');
       return;
     }
-    
+
     if (isAuthorizedForFinalApproval && !fromDate) {
       Alert.alert('Required', 'Please select an exit date before approving.');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Create a copy of the selected request to update
       const updatedRequest = { ...selectedRequest };
-      
+
       // Set the correct fields based on who's approving
       if (isAuthorizedForFinalApproval) {
         // HR approval flow
@@ -356,27 +377,27 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         updatedRequest.supervisorStatus = 'Approved';
         updatedRequest.supervisorRemarks = remarks;
       }
-      
+
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-      
+
       console.log('Sending approval request with data:', updatedRequest);
-      
+
       // Make API call
       const response = await axios.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );
-      
+
       console.log('API Response:', response.data);
-      
+
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('success');
         setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'approved by HR' : 'approved by supervisor'}`);
         setFeedbackVisible(true);
-        
+
         // Refresh data after a short delay
         setTimeout(() => {
           currentEmploye();
@@ -402,13 +423,13 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       Alert.alert('Required', 'Please enter remarks before rejecting.');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Create a copy of the selected request to update
       const updatedRequest = { ...selectedRequest };
-      
+
       // Set the correct fields based on who's rejecting
       if (isAuthorizedForFinalApproval) {
         // HR rejection flow
@@ -421,27 +442,27 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         updatedRequest.supervisorRemarks = remarks;
         updatedRequest.applicationStatus = 'Rejected'; // Also reject the application if supervisor rejects
       }
-      
+
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-      
+
       console.log('Sending rejection request with data:', updatedRequest);
-      
+
       // Make API call
       const response = await axios.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );
-      
+
       console.log('API Response:', response.data);
-      
+
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('fail'); // Using 'fail' type as it's visually appropriate for rejection
         setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'rejected by HR' : 'rejected by supervisor'}`);
         setFeedbackVisible(true);
-        
+
         // Refresh data after a short delay
         setTimeout(() => {
           currentEmploye();
@@ -464,15 +485,14 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
   // Define status actions available for selection
   const statusActions = [
-    {id: 'inprogress', label: 'In Progress'},
-    {id: 'approve', label: 'Approve'},
-    {id: 'reject', label: 'Reject'},
-    {id: 'escalate', label: 'Escalate Account'},
+    { id: 'inprogress', label: 'In Progress' },
+    { id: 'approve', label: 'Approve' },
+    { id: 'reject', label: 'Reject' },
+    { id: 'escalate', label: 'Escalate Account' },
   ];
 
 
-const AccountStatus = {
-}
+
 
 
 
@@ -521,7 +541,7 @@ const AccountStatus = {
                   style={[
                     styles.requestItem,
                     selectedRequest?.id === request.id &&
-                      styles.selectedRequestItem,
+                    styles.selectedRequestItem,
                   ]}
                   onPress={() => setSelectedRequest(request)}>
                   <View style={styles.requestItemContent}>
@@ -656,7 +676,7 @@ const AccountStatus = {
 
                 {/* Status Info Card - Only show for users with final approval access */}
                 {isAuthorizedForFinalApproval && (
-                  <Card style={[styles.dataCard, {borderLeftColor: '#F59E0B'}]}>
+                  <Card style={[styles.dataCard, { borderLeftColor: '#F59E0B' }]}>
                     <Card.Content>
                       <View style={styles.dataRow}>
                         <View style={styles.dataLabelContainer}>
@@ -710,7 +730,7 @@ const AccountStatus = {
                         <Text
                           style={[
                             styles.dataValue,
-                            {color: getStatusColor(selectedRequest?.hrstatus)},
+                            { color: getStatusColor(selectedRequest?.hrstatus) },
                           ]}>
                           {selectedRequest?.hrstatus || 'Pending'}
                           {selectedRequest?.hrremarks &&
@@ -768,7 +788,7 @@ const AccountStatus = {
                 {/* Hr selected Date */}
 
                 {isAuthorizedForFinalApproval && (
-                  <Card style={[styles.dataCard, {borderLeftColor: '#8B5CF6'}]}>
+                  <Card style={[styles.dataCard, { borderLeftColor: '#8B5CF6' }]}>
                     <Card.Title title="HR Approval Date Range" />
                     <Card.Content>
                       <View style={styles.dateRangeContainer}>
