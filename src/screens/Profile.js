@@ -431,57 +431,105 @@ const ProfileScreen = () => {
   };
 
   // Handle profile photo update
-  const handleProfilePhotoUpdate = async () => {
-    try {
-      const result = await pick({
-        type: ['image/*'],
-        allowMultiSelection: false,
-      });
+//   const handleProfilePhotoUpdate = async () => {
+//   try {
+//     const result = await pick({
+//       type: ['image/*'],
+//       allowMultiSelection: false,
+//     });
 
-      if (!result || !result[0]) return;
+//     if (!result || !result[0]) return;
 
-      setUploading(true);
-      const photo = result[0];
-      const formData = new FormData();
-      
-      formData.append('file', {
-        uri: photo.uri,
-        type: photo.type,
-        name: photo.name || 'profile.jpg',
-      });
-      formData.append('EmployeeId', employeeDetails.id);
+//     setUploading(true);
+//     const photo = result[0];
 
-      console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/UploadProfilePhoto`);
-      
-      const response = await axios.post(
-        `${BASE_URL}/EmpRegistration/UploadProfilePhoto`,
-        formData,
-        {
-          headers: {'Content-Type': 'multipart/form-data'},
-        },
-      ).catch(error => {
-        console.error('API Error Details:', error.response ? error.response.data : error.message);
-        throw error;
-      });
+//     // Convert the image to Base64
+//     const base64Image = await new Promise((resolve, reject) => {
+//       const reader = new FileReader();
+//       reader.onload = () => resolve(reader.result.split(',')[1]); // Extract Base64 string
+//       reader.onerror = (error) => reject(error);
+//       reader.readAsDataURL(photo);
+//     });
 
-      if (response.status === 200) {
-        Alert.alert('Success', 'Profile photo updated successfully!', [
-          {
-            text: 'OK',
-            onPress: () => refreshAfterSuccess(),
-          },
-        ]);
-      } else {
-        throw new Error('Failed to update profile photo');
-      }
-    } catch (error) {
-      console.error('Profile photo update error:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
-    } finally {
-      setUploading(false);
+//     const payload = {
+//       EmployeeId: employeeDetails.id,
+//       ImageBase64: base64Image, // Send Base64 string
+//       FileName: photo.name || 'profile.jpg',
+//     };
+
+//     console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+
+//     const response = await axios.post(
+//       `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+//       payload,
+//       {
+//         headers: { 'Content-Type': 'application/json' },
+//       },
+//     );
+
+//     if (response.status === 200) {
+//       Alert.alert('Success', 'Profile photo updated successfully!', [
+//         {
+//           text: 'OK',
+//           onPress: () => refreshAfterSuccess(),
+//         },
+//       ]);
+//     } else {
+//       throw new Error('Failed to update profile photo');
+//     }
+//   } catch (error) {
+//     console.error('Profile photo update error:', error);
+//     Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
+//   } finally {
+//     setUploading(false);
+//   }
+// };
+const handleProfilePhotoUpdate = async () => {
+  try {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 1,
+    });
+
+    if (result.didCancel || !result.assets || !result.assets[0]) {
+      console.log('Image selection canceled');
+      return;
     }
-  };
 
+    const photo = result.assets[0];
+    const base64Image = photo.base64; // Use Base64 directly if available
+
+    const payload = {
+      EmployeeId: employeeDetails.id,
+      ImageBase64: base64Image,
+      FileName: photo.fileName || 'profile.jpg',
+    };
+
+    console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+
+    const response = await axios.post(
+      `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+      payload,
+      {
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+
+    if (response.status === 200) {
+      Alert.alert('Success', 'Profile photo updated successfully!', [
+        {
+          text: 'OK',
+          onPress: () => refreshAfterSuccess(),
+        },
+      ]);
+    } else {
+      throw new Error('Failed to update profile photo');
+    }
+  } catch (error) {
+    console.error('Profile photo update error:', error);
+    Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
+  }
+};
   // Handle field edit
   const handleEdit = (field) => {
     setIsEditing(true);

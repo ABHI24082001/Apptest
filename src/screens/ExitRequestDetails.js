@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   ScrollView,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {
   Appbar,
   Button,
@@ -22,12 +22,12 @@ import {
   Paragraph,
 } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
-import { Picker } from '@react-native-picker/picker';
+import {Picker} from '@react-native-picker/picker';
 import AppSafeArea from '../component/AppSafeArea';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
-import { useAuth } from '../constants/AuthContext';
+import {useAuth} from '../constants/AuthContext';
 import DatePicker from 'react-native-date-picker';
 import FeedbackModal from '../component/FeedbackModal';
 // Helper to format date string as DD-MM-YYYY
@@ -53,19 +53,20 @@ const getStatusColor = status => {
   }
 };
 
-const ExitRequestStatusScreen = ({ navigation, route }) => {
+const ExitRequestStatusScreen = ({navigation, route}) => {
   // const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
+
+  console.log( 'employeeDetails:', employeeDetails);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null); // Add state for the selected request
 
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] =
-    useState(false);
+  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] = useState(false);
   const [statusAction, setStatusAction] = useState(''); // Add this new state for status actions
-
+  
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
 
@@ -73,12 +74,31 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [isAuthorizedAccount, setIsAuthorizedAccount] = useState('false ');
+  
+  // Add new state variables for Account role
+  const [isAccountRole, setIsAccountRole] = useState(false);
+  const [isAuthorizedAccount, setIsAuthorizedAccount] = useState(false);
+  const [accountRequests, setAccountRequests] = useState([]);
 
   // Get user details from Auth context
-  const { user } = useAuth();
+  const {user} = useAuth();
 
   console.log('User details:', user);
+
+  // Check if user is in Account department
+  const checkAccountRole = () => {
+    if (user && 
+        (user.departmentName === 'Account' || 
+         user.designationName === 'Account Head' || 
+         user.departmentId === 64 ||  // Updated to 64 based on your user object
+         user.departmentId === 3)) {   // Keep the original value as fallback
+      console.log('User is in Account department role');
+      setIsAccountRole(true);
+      return true;
+    }
+    console.log('User is NOT in Account department role');
+    return false;
+  };
 
   // Fetch all employees from the registration API
   const fetchEmployees = async () => {
@@ -108,10 +128,10 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
       // Transform data into the format needed for picker
       const formattedEmployees = Array.isArray(data)
         ? data.map(emp => ({
-          id: emp.empId || emp.id,
-          name: `(${emp.employeeId || 'No  ID'})`,
-          empCode: emp.empCode,
-        }))
+            id: emp.empId || emp.id,
+            name: `(${emp.employeeId || 'No  ID'})`,
+            empCode: emp.empCode,
+          }))
         : [];
 
       setEmployees(formattedEmployees);
@@ -126,17 +146,27 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
   useFocusEffect(
     React.useCallback(() => {
       if (employeeDetails?.id) {
-        currentEmploye();
+        // Check if user is in Account department
+        const isAccountUser = checkAccountRole();
+        console.log('Is account user:', isAccountUser);
+        
+        if (isAccountUser) {
+          console.log('Fetching account requests...');
+          fetchAccountRequests();
+        } else {
+          console.log('Fetching employee requests...');
+          currentEmploye();
+        }
+        
         fetchEmployees();
-        fetchAccountRequest();
-
+        
         // Get selected request from route params if available
         if (route.params?.selectedRequest) {
           setSelectedRequest(route.params.selectedRequest);
         }
       }
 
-      return () => { }; // cleanup if needed
+      return () => {}; // cleanup if needed
     }, [
       employeeDetails?.id,
       user?.childCompanyId,
@@ -144,6 +174,106 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
     ]),
   );
 
+  const fetchAccountRequests = async () => {
+    setLoading(true);
+
+    try {
+      const childCompanyId = user?.childCompanyId;
+
+      if (!childCompanyId) {
+        console.warn('❗ Missing childCompanyId. Cannot fetch exit records.');
+        return;
+      }
+
+      console.log('Fetching account requests with childCompanyId:', childCompanyId);
+      
+      const response = await fetch(
+        `${BASE_URL}/EmployeeExit/GetAllEmpExitAccountRecords/${childCompanyId}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ All employee in accounted side exit records:==========================', data);
+
+      // Filter pending records for account department - log counts to debug
+      console.log('Total account records received:', Array.isArray(data) ? data.length : 0);
+      
+      // Ensure we're getting data and properly filtering
+      const pendingAccountRequests = Array.isArray(data) 
+        ? data.filter(item => {
+            const isPending = item.accountStatus === 'Pending' || item.accountStatus === '' || !item.accountStatus;
+            console.log(`Record ${item.id}: accountStatus=${item.accountStatus}, isPending=${isPending}`);
+            return isPending;
+          })
+        : [];
+      
+      console.log('Pending account requests after filter:', pendingAccountRequests.length);
+      
+      // If we have no data after filtering, try showing all records for debugging
+      if (pendingAccountRequests.length === 0 && Array.isArray(data) && data.length > 0) {
+        console.log('No pending requests found. Showing all account requests for debugging.');
+        setRequests(data);
+        if (data.length > 0) {
+          setSelectedRequest(data[0]);
+        }
+      } else {
+        setRequests(pendingAccountRequests);
+        setAccountRequests(pendingAccountRequests);
+        
+        // If no selected request but we have requests, select the first one
+        if (!selectedRequest && pendingAccountRequests.length > 0) {
+          setSelectedRequest(pendingAccountRequests[0]);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching account exit records:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if the current user is authorized for account approvals
+  const checkAccountAuthorization = async () => {
+    try {
+      const requestData = {
+        DepartmentId: user?.departmentId || 0,
+        DesignationId: user?.designtionId || 0,
+        EmployeeId: user?.id || 0,
+        ControllerName: 'Employeeexit',
+        ActionName: 'EmpExitApplicationAccountList',
+        ChildCompanyId: user?.childCompanyId || 1,
+        BranchId: user?.branchId || 2,
+        UserType: user?.userType || 1,
+      };
+
+      console.log('Checking account authorization with data:', requestData);
+
+      const response = await axios.post(
+        `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
+        requestData,
+      );
+
+      console.log('Account authorization data:', response.data);
+
+      if (Array.isArray(response.data)) {
+        const isAuthorized = response.data.some(item => item.employeeId === user?.id);
+        console.log('Is user authorized for account actions:', isAuthorized);
+        setIsAuthorizedAccount(isAuthorized);
+        return isAuthorized;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking account authorization:', error);
+      return false;
+    }
+  };
+
+  // Existing fetchAccountRequest renamed to avoid confusion
   const fetchAccountRequest = async () => {
     setLoading(true);
 
@@ -154,43 +284,21 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
         console.warn('❗ Missing childCompanyId. Cannot fetch exit records.');
         return;
       }
-      
-      console.log('⏳ Fetching account records for childCompanyId:', childCompanyId);
-      
-      const response = await axios.get(
+
+      const response = await fetch(
         `${BASE_URL}/EmployeeExit/GetAllEmpExitAccountRecords/${childCompanyId}`,
       );
 
-      // With axios, the response data is already parsed and available in response.data
-      const data = response.data;
-      
-      console.log('✅ API Response status:', response.status);
-      console.log('✅ All account records==============:', data);
-      
-      if (Array.isArray(data)) {
-        console.log('📊 Number of account records:', data.length);
-        
-        // Log first record if available for debugging
-        if (data.length > 0) {
-          console.log('📝 Sample account record:', data[0]);
-        }
-      } else {
-        console.log('⚠️ Data is not an array:', typeof data);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Store in state if needed
-      // setAllExitRecords(data);
-      
-      return data;
+      const data = await response.json();
+      console.log('✅ All employee in accounted side exit records:==========================', data);
+
+    
     } catch (error) {
       console.error('❌ Error fetching exit records:', error);
-      console.error('❌ Error details:', error.message);
-      
-      // If there's a response object in the error, log it
-      if (error.response) {
-        console.error('❌ Error status:', error.response.status);
-        console.error('❌ Error data:', error.response.data);
-      }
     } finally {
       setLoading(false);
     }
@@ -323,11 +431,11 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
 
     const status = statusStr.toLowerCase();
     if (status.includes('approved')) {
-      return { status: 'Approved', color: '#10B981' };
+      return {status: 'Approved', color: '#10B981'};
     } else if (status.includes('rejected')) {
-      return { status: 'Rejected', color: '#EF4444' };
+      return {status: 'Rejected', color: '#EF4444'};
     } else {
-      return { status: 'Pending', color: '#F59E0B' };
+      return {status: 'Pending', color: '#F59E0B'};
     }
   };
 
@@ -352,18 +460,13 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
       Alert.alert('Required', 'Please enter remarks before approving.');
       return;
     }
-
-    if (isAuthorizedForFinalApproval && !fromDate) {
-      Alert.alert('Required', 'Please select an exit date before approving.');
-      return;
-    }
-
+    
     try {
       setLoading(true);
-
+      
       // Create a copy of the selected request to update
       const updatedRequest = { ...selectedRequest };
-
+      
       // Set the correct fields based on who's approving
       if (isAuthorizedForFinalApproval) {
         // HR approval flow
@@ -372,35 +475,52 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
         updatedRequest.applicationStatus = 'Approved';
         updatedRequest.exitDt = fromDate ? fromDate.toISOString() : updatedRequest.exitDt;
         updatedRequest.contingentEmpId = selectedEmployee || null;
+      } else if (isAccountRole) {
+        // Account approval flow
+        updatedRequest.accountStatus = 'Approved';
+        updatedRequest.accountRemarks = remarks;
       } else {
         // Supervisor/reporting manager approval flow
         updatedRequest.supervisorStatus = 'Approved';
         updatedRequest.supervisorRemarks = remarks;
       }
-
+      
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-
+      
       console.log('Sending approval request with data:', updatedRequest);
-
+      
       // Make API call
       const response = await axios.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );
-
+      
       console.log('API Response:', response.data);
-
+      
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('success');
-        setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'approved by HR' : 'approved by supervisor'}`);
+        
+        // Set appropriate message based on role
+        if (isAccountRole) {
+          setFeedbackMessage('Request has been approved by Account department');
+        } else if (isAuthorizedForFinalApproval) {
+          setFeedbackMessage('Request has been approved by HR');
+        } else {
+          setFeedbackMessage('Request has been approved by supervisor');
+        }
+        
         setFeedbackVisible(true);
-
+        
         // Refresh data after a short delay
         setTimeout(() => {
-          currentEmploye();
+          if (isAccountRole) {
+            fetchAccountRequests();
+          } else {
+            currentEmploye();
+          }
           setSelectedRequest(null);
           setRemarks('');
         }, 3000);
@@ -423,49 +543,66 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
       Alert.alert('Required', 'Please enter remarks before rejecting.');
       return;
     }
-
+    
     try {
       setLoading(true);
-
+      
       // Create a copy of the selected request to update
       const updatedRequest = { ...selectedRequest };
-
+      
       // Set the correct fields based on who's rejecting
       if (isAuthorizedForFinalApproval) {
         // HR rejection flow
         updatedRequest.hrstatus = 'Rejected';
         updatedRequest.hrremarks = remarks;
         updatedRequest.applicationStatus = 'Rejected';
+      } else if (isAccountRole) {
+        // Account rejection flow
+        updatedRequest.accountStatus = 'Rejected';
+        updatedRequest.accountRemarks = remarks;
       } else {
         // Supervisor/reporting manager rejection flow
         updatedRequest.supervisorStatus = 'Rejected';
         updatedRequest.supervisorRemarks = remarks;
         updatedRequest.applicationStatus = 'Rejected'; // Also reject the application if supervisor rejects
       }
-
+      
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-
+      
       console.log('Sending rejection request with data:', updatedRequest);
-
+      
       // Make API call
       const response = await axios.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );
-
+      
       console.log('API Response:', response.data);
-
+      
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('fail'); // Using 'fail' type as it's visually appropriate for rejection
-        setFeedbackMessage(`Request has been ${isAuthorizedForFinalApproval ? 'rejected by HR' : 'rejected by supervisor'}`);
+        
+        // Set appropriate message based on role
+        if (isAccountRole) {
+          setFeedbackMessage('Request has been rejected by Account department');
+        } else if (isAuthorizedForFinalApproval) {
+          setFeedbackMessage('Request has been rejected by HR');
+        } else {
+          setFeedbackMessage('Request has been rejected by supervisor');
+        }
+        
         setFeedbackVisible(true);
-
+        
         // Refresh data after a short delay
         setTimeout(() => {
-          currentEmploye();
+          if (isAccountRole) {
+            fetchAccountRequests();
+          } else {
+            currentEmploye();
+          }
           setSelectedRequest(null);
           setRemarks('');
         }, 3000);
@@ -485,15 +622,11 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
 
   // Define status actions available for selection
   const statusActions = [
-    { id: 'inprogress', label: 'In Progress' },
-    { id: 'approve', label: 'Approve' },
-    { id: 'reject', label: 'Reject' },
-    { id: 'escalate', label: 'Escalate Account' },
+    {id: 'inprogress', label: 'In Progress'},
+    {id: 'approve', label: 'Approve'},
+    {id: 'reject', label: 'Reject'},
+    {id: 'escalate', label: 'Escalate Account'},
   ];
-
-
-
-
 
 
   return (
@@ -505,7 +638,7 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
           color="#4B5563"
         />
         <Appbar.Content
-          title="Employee's Exit Request"
+          title={isAccountRole ? "Account's Exit Requests" : "Employee's Exit Request"}
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -530,7 +663,11 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
         ) : requests.length > 0 ? (
           <>
             {/* Horizontal Employee Request Cards */}
-            <Text style={styles.sectionTitle}>Pending Exit Requests</Text>
+            <Text style={styles.sectionTitle}>
+              {isAccountRole 
+                ? "Pending Account Clearance Requests" 
+                : "Pending Exit Requests"}
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -541,7 +678,7 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                   style={[
                     styles.requestItem,
                     selectedRequest?.id === request.id &&
-                    styles.selectedRequestItem,
+                      styles.selectedRequestItem,
                   ]}
                   onPress={() => setSelectedRequest(request)}>
                   <View style={styles.requestItemContent}>
@@ -554,7 +691,7 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                           styles.miniStatusIndicator,
                           {
                             backgroundColor: getStatusColor(
-                              request.applicationStatus,
+                              isAccountRole ? request.accountStatus : request.applicationStatus,
                             ),
                           },
                         ]}
@@ -588,7 +725,9 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                               styles.statusIndicator,
                               {
                                 backgroundColor: getStatusColor(
-                                  selectedRequest?.applicationStatus,
+                                  isAccountRole 
+                                    ? selectedRequest?.accountStatus 
+                                    : selectedRequest?.applicationStatus,
                                 ),
                               },
                             ]}
@@ -598,11 +737,15 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                               styles.statusText,
                               {
                                 color: getStatusColor(
-                                  selectedRequest?.applicationStatus,
+                                  isAccountRole 
+                                    ? selectedRequest?.accountStatus 
+                                    : selectedRequest?.applicationStatus,
                                 ),
                               },
                             ]}>
-                            {selectedRequest?.applicationStatus || 'Pending'}
+                            {isAccountRole 
+                              ? (selectedRequest?.accountStatus || 'Pending') 
+                              : (selectedRequest?.applicationStatus || 'Pending')}
                           </Text>
                         </View>
                       </View>
@@ -674,94 +817,92 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                   </Card.Content>
                 </Card>
 
-                {/* Status Info Card - Only show for users with final approval access */}
-                {isAuthorizedForFinalApproval && (
-                  <Card style={[styles.dataCard, { borderLeftColor: '#F59E0B' }]}>
-                    <Card.Content>
-                      <View style={styles.dataRow}>
-                        <View style={styles.dataLabelContainer}>
-                          <Icon
-                            name="account-supervisor"
-                            size={20}
-                            color="#F59E0B"
-                          />
-                          <Text style={styles.dataLabel}>Supervisor:</Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.dataValue,
-                            {
-                              color: getStatusColor(
-                                selectedRequest?.supervisorStatus,
-                              ),
-                            },
-                          ]}>
-                          {selectedRequest?.supervisorStatus || 'Pending'}
-                          {selectedRequest?.supervisorRemarks &&
-                            ` (${selectedRequest.supervisorRemarks})`}
-                        </Text>
+                {/* Status Info Card - Show for all roles with appropriate information */}
+                <Card style={[styles.dataCard, {borderLeftColor: '#F59E0B'}]}>
+                  <Card.Content>
+                    <View style={styles.dataRow}>
+                      <View style={styles.dataLabelContainer}>
+                        <Icon
+                          name="account-supervisor"
+                          size={20}
+                          color="#F59E0B"
+                        />
+                        <Text style={styles.dataLabel}>Supervisor:</Text>
                       </View>
+                      <Text
+                        style={[
+                          styles.dataValue,
+                          {
+                            color: getStatusColor(
+                              selectedRequest?.supervisorStatus,
+                            ),
+                          },
+                        ]}>
+                        {selectedRequest?.supervisorStatus || 'Pending'}
+                        {selectedRequest?.supervisorRemarks &&
+                          ` (${selectedRequest.supervisorRemarks})`}
+                      </Text>
+                    </View>
 
-                      <View style={styles.dataRow}>
-                        <View style={styles.dataLabelContainer}>
-                          <Icon name="account-cash" size={20} color="#F59E0B" />
-                          <Text style={styles.dataLabel}>Account:</Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.dataValue,
-                            {
-                              color: getStatusColor(
-                                selectedRequest?.accountStatus,
-                              ),
-                            },
-                          ]}>
-                          {selectedRequest?.accountStatus || 'Pending'}
-                          {selectedRequest?.accountRemarks &&
-                            ` (${selectedRequest.accountRemarks})`}
-                        </Text>
+                    <View style={styles.dataRow}>
+                      <View style={styles.dataLabelContainer}>
+                        <Icon name="account-cash" size={20} color="#F59E0B" />
+                        <Text style={styles.dataLabel}>Account:</Text>
                       </View>
+                      <Text
+                        style={[
+                          styles.dataValue,
+                          {
+                            color: getStatusColor(
+                              selectedRequest?.accountStatus,
+                            ),
+                          },
+                        ]}>
+                        {selectedRequest?.accountStatus || 'Pending'}
+                        {selectedRequest?.accountRemarks &&
+                          ` (${selectedRequest.accountRemarks})`}
+                      </Text>
+                    </View>
 
-                      <View style={styles.dataRow}>
-                        <View style={styles.dataLabelContainer}>
-                          <Icon name="account-tie" size={20} color="#F59E0B" />
-                          <Text style={styles.dataLabel}>HR:</Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.dataValue,
-                            { color: getStatusColor(selectedRequest?.hrstatus) },
-                          ]}>
-                          {selectedRequest?.hrstatus || 'Pending'}
-                          {selectedRequest?.hrremarks &&
-                            ` (${selectedRequest.hrremarks})`}
+                    <View style={styles.dataRow}>
+                      <View style={styles.dataLabelContainer}>
+                        <Icon name="account-tie" size={20} color="#F59E0B" />
+                        <Text style={styles.dataLabel}>HR:</Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.dataValue,
+                          {color: getStatusColor(selectedRequest?.hrstatus)},
+                        ]}>
+                        {selectedRequest?.hrstatus || 'Pending'}
+                        {selectedRequest?.hrremarks &&
+                          ` (${selectedRequest.hrremarks})`}
+                      </Text>
+                    </View>
+                    <View style={styles.dataRow}>
+                      <View style={styles.dataLabelContainer}>
+                        <Icon name="account-tie" size={20} color="#F59E0B" />
+                        <Text style={styles.dataLabel}>
+                          Application Status:
                         </Text>
                       </View>
-                      <View style={styles.dataRow}>
-                        <View style={styles.dataLabelContainer}>
-                          <Icon name="account-tie" size={20} color="#F59E0B" />
-                          <Text style={styles.dataLabel}>
-                            Application Status:
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.dataValue,
-                            {
-                              color: getStatusColor(
-                                selectedRequest?.applicationStatus,
-                              ),
-                            },
-                          ]}>
-                          {/* {selectedRequest?.applicationStatus'} */}
-                          {selectedRequest?.applicationStatus &&
-                            ` ${selectedRequest.applicationStatus}`}
-                        </Text>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                )}
+                      <Text
+                        style={[
+                          styles.dataValue,
+                          {
+                            color: getStatusColor(
+                              selectedRequest?.applicationStatus,
+                            ),
+                          },
+                        ]}>
+                        {selectedRequest?.applicationStatus &&
+                          ` ${selectedRequest.applicationStatus}`}
+                      </Text>
+                    </View>
+                  </Card.Content>
+                </Card>
 
+                {/* Only show contingent employee selection for HR */}
                 {isAuthorizedForFinalApproval && (
                   <View style={styles.formField}>
                     <Text style={styles.formLabel}>
@@ -785,10 +926,9 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                   </View>
                 )}
 
-                {/* Hr selected Date */}
-
+                {/* HR Exit Date - Only show for HR */}
                 {isAuthorizedForFinalApproval && (
-                  <Card style={[styles.dataCard, { borderLeftColor: '#8B5CF6' }]}>
+                  <Card style={[styles.dataCard, {borderLeftColor: '#8B5CF6'}]}>
                     <Card.Title title="HR Approval Date Range" />
                     <Card.Content>
                       <View style={styles.dateRangeContainer}>
@@ -854,36 +994,39 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                   onCancel={() => setShowToPicker(false)}
                 />
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>
-                    Contingent Employees' Code
-                  </Text>
-                  <View style={styles.pickerContainer}>
-                    {loadingEmployees ? (
-                      <ActivityIndicator
-                        size="small"
-                        color="#3B82F6"
-                        style={styles.pickerLoading}
-                      />
-                    ) : (
-                      <Picker
-                        selectedValue={selectedEmployee}
-                        style={styles.picker}
-                        onValueChange={itemValue =>
-                          setSelectedEmployee(itemValue)
-                        }>
-                        <Picker.Item label="Select Employee" value="" />
-                        {employees.map(employee => (
-                          <Picker.Item
-                            key={employee.id}
-                            label={employee.name}
-                            value={employee.empCode || employee.id}
-                          />
-                        ))}
-                      </Picker>
-                    )}
+                {/* Only show contingent employee picker for HR */}
+                {isAuthorizedForFinalApproval && (
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>
+                      Contingent Employees' Code
+                    </Text>
+                    <View style={styles.pickerContainer}>
+                      {loadingEmployees ? (
+                        <ActivityIndicator
+                          size="small"
+                          color="#3B82F6"
+                          style={styles.pickerLoading}
+                        />
+                      ) : (
+                        <Picker
+                          selectedValue={selectedEmployee}
+                          style={styles.picker}
+                          onValueChange={itemValue =>
+                            setSelectedEmployee(itemValue)
+                          }>
+                          <Picker.Item label="Select Employee" value="" />
+                          {employees.map(employee => (
+                            <Picker.Item
+                              key={employee.id}
+                              label={employee.name}
+                              value={employee.empCode || employee.id}
+                            />
+                          ))}
+                        </Picker>
+                      )}
+                    </View>
                   </View>
-                </View>
+                )}
 
                 {/* Remarks Input */}
                 <View style={styles.formField}>
@@ -910,7 +1053,7 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
                   mode="contained"
                   onPress={handleApprove}
                   style={styles.approveBtn}>
-                  Approve
+                  {isAccountRole ? "Approve Account Clearance" : "Approve"}
                 </Button>
                 <Button
                   mode="outlined"
@@ -926,11 +1069,21 @@ const ExitRequestStatusScreen = ({ navigation, route }) => {
           <View style={styles.noDataContainer}>
             <Icon name="account-off-outline" size={60} color="#9CA3AF" />
             <Text style={styles.noDataText}>
-              No pending exit requests found
+              {isAccountRole 
+                ? "No pending account clearance requests" 
+                : "No pending exit requests found"}
             </Text>
             <Text style={styles.noDataSubText}>
-              All exit requests will appear here
+              {isAccountRole 
+                ? `Account clearance requests will appear here. Department ID: ${user?.departmentId}` 
+                : "All exit requests will appear here"}
             </Text>
+            <Button 
+              mode="contained" 
+              style={{marginTop: 20}} 
+              onPress={isAccountRole ? fetchAccountRequests : currentEmploye}>
+              Refresh Data
+            </Button>
           </View>
         )}
       </ScrollView>
@@ -1358,3 +1511,6 @@ const styles = StyleSheet.create({
 });
 
 export default ExitRequestStatusScreen;
+
+
+
