@@ -12,15 +12,23 @@ const StatusCard = ({
   onDelete,
 }) => {
   const getStatusIcon = status => {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return {icon: 'check-circle', color: '#4CAF50'};
-      case 'pending':
-        return {icon: 'clock', color: '#FFA000'};
-      case 'rejected':
-        return {icon: 'close-circle', color: '#F44336'};
-      default:
-        return {icon: 'help-circle', color: '#9E9E9E'};
+    if (!status) return {icon: 'help-circle', color: '#9E9E9E'};
+    
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes('approved by manager') || 
+        statusLower.includes('approved by reporting') || 
+        (statusLower.includes('approved') && 
+         (statusLower.includes('manager') || statusLower.includes('reporting')))) {
+      return {icon: 'check-circle', color: '#16a34a'}; // Bright green for manager approval
+    } else if (statusLower.includes('approved')) {
+      return {icon: 'check-circle', color: '#4CAF50'};
+    } else if (statusLower.includes('pending')) {
+      return {icon: 'clock', color: '#FFA000'};
+    } else if (statusLower.includes('rejected')) {
+      return {icon: 'close-circle', color: '#F44336'};
+    } else {
+      return {icon: 'help-circle', color: '#9E9E9E'};
     }
   };
 
@@ -28,17 +36,51 @@ const StatusCard = ({
   
   // Get status-specific styling
   const getStatusStyle = status => {
+    if (!status) return { backgroundColor: '#F8F8F8' };
+    
     const statusLower = status.toLowerCase();
-    if (statusLower === 'pending') {
+    
+    if (statusLower.includes('approved by manager') || 
+        statusLower.includes('approved by reporting') ||
+        (statusLower.includes('approved') && 
+         (statusLower.includes('manager') || statusLower.includes('reporting')))) {
+      return {
+        backgroundColor: '#dcfce7', // Light green
+        borderColor: '#86efac',    // Medium green
+        borderWidth: 1,
+      };
+    } else if (statusLower.includes('approved')) {
+      return {
+        backgroundColor: '#d1fae5', // Lighter green
+        borderColor: '#6ee7b7',    // Medium green
+        borderWidth: 1,
+      };
+    } else if (statusLower.includes('pending')) {
       return {
         backgroundColor: '#FFF9E5',
         borderColor: '#FFA500',
+        borderWidth: 1,
+      };
+    } else if (statusLower.includes('rejected')) {
+      return {
+        backgroundColor: '#fee2e2', // Light red
+        borderColor: '#fca5a5',    // Medium red
         borderWidth: 1,
       };
     }
     return {
       backgroundColor: '#F8F8F8',
     };
+  };
+
+  // Format status text to look better
+  const formatStatusText = (status) => {
+    if (!status) return '';
+    
+    // Split status into words and capitalize each word
+    return status.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
   };
 
   return (
@@ -63,17 +105,8 @@ const StatusCard = ({
           <Text style={styles.value}>{remarks || 'No Remark'}</Text>
         </View>
 
-        <View style={styles.cardFooter}>
-          <View style={[
-            styles.statusRow,
-            getStatusStyle(status)
-          ]}>
-            <Icon name={statusIcon.icon} size={20} color={statusIcon.color} />
-            <Text style={[styles.statusText, {color: statusIcon.color}]}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Text>
-          </View>
 
+        <View style={styles.cardFooter}>
           <View style={styles.actionButtons}>
             <TouchableOpacity 
               style={[styles.actionButton, styles.editButton]} 
@@ -87,6 +120,21 @@ const StatusCard = ({
               <Icon name="trash-can-outline" size={20} color="#F44336" />
               <Text style={styles.actionText}>Remove </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.statusLabel}>Status</Text>
+          <View style={styles.actionButtons}>
+            <View style={[
+              styles.statusRow,
+              getStatusStyle(status)
+            ]}>
+              <Icon name={statusIcon.icon} size={20} color={statusIcon.color} />
+              <Text style={[styles.statusText, {color: statusIcon.color}]}>
+                {formatStatusText(status)}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -141,11 +189,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginRight: 10,
+  },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRadius: 20,
   },
   statusText: {

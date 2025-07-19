@@ -250,16 +250,6 @@ const ExitApplyScreen = ({navigation}) => {
   if (checkingStatus) {
     return (
       <AppSafeArea>
-        <Appbar.Header style={styles.header}>
-          <Appbar.BackAction
-            onPress={() => navigation.goBack()}
-            color="#4B5563"
-          />
-          <Appbar.Content
-            title="Exit Application"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.loadingText}>Checking application status...</Text>

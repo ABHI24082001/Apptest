@@ -39,6 +39,7 @@ import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import {pick} from '@react-native-documents/picker';
+import RNFS from 'react-native-fs';
 
 const {width: screenWidth} = Dimensions.get('window');
 
@@ -56,7 +57,8 @@ const EditableField = ({
   multiline = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const currentValue = editedFields[label] !== undefined ? editedFields[label] : value;
+  const currentValue =
+    editedFields[label] !== undefined ? editedFields[label] : value;
 
   return (
     <View style={styles.fieldContainer}>
@@ -74,7 +76,7 @@ const EditableField = ({
                 multiline && styles.fieldInputMultiline,
               ]}
               value={currentValue?.toString() || ''}
-              onChangeText={(text) => 
+              onChangeText={text =>
                 setEditedFields(prev => ({...prev, [label]: text}))
               }
               onFocus={() => setIsFocused(true)}
@@ -84,15 +86,16 @@ const EditableField = ({
               placeholder={`Enter ${label.toLowerCase()}`}
             />
           ) : (
-            <Text style={styles.fieldValue}>{currentValue || 'Not specified'}</Text>
+            <Text style={styles.fieldValue}>
+              {currentValue || 'Not specified'}
+            </Text>
           )}
         </View>
         {editable && !isEditing && (
           <TouchableOpacity
             onPress={() => onEdit(label)}
             style={styles.fieldEditButton}
-            activeOpacity={0.7}
-          >
+            activeOpacity={0.7}>
             <Icon name="pencil" size={16} color="#3B82F6" />
           </TouchableOpacity>
         )}
@@ -141,9 +144,7 @@ const ProfileSection = ({
   }));
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {rotate: `${animatedRotation.value}deg`},
-    ],
+    transform: [{rotate: `${animatedRotation.value}deg`}],
   }));
 
   return (
@@ -151,8 +152,7 @@ const ProfileSection = ({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={toggleSection}
-        style={styles.sectionHeader}
-      >
+        style={styles.sectionHeader}>
         <View style={styles.sectionTitleContainer}>
           <View style={styles.sectionIconContainer}>
             <Icon name={icon} size={22} color="#3B82F6" />
@@ -163,7 +163,7 @@ const ProfileSection = ({
           <Icon name="chevron-down" size={24} color="#666" />
         </Animated.View>
       </TouchableOpacity>
-      
+
       <Animated.View style={[styles.sectionContent, animatedStyle]}>
         <View style={styles.sectionInnerContent}>
           {data.map((item, index) => (
@@ -203,23 +203,23 @@ const ChangePasswordModal = ({
 
   const validatePasswords = () => {
     const newErrors = {};
-    
+
     if (!passwords.current) {
       newErrors.current = 'Current password is required';
     }
-    
+
     if (!passwords.new) {
       newErrors.new = 'New password is required';
     } else if (passwords.new.length < 6) {
       newErrors.new = 'Password must be at least 6 characters';
     }
-    
+
     if (!passwords.confirm) {
       newErrors.confirm = 'Please confirm your password';
     } else if (passwords.new !== passwords.confirm) {
       newErrors.confirm = 'Passwords do not match';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -230,7 +230,7 @@ const ChangePasswordModal = ({
     }
   };
 
-  const togglePasswordVisibility = (field) => {
+  const togglePasswordVisibility = field => {
     setShowPasswords(prev => ({
       ...prev,
       [field]: !prev[field],
@@ -254,22 +254,26 @@ const ChangePasswordModal = ({
       <Modal
         visible={visible}
         onDismiss={onDismiss}
-        contentContainerStyle={styles.modalContainer}
-      >
+        contentContainerStyle={styles.modalContainer}>
         <Surface style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Change Password</Text>
-            <TouchableOpacity onPress={onDismiss} style={styles.modalCloseButton}>
+            <TouchableOpacity
+              onPress={onDismiss}
+              style={styles.modalCloseButton}>
               <Icon name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.modalBody}>
-            {['current', 'new', 'confirm'].map((field) => (
+            {['current', 'new', 'confirm'].map(field => (
               <View key={field} style={styles.passwordFieldContainer}>
                 <Text style={styles.passwordLabel}>
-                  {field === 'current' ? 'Current Password' : 
-                   field === 'new' ? 'New Password' : 'Confirm Password'}
+                  {field === 'current'
+                    ? 'Current Password'
+                    : field === 'new'
+                    ? 'New Password'
+                    : 'Confirm Password'}
                 </Text>
                 <View style={styles.passwordInputContainer}>
                   <TextInput
@@ -279,15 +283,14 @@ const ChangePasswordModal = ({
                     ]}
                     secureTextEntry={!showPasswords[field]}
                     value={passwords[field]}
-                    onChangeText={(text) => 
+                    onChangeText={text =>
                       setPasswords(prev => ({...prev, [field]: text}))
                     }
                     placeholder={`Enter ${field} password`}
                   />
                   <TouchableOpacity
                     onPress={() => togglePasswordVisibility(field)}
-                    style={styles.passwordToggle}
-                  >
+                    style={styles.passwordToggle}>
                     <Icon
                       name={showPasswords[field] ? 'eye' : 'eye-off'}
                       size={20}
@@ -301,14 +304,13 @@ const ChangePasswordModal = ({
               </View>
             ))}
           </View>
-          
+
           <View style={styles.modalFooter}>
             <Button
               mode="outlined"
               onPress={onDismiss}
               style={styles.modalButton}
-              disabled={loading}
-            >
+              disabled={loading}>
               Cancel
             </Button>
             <Button
@@ -316,8 +318,7 @@ const ChangePasswordModal = ({
               onPress={handleSubmit}
               style={[styles.modalButton, styles.modalSubmitButton]}
               loading={loading}
-              disabled={loading}
-            >
+              disabled={loading}>
               Update Password
             </Button>
           </View>
@@ -331,10 +332,11 @@ const ChangePasswordModal = ({
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState({});
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -361,48 +363,95 @@ const ProfileScreen = () => {
   }, [onRefresh]);
 
   // Format date for backend
-  const formatDateForBackend = (date) => {
+  const formatDateForBackend = date => {
     if (!date || isNaN(new Date(date).getTime())) return null;
     const d = new Date(date);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate(),
+    )}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   };
 
   // Handle password change
-  const handlePasswordChange = async (passwords) => {
+  const handlePasswordChange = async passwords => {
     setPasswordLoading(true);
     try {
       const payload = {
         Id: employeeDetails.id,
-        EmployeeId: employeeDetails.employeeId,
+        EmployeeId: employeeDetails.employeeId ?? '',
+        EmployeeName: employeeDetails.employeeName ?? '',
+        Dob: formatDateForBackend(employeeDetails.dob),
+        BloodGroup: employeeDetails.bloodGroup ?? '',
+        Gender: employeeDetails.gender ?? '',
+        MaritalStatus: employeeDetails.maritalStatus ?? '',
+        Religion: employeeDetails.religion ?? '',
+        PcontactNo: employeeDetails.pcontactNo ?? '',
+        EmergencyContactNo: employeeDetails.emergencyContactNo ?? '',
+        EmailAddress: employeeDetails.emailAddress ?? '',
+        EmpImage: employeeDetails.empImage ?? '',
+        EmpFather: employeeDetails.empFather ?? '',
+        EmpMother: employeeDetails.empMother ?? '',
+        PoliceStation: employeeDetails.policeStation ?? '',
+        ZipCode: employeeDetails.zipCode ?? '',
+        CountryId: employeeDetails.countryId ?? 0,
+        StateId: employeeDetails.stateId ?? 0,
+        City: employeeDetails.city ?? '',
+        EmployeeType: employeeDetails.employeeType ?? 0,
+        ProvisionEndDt: employeeDetails.provisionEndDt ?? null,
+        PresentAddress: employeeDetails.presentAddress ?? '',
+        PermaAddress: employeeDetails.permaAddress ?? '',
+        DateofJoin: formatDateForBackend(employeeDetails.dateofJoin),
+        ChildCompanyId: employeeDetails.childCompanyId ?? null,
+        BranchId: employeeDetails.branchId ?? null,
+        DepartmentId: employeeDetails.departmentId ?? 0,
+        CompanyVerticalId: employeeDetails.companyVerticalId ?? null,
+        DesigntionId: employeeDetails.designtionId ?? 0,
+        ReportingEmpId: employeeDetails.reportingEmpId ?? null,
+        ExistingBank: employeeDetails.existingBank ?? '',
+        BankAcNo: employeeDetails.bankAcNo ?? '',
+        BankIfsc: employeeDetails.bankIfsc ?? '',
+        UploadResume: employeeDetails.uploadResume ?? '',
+        HighDegree: employeeDetails.highDegree ?? '',
+        YearPassing: employeeDetails.yearPassing ?? '',
+        Percentage: employeeDetails.percentage ?? null,
+        University: employeeDetails.university ?? '',
+        OtherQualification: employeeDetails.otherQualification ?? '',
+        Uanno: employeeDetails.uanno ?? '',
+        Esino: employeeDetails.esino ?? '',
+        PanNo: employeeDetails.panNo ?? '',
+        AadhaarNo: employeeDetails.aadhaarNo ?? '',
+        Category: employeeDetails.category ?? '',
+        UploadPan: employeeDetails.uploadPan ?? '',
+        UploadAadhaar: employeeDetails.uploadAadhaar ?? '',
+        UploadSignature: employeeDetails.uploadSignature ?? '',
+        Username: employeeDetails.username ?? '',
+        Password: employeeDetails.password ?? '',
         Password: passwords.new,
-        EmployeeName: employeeDetails.employeeName,
-        Username: employeeDetails.username,
-        Gender: employeeDetails.gender,
-        City: employeeDetails.city,
-        PcontactNo: employeeDetails.pcontactNo,
-        EmailAddress: employeeDetails.emailAddress,
-        MaritalStatus: employeeDetails.maritalStatus,
-        EmpFather: employeeDetails.empFather,
-        EmpMother: employeeDetails.empMother,
-        PermaAddress: employeeDetails.permaAddress,
-        PresentAddress: employeeDetails.presentAddress,
-        EmergencyContactNo: employeeDetails.emergencyContactNo,
-        ModifiedBy: employeeDetails.id,
+        IsDelete: employeeDetails.isDelete ?? 0,
+        Flag: employeeDetails.flag ?? 1,
+        CreatedBy: employeeDetails.createdBy ?? employeeDetails.id ?? 0,
+        CreatedDate: formatDateForBackend(employeeDetails.createdDate),
+        ModifiedBy: employeeDetails.modifiedBy ?? employeeDetails.id ?? 0,
         ModifiedDate: formatDateForBackend(new Date()),
       };
 
-      console.log('Sending password update to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
-      
-      const response = await axios.post(
+      console.log(
+        'Sending password update to:',
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-        payload,
-      ).catch(error => {
-        console.error('API Error Details:', error.response ? error.response.data : error.message);
-        throw error;
-      });
+      );
 
-      if (response.status === 200) {
+      const response = await axios
+        .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
+        .catch(error => {
+          console.error(
+            'API Error Details:',
+            error.response ? error.response.data : error.message,
+          );
+          throw error;
+        });
+
+      // Check if response exists and has a valid status
+      if (response && response.status >= 200 && response.status < 300) {
         Alert.alert('Success', 'Password updated successfully!', [
           {
             text: 'OK',
@@ -413,125 +462,369 @@ const ProfileScreen = () => {
           },
         ]);
       } else {
-        throw new Error('Failed to update password');
+        throw new Error('Failed to update password - Invalid response');
       }
     } catch (error) {
       console.error('Password update error:', error);
       let errorMessage = 'Failed to update password';
-      
+
       if (error.response) {
-        errorMessage = error.response.data?.message || 
-                      (typeof error.response.data === 'string' ? error.response.data : errorMessage);
+        errorMessage =
+          error.response.data?.message ||
+          (typeof error.response.data === 'string'
+            ? error.response.data
+            : errorMessage);
       }
-      
+
       Alert.alert('Error', errorMessage);
     } finally {
       setPasswordLoading(false);
     }
   };
 
-  // Handle profile photo update
-//   const handleProfilePhotoUpdate = async () => {
-//   try {
-//     const result = await pick({
-//       type: ['image/*'],
-//       allowMultiSelection: false,
-//     });
+  // Generate a unique filename for the uploaded photo
+  // const uploadProfilePhoto = async (photo, fileName) => {
+  //   setUploading(true);
+  //   try {
+  //     console.log('Starting photo upload process for:', photo.uri);
 
-//     if (!result || !result[0]) return;
+  //     // Read file as base64
+  //     const response = await fetch(photo.uri);
+  //     const blob = await response.blob();
 
-//     setUploading(true);
-//     const photo = result[0];
+  //     return new Promise((resolve, reject) => {
+  //       const reader = new FileReader();
+  //       reader.onload = async () => {
+  //         try {
+  //           // The result contains the full data URL with prefix
+  //           // We need to extract just the base64 part
+  //           let base64Data = reader.result;
 
-//     // Convert the image to Base64
-//     const base64Image = await new Promise((resolve, reject) => {
-//       const reader = new FileReader();
-//       reader.onload = () => resolve(reader.result.split(',')[1]); // Extract Base64 string
-//       reader.onerror = (error) => reject(error);
-//       reader.readAsDataURL(photo);
-//     });
+  //           // Check if the result is in the expected format
+  //           if (base64Data.includes('base64,')) {
+  //             base64Data = base64Data.split('base64,')[1];
+  //           }
 
-//     const payload = {
-//       EmployeeId: employeeDetails.id,
-//       ImageBase64: base64Image, // Send Base64 string
-//       FileName: photo.name || 'profile.jpg',
-//     };
+  //           if (!base64Data) {
+  //             console.error('No valid base64 data available');
+  //             setUploading(false);
+  //             setUploadedPhoto(null);
+  //             Alert.alert('Error', 'Failed to process the image data');
+  //             reject(new Error('No image data available'));
+  //             return;
+  //           }
 
-//     console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+  //           console.log('Image successfully converted to base64');
 
-//     const response = await axios.post(
-//       `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-//       payload,
-//       {
-//         headers: { 'Content-Type': 'application/json' },
-//       },
-//     );
+  //           const payload = {
+  //             Id: employeeDetails.id,
+  //             EmployeeId: employeeDetails.employeeId,
+  //             EmployeeName: employeeDetails.employeeName,
+  //             // Include all required fields that were already there
+  //             Username: employeeDetails.username,
+  //             Gender: employeeDetails.gender,
+  //             City: employeeDetails.city,
+  //             PcontactNo: employeeDetails.pcontactNo,
+  //             EmailAddress: employeeDetails.emailAddress,
+  //             MaritalStatus: employeeDetails.maritalStatus,
+  //             EmpFather: employeeDetails.empFather,
+  //             EmpMother: employeeDetails.empMother,
+  //             PermaAddress: employeeDetails.permaAddress,
+  //             PresentAddress: employeeDetails.presentAddress,
+  //             EmergencyContactNo: employeeDetails.emergencyContactNo,
+  //             ModifiedBy: employeeDetails.id,
+  //             ModifiedDate: formatDateForBackend(new Date()),
+  //             // Just send the filename, not the full path
+  //             EmpImage: fileName,
+  //             ImageBase64: base64Data,
+  //           };
 
-//     if (response.status === 200) {
-//       Alert.alert('Success', 'Profile photo updated successfully!', [
-//         {
-//           text: 'OK',
-//           onPress: () => refreshAfterSuccess(),
-//         },
-//       ]);
-//     } else {
-//       throw new Error('Failed to update profile photo');
-//     }
-//   } catch (error) {
-//     console.error('Profile photo update error:', error);
-//     Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
-//   } finally {
-//     setUploading(false);
-//   }
-// };
-const handleProfilePhotoUpdate = async () => {
-  try {
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      quality: 1,
-    });
+  //           console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+  //           console.log('With filename:', fileName);
 
-    if (result.didCancel || !result.assets || !result.assets[0]) {
-      console.log('Image selection canceled');
-      return;
+  //           try {
+  //             // Use axios with proper error handling
+  //             const response = await axios.post(
+  //               `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+  //               payload,
+  //               {
+  //                 // Add proper timeout and headers
+  //                 timeout: 30000,
+  //                 headers: {
+  //                   'Content-Type': 'application/json',
+  //                   'Accept': 'application/json',
+  //                 }
+  //               }
+  //             );
+
+  //             // Check response status properly
+  //             if (response && response.status >= 200 && response.status < 300) {
+  //               console.log('Upload successful, server responded with:', response.status);
+  //               Alert.alert('Success', 'Profile photo updated successfully!');
+  //               refreshAfterSuccess();
+  //               resolve(response.data);
+  //             } else {
+  //               console.error('Server returned unexpected status:', response.status);
+  //               throw new Error(`Server returned status ${response.status}`);
+  //             }
+  //           } catch (error) {
+  //             console.error('API call failed:', error);
+
+  //             // Detailed error logging
+  //             if (error.response) {
+  //               // The request was made and the server responded with a status code
+  //               // that falls out of the range of 2xx
+  //               console.error('Error response data:', error.response.data);
+  //               console.error('Error response status:', error.response.status);
+  //               console.error('Error response headers:', error.response.headers);
+
+  //               Alert.alert('Upload Failed', `Server error: ${error.response.status}. Please try again later.`);
+  //             } else if (error.request) {
+  //               // The request was made but no response was received
+  //               console.error('No response received:', error.request);
+  //               Alert.alert('Network Error', 'No response from server. Please check your connection.');
+  //             } else {
+  //               // Something happened in setting up the request
+  //               console.error('Error message:', error.message);
+  //               Alert.alert('Error', error.message || 'Failed to upload photo');
+  //             }
+
+  //             reject(error);
+  //           }
+  //         } catch (innerError) {
+  //           console.error('Error in FileReader onload handler:', innerError);
+  //           Alert.alert('Error', 'Failed to process the image. Please try again with a different image.');
+  //           reject(innerError);
+  //         } finally {
+  //           setUploading(false);
+  //           setUploadedPhoto(null);
+  //         }
+  //       };
+
+  //       reader.onerror = (error) => {
+  //         console.error('FileReader error:', error);
+  //         reject(new Error('Failed to read file'));
+  //         setUploading(false);
+  //         setUploadedPhoto(null);
+  //         Alert.alert('Error', 'Failed to read the selected image');
+  //       };
+
+  //       // Start reading the blob as a data URL (base64)
+  //       reader.readAsDataURL(blob);
+  //     });
+  //   } catch (error) {
+  //     console.error('Profile photo update error:', error);
+  //     Alert.alert('Error', 'Failed to process the selected photo');
+  //     setUploading(false);
+  //     setUploadedPhoto(null);
+  //     throw error;
+  //   }
+  // };
+
+  const handleProfilePhotoUpdate = async () => {
+    try {
+      // Using @react-native-documents/picker
+      const result = await pick({
+        type: ['image/*'], // Simpler MIME type specification
+        title: 'Select a profile photo',
+        message: 'Choose a photo to set as your profile picture',
+        cancelText: 'Cancel',
+        confirmText: 'Select',
+        multiple: false,
+        allowMultiSelection: false,
+      }).catch(err => {
+        console.log('Document picker error: ', err);
+        return null;
+      });
+
+      // If no document was picked or the picker was cancelled
+      if (!result || result.length === 0) {
+        console.log('User cancelled document picker or no document selected');
+        return;
+      }
+
+      const photo = result[0]; // Get the first document
+
+      // Log the document details for debugging
+      console.log('Selected document:', photo);
+
+      // Validate file type is an image
+      const isImage =
+        photo.type?.startsWith('image/') ||
+        photo.uri?.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
+
+      if (!isImage) {
+        Alert.alert('Error', 'Please select a valid image file');
+        return;
+      }
+
+      // Check if file size is available and validate it
+      if (photo.size && photo.size > 5 * 1024 * 1024) {
+        Alert.alert('Error', 'Photo size should be less than 5MB');
+        return;
+      }
+
+      // Generate a unique filename with extension from the original file
+      const fileExtension = photo.name ? photo.name.split('.').pop() : 'jpg';
+      const newFileName = `profile_${Date.now()}.${fileExtension}`;
+
+      // Create a photo object compatible with our upload function
+      const processedPhoto = {
+        uri: photo.uri,
+        type: photo.type || 'image/jpeg',
+        name: photo.name || 'photo.jpg',
+        fileName: newFileName,
+      };
+
+      // Set the photo for preview
+      setUploadedPhoto(processedPhoto);
+
+      // Show confirmation dialog
+      Alert.alert(
+        'Confirm Photo Update',
+        'Do you want to update your profile photo?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => setUploadedPhoto(null),
+          },
+          {
+            text: 'Update',
+            onPress: () => uploadProfilePhoto(processedPhoto, newFileName),
+          },
+        ],
+      );
+    } catch (err) {
+      console.error('Document picker error:', err);
+      Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
+  };
 
-    const photo = result.assets[0];
-    const base64Image = photo.base64; // Use Base64 directly if available
+  const uploadProfilePhoto = async (photo, fileName) => {
+    setUploading(true);
+    try {
+      // Read file as base64 using RNFS
+      const base64Data = await RNFS.readFile(photo.uri, 'base64');
 
-    const payload = {
-      EmployeeId: employeeDetails.id,
-      ImageBase64: base64Image,
-      FileName: photo.fileName || 'profile.jpg',
-    };
+      if (!base64Data) {
+        setUploading(false);
+        setUploadedPhoto(null);
+        Alert.alert('Error', 'Failed to process the image data');
+        throw new Error('No image data available');
+      }
 
-    console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
+      const payload = {
+        Id: employeeDetails.id,
+        EmployeeId: employeeDetails.employeeId ?? '',
+        EmployeeName: employeeDetails.employeeName ?? '',
+        Dob: formatDateForBackend(employeeDetails.dob),
+        BloodGroup: employeeDetails.bloodGroup ?? '',
+        Gender: employeeDetails.gender ?? '',
+        MaritalStatus: employeeDetails.maritalStatus ?? '',
+        Religion: employeeDetails.religion ?? '',
+        PcontactNo: employeeDetails.pcontactNo ?? '',
+        EmergencyContactNo: employeeDetails.emergencyContactNo ?? '',
+        EmailAddress: employeeDetails.emailAddress ?? '',
+        EmpImage: employeeDetails.empImage ?? '',
+        EmpFather: employeeDetails.empFather ?? '',
+        EmpMother: employeeDetails.empMother ?? '',
+        PoliceStation: employeeDetails.policeStation ?? '',
+        ZipCode: employeeDetails.zipCode ?? '',
+        CountryId: employeeDetails.countryId ?? 0,
+        StateId: employeeDetails.stateId ?? 0,
+        City: employeeDetails.city ?? '',
+        EmployeeType: employeeDetails.employeeType ?? 0,
+        ProvisionEndDt: employeeDetails.provisionEndDt ?? null,
+        PresentAddress: employeeDetails.presentAddress ?? '',
+        PermaAddress: employeeDetails.permaAddress ?? '',
+        DateofJoin: formatDateForBackend(employeeDetails.dateofJoin),
+        ChildCompanyId: employeeDetails.childCompanyId ?? null,
+        BranchId: employeeDetails.branchId ?? null,
+        DepartmentId: employeeDetails.departmentId ?? 0,
+        CompanyVerticalId: employeeDetails.companyVerticalId ?? null,
+        DesigntionId: employeeDetails.designtionId ?? 0,
+        ReportingEmpId: employeeDetails.reportingEmpId ?? null,
+        ExistingBank: employeeDetails.existingBank ?? '',
+        BankAcNo: employeeDetails.bankAcNo ?? '',
+        BankIfsc: employeeDetails.bankIfsc ?? '',
+        UploadResume: employeeDetails.uploadResume ?? '',
+        HighDegree: employeeDetails.highDegree ?? '',
+        YearPassing: employeeDetails.yearPassing ?? '',
+        Percentage: employeeDetails.percentage ?? null,
+        University: employeeDetails.university ?? '',
+        OtherQualification: employeeDetails.otherQualification ?? '',
+        Uanno: employeeDetails.uanno ?? '',
+        Esino: employeeDetails.esino ?? '',
+        PanNo: employeeDetails.panNo ?? '',
+        AadhaarNo: employeeDetails.aadhaarNo ?? '',
+        Category: employeeDetails.category ?? '',
+        UploadPan: employeeDetails.uploadPan ?? '',
+        UploadAadhaar: employeeDetails.uploadAadhaar ?? '',
+        UploadSignature: employeeDetails.uploadSignature ?? '',
+        Username: employeeDetails.username ?? '',
+        Password: employeeDetails.password ?? '',
+        IsDelete: employeeDetails.isDelete ?? 0,
+        Flag: employeeDetails.flag ?? 1,
+        CreatedBy: employeeDetails.createdBy ?? employeeDetails.id ?? 0,
+        CreatedDate: formatDateForBackend(employeeDetails.createdDate),
+        ModifiedBy: employeeDetails.modifiedBy ?? employeeDetails.id ?? 0,
+        ModifiedDate: formatDateForBackend(new Date()),
+        EmpImage: fileName,
+        ImageBase64: base64Data,
+      };
 
-    const response = await axios.post(
-      `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-      payload,
-      {
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
-
-    if (response.status === 200) {
-      Alert.alert('Success', 'Profile photo updated successfully!', [
+      const response = await axios.post(
+        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+        payload,
         {
-          text: 'OK',
-          onPress: () => refreshAfterSuccess(),
+          timeout: 30000,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
         },
-      ]);
-    } else {
-      throw new Error('Failed to update profile photo');
+      );
+
+      if (response && response.status >= 200 && response.status < 300) {
+        Alert.alert('Success', 'Profile photo updated successfully!');
+        refreshAfterSuccess();
+        setUploadedPhoto(null);
+      } else {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+    } catch (error) {
+      handleUploadError(error);
+      setUploadedPhoto(null);
+    } finally {
+      setUploading(false);
     }
-  } catch (error) {
-    console.error('Profile photo update error:', error);
-    Alert.alert('Error', error.response?.data?.message || 'Failed to update profile photo');
-  }
-};
+  };
+
+  const handleUploadError = error => {
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      Alert.alert(
+        'Upload Failed',
+        `Server error: ${error.response.status}. Please try again later.`,
+      );
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+      Alert.alert(
+        'Network Error',
+        'No response from server. Check your connection.',
+      );
+    } else {
+      console.error('Error message:', error.message);
+      Alert.alert('Error', error.message || 'Failed to upload photo');
+    }
+  };
+
+  // Helper function to handle upload errors
+
   // Handle field edit
-  const handleEdit = (field) => {
+  const handleEdit = field => {
     setIsEditing(true);
     setEditedFields(prev => ({
       ...prev,
@@ -677,40 +970,52 @@ const handleProfilePhotoUpdate = async () => {
         key => payload[key] === undefined && delete payload[key],
       );
 
-      console.log('Sending profile update to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
-      
-      const response = await axios.post(
+      console.log(
+        'Sending profile update to:',
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-        payload,
-      ).catch(error => {
-        console.error('API Error Details:', error.response ? error.response.data : error.message);
-        throw error;
-      });
+      );
 
-      // Log backend response for debugging (show as alert for visibility)
-      console.log('Backend==================== response:', response.data);
-      Alert.alert('Backend Response', JSON.stringify(response.data, null, 2));
+      const response = await axios
+        .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
+        .catch(error => {
+          console.error(
+            'API Error Details:',
+            error.response ? error.response.data : error.message,
+          );
+          throw error;
+        });
 
-      if (response.status === 200 && response.data) {
+      // Check if response exists and has a valid status
+      if (
+        response &&
+        response.status >= 200 &&
+        response.status < 300 &&
+        response.data
+      ) {
+        console.log('Backend response:', response.data);
         Alert.alert('Success', 'Profile updated successfully!');
         setEditedFields({});
         setIsEditing(false);
+        refreshAfterSuccess(); // Refresh data after successful update
       } else {
-        throw new Error('Failed to update profile.');
+        throw new Error('Failed to update profile - Invalid response');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
       let errorMessage = 'Failed to update profile.';
-      
+
       if (error.response) {
         console.log('Error Status:', error.response.status);
         console.log('Error Headers:', error.response.headers);
         console.log('Error Data:', error.response.data);
-        
-        errorMessage = error.response.data?.message || 
-                      (typeof error.response.data === 'string' ? error.response.data : errorMessage);
+
+        errorMessage =
+          error.response.data?.message ||
+          (typeof error.response.data === 'string'
+            ? error.response.data
+            : errorMessage);
       }
-      
+
       Alert.alert('Error', errorMessage);
     }
   };
@@ -734,7 +1039,7 @@ const handleProfilePhotoUpdate = async () => {
 
   // Remove this duplicate BASE_URL declaration
   // const BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
-  
+
   // Use the imported BASE_URL with the correct path for images
   const imageBaseUrl = `${BASE_URL}/assets/UploadImg/`;
   const imageUrl = employeeDetails?.empImage
@@ -890,20 +1195,20 @@ const handleProfilePhotoUpdate = async () => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
+          }>
           {/* Profile Header Card */}
           <Card style={styles.profileCard}>
             <View style={styles.profileContent}>
               <TouchableOpacity
                 onPress={handleProfilePhotoUpdate}
                 style={styles.profilePhotoContainer}
-                activeOpacity={0.8}
-              >
+                activeOpacity={0.8}>
                 <View style={styles.profileImageContainer}>
                   <Image
                     source={
-                      imageUrl
+                      uploadedPhoto
+                        ? {uri: uploadedPhoto.uri}
+                        : imageUrl
                         ? {uri: imageUrl}
                         : require('../assets/image/boy.png')
                     }
@@ -1000,20 +1305,20 @@ const styles = StyleSheet.create({
     elevation: Platform.OS === 'android' ? 3 : 0,
   },
   headerTitle: {
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#333'
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  
+
   // Container styles
   container: {
-    flex: 1, 
-    backgroundColor: '#f4f6f8'
+    flex: 1,
+    backgroundColor: '#f4f6f8',
   },
   scrollContent: {
-    paddingHorizontal: 16, 
-    paddingBottom: 50, 
-    paddingTop: 10
+    paddingHorizontal: 16,
+    paddingBottom: 50,
+    paddingTop: 10,
   },
   loadingContainer: {
     flex: 1,
@@ -1025,7 +1330,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  
+
   // Profile card styles
   profileCard: {
     borderRadius: 12,
@@ -1035,23 +1340,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   profileContent: {
-    alignItems: 'center'
+    alignItems: 'center',
   },
   profileName: {
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    marginBottom: 4, 
-    color: '#222'
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#222',
   },
   profileRole: {
-    fontSize: 14, 
-    color: '#666'
+    fontSize: 14,
+    color: '#666',
   },
   profileDepartment: {
-    fontSize: 14, 
-    color: '#666'
+    fontSize: 14,
+    color: '#666',
   },
-  
+
   // Profile photo styles
   profilePhotoContainer: {
     alignItems: 'center',
@@ -1079,7 +1384,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   // Section styles
   sectionCard: {
     borderRadius: 12,
@@ -1095,24 +1400,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   sectionTitleContainer: {
-    flexDirection: 'row', 
-    alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionIconContainer: {
     marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 16, 
-    fontWeight: '800', 
-    color: '#333'
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#333',
   },
   sectionContent: {
-    padding: 12
+    padding: 12,
   },
   sectionInnerContent: {
     paddingVertical: 8,
   },
-  
+
   // Field styles
   fieldContainer: {
     marginBottom: 10,
@@ -1158,7 +1463,7 @@ const styles = StyleSheet.create({
   fieldDivider: {
     marginTop: 8,
   },
-  
+
   // Password modal styles
   modalContainer: {
     marginHorizontal: 20,
@@ -1227,7 +1532,7 @@ const styles = StyleSheet.create({
   modalSubmitButton: {
     backgroundColor: '#3B82F6',
   },
-  
+
   // FAB styles
   fab: {
     position: 'absolute',
@@ -1237,6 +1542,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
 });
-
 
 export default ProfileScreen;

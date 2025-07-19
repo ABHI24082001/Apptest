@@ -28,8 +28,15 @@ import FeedbackModal from '../component/FeedbackModal';
 
 
 
-const ApplyLeaveScreen = ({ navigation, route }) => {
-  const employeeDetails = useFetchEmployeeDetails();
+/**
+ * Screen for applying a leave.
+ * @namespace ApplyLeaveScreen
+ * @prop {object} navigation - Navigation object
+ * @prop {object} route - Route object
+ * @prop {object} employeeDetails - Employee details object
+ * @returns {ReactElement} JSX element
+ */
+const ApplyLeaveScreen = ({ navigation, route, employeeDetails }) => {
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveData, setLeaveData] = useState([]);
@@ -37,43 +44,29 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [documentPath, setDocumentPath] = useState('');
   const [charCount, setCharCount] = useState(100);
-  const [feedback, setFeedback] = useState({ visible: false, type: '', message: '' }); // State for FeedbackModal
+  const [feedback, setFeedback] = useState({ visible: false, type: '', message: '' });
+  const [isLoadingPolicies, setIsLoadingPolicies] = useState(false); // Add loading state
 
-  const passedLeaveData = route.params?.leaveData; 
-
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm({
+  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
       EmployeeId: employeeDetails?.id ?? '',
       ReportingId: employeeDetails?.reportingEmpId ?? '',
-      LeaveType: passedLeaveData?.leaveType?.toString() ?? '1',
-      LeaveId: passedLeaveData?.leaveId?.toString() ?? '',
-      FromLeaveDate: passedLeaveData?.fromLeaveDate
-        ? new Date(passedLeaveData.fromLeaveDate)
-        : new Date(),
-      ToLeaveDate: passedLeaveData?.toLeaveDate
-        ? new Date(passedLeaveData.toLeaveDate)
-        : new Date(),
-      LeaveNo: passedLeaveData?.leaveNo ?? 1,
-      Remarks: passedLeaveData?.remarks ?? '',
-      DocumentPath: passedLeaveData?.documentPath ?? '',
-      Status: passedLeaveData?.status ?? 'Pending',
+      LeaveType: 1,
+      LeaveId: '',
+      FromLeaveDate: new Date(),
+      ToLeaveDate: new Date(),
+      LeaveNo: 1,
+      Remarks: '',
+      DocumentPath: '',
+      Status: 'Pending',
       CompanyId: employeeDetails?.childCompanyId ?? '',
       IsDelete: 0,
       Flag: 1,
       CreatedBy: employeeDetails?.id ?? '',
-      CreatedDate: passedLeaveData?.createdDate
-        ? new Date(passedLeaveData.createdDate)
-        : new Date(),
+      CreatedDate: new Date(),
       ModifiedBy: employeeDetails?.id ?? '',
       ModifiedDate: new Date(),
-      ApprovalStatus: passedLeaveData?.approvalStatus ?? 1,
-      ApplyLeaveId: passedLeaveData?.id ?? 0,
+      ApprovalStatus: 1,
     },
   });
 
@@ -89,6 +82,11 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     }
   }, [fromLeaveDateValue, leaveNoValue, setValue]);
 
+  /**
+   * Formats a date for the backend.
+   * @param {Date} date - Date object
+   * @returns {string} Formatted date string
+   */
   function formatDateForBackend(date) {
     if (!date || isNaN(new Date(date).getTime())) return null;
     const d = new Date(date);
@@ -108,62 +106,19 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     );
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Validate employeeDetails and childCompanyId
-        if (!employeeDetails?.childCompanyId) {
-          throw new Error('Invalid employee details: Missing childCompanyId');
-        }
-
-        // Fetch leave policies for Leave Name dropdown
-        const policiesResponse = await axios.get(
-          `${BASE_URL}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
-        
-        );
-
-        // Validate response data
-        if (!Array.isArray(policiesResponse.data)) {
-          throw new Error('Invalid response format: Expected an array');
-        }
-
-        const policies = policiesResponse.data.map(policy => ({
-          policyId: policy.policyId,
-          leaveName: policy.leaveName,
-        }));
-
-        // console.log(policiesResponse.data, 'Leave Policies Fetched'); // Debugging: Check fetched policies
-
-        setLeavePolicies(policies);
-
-        
-        if (passedLeaveData?.LeaveId || passedLeaveData?.leaveName) {
-          const selectedPolicy = policies.find(
-            policy =>
-              policy.policyId === passedLeaveData?.LeaveId ||
-              policy.leaveName === passedLeaveData?.leaveName
-          );
-          if (selectedPolicy) {
-            setValue('LeaveId', selectedPolicy.policyId); 
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching leave policies:', error.message || error);
-      
-      }
-    };
-
-    fetchData();
-  }, [employeeDetails, passedLeaveData, setValue]);
-
-  // Helper to generate unique filename
+  /**
+   * Generates a unique filename for the uploaded document.
+   * @returns {string} Unique filename
+   */
   function generatePdfFileName() {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     return `leave_${pad(now.getDate())}${pad(now.getMonth() + 1)}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.pdf`;
   }
 
-  // Document picker handler
+  /**
+   * Handles document picker selection.
+   */
   const handleDocumentPick = async () => {
     try {
       const res = await pick({
@@ -192,8 +147,10 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     }
   };
 
-
-
+  /**
+   * Handles form submission.
+   * @param {object} data - Form data
+   */
   const onSubmit = async data => {
     const payload = {
       Id: data.ApplyLeaveId,
@@ -220,8 +177,6 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       ModifiedDate: formatDateForBackend(new Date()),
       ApprovalStatus: data.ApprovalStatus ?? 1,
     };
-
-    // console.log('Payload sent:', payload);
 
     setIsSubmitting(true);
 
@@ -354,47 +309,55 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 <Text style={styles.errorText}>{errors.LeaveId.message}</Text>
               )}
             </Text>
-            {Platform.OS === 'ios' ? (
-              <TouchableOpacity
-                style={styles.iosPickerButton}
-                onPress={() =>
-                  showIOSPicker(
-                    leavePolicies.map(policy => ({
-                      label: policy.leaveName,
-                      value: policy.policyId,
-                    })),
-                    watch('LeaveId'),
-                    value => setValue('LeaveId', value)
-                  )
-                }>
-                <Text style={styles.iosPickerText}>
-                  {leavePolicies.find(policy => policy.policyId === watch('LeaveId'))?.leaveName || 'Select Leave'}
-                </Text>
-                <Icon name="chevron-down" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.pickerContainer}>
-                <Controller
-                  control={control}
-                  rules={{ required: 'This field is required' }}
-                  name="LeaveId"
-                  render={({ field: { onChange, value } }) => (
-                    <Picker
-                      selectedValue={value}
-                      onValueChange={onChange}
-                      style={styles.picker}>
-                      
-                      {leavePolicies.map(policy => (
-                        <Picker.Item
-                          key={policy.policyId}
-                          label={policy.leaveName}
-                          value={policy.policyId}
-                        />
-                      ))}
-                    </Picker>
-                  )}
-                />
+            {isLoadingPolicies ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.loadingText}>Loading leave types...</Text>
               </View>
+            ) : (
+              // Existing picker code
+              Platform.OS === 'ios' ? (
+                <TouchableOpacity
+                  style={styles.iosPickerButton}
+                  onPress={() =>
+                    showIOSPicker(
+                      leavePolicies.map(policy => ({
+                        label: policy.leaveName,
+                        value: policy.policyId,
+                      })),
+                      watch('LeaveId'),
+                      value => setValue('LeaveId', value)
+                    )
+                  }>
+                  <Text style={styles.iosPickerText}>
+                    {leavePolicies.find(policy => policy.policyId === watch('LeaveId'))?.leaveName || 'Select Leave'}
+                  </Text>
+                  <Icon name="chevron-down" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.pickerContainer}>
+                  <Controller
+                    control={control}
+                    rules={{ required: 'This field is required' }}
+                    name="LeaveId"
+                    render={({ field: { onChange, value } }) => (
+                      <Picker
+                        selectedValue={value}
+                        onValueChange={onChange}
+                        style={styles.picker}>
+                        
+                        {leavePolicies.map(policy => (
+                          <Picker.Item
+                            key={policy.policyId}
+                            label={policy.leaveName}
+                            value={policy.policyId}
+                          />
+                        ))}
+                      </Picker>
+                    )}
+                  />
+                </View>
+              )
             )}
           </View>
 
@@ -807,91 +770,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#6B7280',
+  },
 });
 
 
-/*
-How to save a PDF to your own app folder (like WhatsApp):
 
-1. **Install react-native-fs**
-   - Run: `npm install react-native-fs`
-   - For iOS: run `cd ios && pod install`
-
-2. **Import react-native-fs**
-   ```javascript
-   import RNFS from 'react-native-fs';
-   ```
-
-3. **Define your app folder path**
-   - For Android: `const folderPath = RNFS.ExternalDirectoryPath + '/YourApp/PDFs';`
-   - For iOS: `const folderPath = RNFS.DocumentDirectoryPath + '/PDFs';`
-   - You can use `Platform.OS` to handle both.
-
-4. **Create the folder if it doesn't exist**
-   ```javascript
-   await RNFS.mkdir(folderPath);
-   ```
-
-5. **Copy the picked PDF to your folder**
-   - After picking the file, get its URI (`file.uri`).
-   - Generate your unique filename (as you already do).
-   - Build the destination path: `const destPath = folderPath + '/' + fileName;`
-   - Copy:
-     ```javascript
-     await RNFS.copyFile(file.uri, destPath);
-     ```
-
-6. **Store only the filename (or relative path) in your backend**
-   - Use `fileName` for `DocumentPath` as you do now.
-
-7. **Example integration in your handleDocumentPick:**
-   ```javascript
-   import RNFS from 'react-native-fs';
-   import { Platform } from 'react-native';
-   // ...existing code...
-
-   const handleDocumentPick = async () => {
-     try {
-       const res = await pick({
-         mode: 'open',
-         allowMultiSelection: false,
-         type: ['application/pdf'],
-       });
-       if (res && res.length > 0) {
-         const file = res[0];
-         if (file.size > 5 * 1024 * 1024) {
-           Alert.alert('Error', 'File size should be less than 5MB');
-           return;
-         }
-         const fileName = generatePdfFileName();
-         const folderPath =
-           Platform.OS === 'android'
-             ? RNFS.ExternalDirectoryPath + '/YourApp/PDFs'
-             : RNFS.DocumentDirectoryPath + '/PDFs';
-         await RNFS.mkdir(folderPath);
-         const destPath = folderPath + '/' + fileName;
-         await RNFS.copyFile(file.uri, destPath);
-         setUploadedFile(file);
-         setDocumentPath(fileName);
-         setValue('DocumentPath', fileName);
-         Alert.alert('File Saved', `PDF saved to: ${destPath}`);
-       }
-     } catch (err) {
-       if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
-         Alert.alert('Error', 'Failed to select file');
-       }
-     }
-   };
-   ```
-
-8. **Accessing the PDF later**
-   - Use the same folder path and filename to access or open the PDF.
-
-**Summary:**  
-- Use `react-native-fs` to copy the picked PDF to your app's folder.
-- Store only the filename in your backend.
-- This will mimic WhatsApp's behavior of saving files in a dedicated folder.
-
-*/
 
 export default ApplyLeaveScreen;

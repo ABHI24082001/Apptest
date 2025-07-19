@@ -164,14 +164,7 @@ useEffect(() => {
     });
   };
 
-  const getStatusColor = status => {
-    const colors = {
-      Pending: '#FFA500',
-      Approved: '#00C851',
-      Rejected: '#ff4444',
-    };
-    return colors[status] || '#6B7280';
-  };
+  
 
   return (
     <AppSafeArea>
@@ -342,40 +335,96 @@ useEffect(() => {
               </TouchableOpacity>
             </View>
           ) : (
-            filteredData.map(item => (
-              <StatusCard
-                key={item.requestId}
-                title={item.employeeName}
-                subtitle={`${item.designation}, ${item.department}`}
-                details={[
-                  {icon: 'calendar-blank-outline', label: 'Applied On', value: formatDate(item.createdDate)},
-                  {icon: 'cash-multiple', label: 'Type', value: item.requestType},
-                  {icon: 'currency-inr', label: 'Amount', value: `₹${item.totalAmount}`},
-                ]}
-                status={item.status}
-                remarks={item.remarks}
-                onEdit={() => handleEditExpense(item)}
-                onDelete={() =>
-                  Alert.alert(
-                    'Delete',
-                    `Are you sure you want to delete the request for ${item.employeeName}?`,
-                    [
-                      {text: 'Cancel', style: 'cancel'},
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => handleDeleteExpense(item.requestId, item.companyId),
-                      },
-                    ],
-                  )
-                }
-              />
-            ))
+            filteredData.map((item, index) => {
+              // Log each item to console for debugging
+              console.log('Expense item data:', JSON.stringify(item, null, 2));
+              
+              // Get appropriate status styling
+              const statusStyles = getStatusStyles(item.status);
+              
+              return (
+                <StatusCard
+                  key={`expense-${item.requestId}-${index}`} // Ensure truly unique keys by combining requestId with index
+                  title={item.employeeName}
+                  subtitle={`${item.designation}, ${item.department}`}
+                  details={[
+                    {icon: 'calendar-blank-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                    {icon: 'cash-multiple', label: 'Type', value: item.requestType},
+                    {icon: 'currency-inr', label: 'Amount', value: `₹${item.totalAmount}`},
+                  ]}
+                  status={item.status}
+                  statusStyle={statusStyles}
+                  remarks={item.remarks}
+                  onEdit={() => handleEditExpense(item)}
+                  onDelete={() =>
+                    Alert.alert(
+                      'Delete',
+                      `Are you sure you want to delete the request for ${item.employeeName}?`,
+                      [
+                        {text: 'Cancel', style: 'cancel'},
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => handleDeleteExpense(item.requestId, item.companyId),
+                        },
+                      ],
+                    )
+                  }
+                  buttonContainerStyle={styles.actionButtonContainer}
+                  editButtonStyle={styles.editButton}
+                  deleteButtonStyle={styles.deleteButton}
+                />
+              );
+            })
           )}
         </ScrollView>
       )}
     </AppSafeArea>
   );
+};
+
+// Helper function to determine status styles based on status text
+const getStatusStyles = (status) => {
+  status = status?.toLowerCase() || '';
+  
+  if (status.includes('approved')) {
+    if (status.includes('manager')) {
+      return {
+        backgroundColor: '#dcfce7', // Light green
+        textColor: '#15803d',      // Dark green
+        borderColor: '#86efac',    // Medium green
+        icon: 'check-circle-outline'
+      };
+    } else {
+      return {
+        backgroundColor: '#d1fae5', // Lighter green
+        textColor: '#047857',      // Darker green
+        borderColor: '#6ee7b7',    // Medium green
+        icon: 'check-circle'
+      };
+    }
+  } else if (status.includes('rejected') || status.includes('declined')) {
+    return {
+      backgroundColor: '#fee2e2', // Light red
+      textColor: '#b91c1c',      // Dark red
+      borderColor: '#fca5a5',    // Medium red
+      icon: 'close-circle'
+    };
+  } else if (status.includes('pending')) {
+    return {
+      backgroundColor: '#fef3c7', // Light yellow
+      textColor: '#b45309',      // Dark yellow/orange
+      borderColor: '#fcd34d',    // Medium yellow
+      icon: 'clock-outline'
+    };
+  } else {
+    return {
+      backgroundColor: '#e0f2fe', // Light blue
+      textColor: '#0369a1',      // Dark blue
+      borderColor: '#7dd3fc',    // Medium blue
+      icon: 'information-outline'
+    };
+  }
 };
 
 const styles = StyleSheet.create({
@@ -623,6 +672,44 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '500',
     fontSize: 14,
+  },
+  actionButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    gap: 16, // Space between buttons
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff', // Light blue background
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  editButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fee2e2', // Light red background
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  deleteButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#dc2626',
+    fontWeight: '600',
   },
 });
 
