@@ -1,6 +1,8 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Card, Avatar, Button, Chip, Divider } from 'react-native-paper';
+import LinearGradient from 'react-native-linear-gradient';
 
 const StatusCard = ({
   title,
@@ -10,6 +12,9 @@ const StatusCard = ({
   remarks,
   onEdit,
   onDelete,
+  initials, // Add initials prop for Avatar
+  leaveType, // Add leaveType prop for Chip
+  empty, // Add empty prop for empty state
 }) => {
   const getStatusIcon = status => {
     if (!status) return {icon: 'help-circle', color: '#9E9E9E'};
@@ -83,151 +88,232 @@ const StatusCard = ({
     ).join(' ');
   };
 
+  if (empty) {
+    // Improved empty state with Card
+    return (
+      <Card style={styles.emptyCard}>
+        <Card.Content>
+          <Text style={styles.emptyText}>No Data Available</Text>
+        </Card.Content>
+      </Card>
+    );
+  }
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardContent}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-
+    <Card style={styles.card}>
+      <LinearGradient
+        colors={['#6D75FF', '#A7BFE8']}
+        style={styles.headerGradient}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 0}}
+      >
+        <View style={styles.headerContent}>
+        
+          <View>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </View>
+        </View>
+      </LinearGradient>
+      <Card.Content>
+        {/* <View style={styles.chipRow}>
+          <Chip style={styles.chip} icon="calendar">{leaveType || 'Leave Type'}</Chip>
+        </View> */}
         {details.map((detail, index) => (
-          <View key={index} style={styles.detailRow}>
-            <Icon name={detail.icon} size={20} color="#6D75FF" />
-            <Text style={styles.label}>{detail.label}</Text>
-            <Text style={styles.colon}>:</Text>
-            <Text style={styles.value}>{detail.value}</Text>
-          </View>
+          <Card style={styles.detailCard} key={index}>
+            <Card.Content style={styles.detailRow}>
+              <Icon name={detail.icon} size={20} color="#6D75FF" />
+              <Text style={styles.label}>{detail.label}</Text>
+              <Text style={styles.colon}>:</Text>
+              <Text style={styles.value}>{detail.value}</Text>
+            </Card.Content>
+          </Card>
         ))}
+        <Card style={styles.detailCard}>
+          <Card.Content style={styles.detailRow}>
+            <Icon name="message-outline" size={20} color="#6D75FF" />
+            <Text style={styles.label}>Remarks</Text>
+            <Text style={styles.colon}>:</Text>
+            <Text style={styles.value}>{remarks || 'No Remark'}</Text>
+          </Card.Content>
+        </Card>
+      </Card.Content>
+      <Card.Actions style={styles.cardFooter}>
+        <Button
+          mode="contained"
+          icon="pencil-outline"
+          onPress={onEdit}
+          style={styles.editButton}
+          labelStyle={styles.actionText}
+          compact
+        >
+          Update
+        </Button>
+        <Button
+          mode="contained"
+          icon="trash-can-outline"
+          onPress={onDelete}
+          style={styles.deleteButton}
+          labelStyle={styles.actionText}
+          compact
+        >
+          Remove
+        </Button>
+      </Card.Actions>
 
-        <View style={styles.detailRow}>
-          <Icon name="message-outline" size={20} color="#6D75FF" />
-          <Text style={styles.label}>Remarks</Text>
-          <Text style={styles.colon}>:</Text>
-          <Text style={styles.value}>{remarks || 'No Remark'}</Text>
+      <Card.Content style={styles.statusFooter}>
+        <Text style={styles.statusLabel}>Status</Text>
+        <View style={[styles.statusBadge, getStatusStyle(status)]}>
+          <Icon name={statusIcon.icon} size={16} color={statusIcon.color} />
+          <Text style={[styles.statusText, {color: statusIcon.color}]}>
+            {formatStatusText(status)}
+          </Text>
         </View>
-
-
-        <View style={styles.cardFooter}>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.editButton]} 
-              onPress={onEdit}>
-              <Icon name="pencil-outline" size={20} color="#3B82F6" />
-              <Text style={styles.actionText}>Update</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.deleteButton]} 
-              onPress={onDelete}>
-              <Icon name="trash-can-outline" size={20} color="#F44336" />
-              <Text style={styles.actionText}>Remove </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.cardFooter}>
-          <Text style={styles.statusLabel}>Status</Text>
-          <View style={styles.actionButtons}>
-            <View style={[
-              styles.statusRow,
-              getStatusStyle(status)
-            ]}>
-              <Icon name={statusIcon.icon} size={20} color={statusIcon.color} />
-              <Text style={[styles.statusText, {color: statusIcon.color}]}>
-                {formatStatusText(status)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
+      </Card.Content>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: 16,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
   },
-  cardContent: {padding: 16},
-  title: {fontWeight: '800', fontSize: 16, color: '#111827'},
-  subtitle: {fontSize: 14, color: '#6B7280', marginBottom: 12},
+  headerGradient: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    marginRight: 12,
+    backgroundColor: '#FFF',
+  },
+  title: {fontWeight: '700', fontSize: 18, color: '#FFF'},
+  subtitle: {fontSize: 15, color: '#E0E7FF', marginBottom: 4},
+  chipRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  chip: {
+    backgroundColor: '#EEF2FF',
+    color: '#6D75FF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  detailCard: {
+    marginVertical: 4,
+    backgroundColor: '#F8FAFC',
+    elevation: 0,
+    borderRadius: 10,
+  },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 6,
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
     marginLeft: 12,
     width: 100,
+    fontWeight: '500',
   },
   colon: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
     marginRight: 8,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#333',
     flex: 1,
   },
   cardFooter: {
-    marginTop: 16,
-    paddingTop: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginRight: 10,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
   },
   editButton: {
     backgroundColor: '#E6F0FF',
     borderColor: '#3B82F6',
     borderWidth: 1,
+    marginRight: 8,
+    borderRadius: 6,
+    elevation: 0,
   },
   deleteButton: {
     backgroundColor: '#FFEAEA',
     borderColor: '#F44336',
     borderWidth: 1,
+    borderRadius: 6,
+    elevation: 0,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  statusFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 19,
+    paddingTop: 12,
+    paddingBottom: 12,
+    marginTop: 4,
+  },
+  statusLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginRight: 12,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 8,
+    backgroundColor: '#F8F8F8',
+  },
+  statusText: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  emptyCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 14,
+    margin: 16,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 0,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
