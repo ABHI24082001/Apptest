@@ -170,7 +170,7 @@ useEffect(() => {
     <AppSafeArea>
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="My Expense" titleStyle={styles.headerTitle} />
+        <Appbar.Content title="My Expense " titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
       {/* Type Filter */}

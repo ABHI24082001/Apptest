@@ -31,6 +31,7 @@ const PaymentRequest = ({navigation, route}) => {
   const [editingItemId, setEditingItemId] = useState(null);
   const [totalAmount, setTotalAmount] = useState(0);
   const [expenseHeads, setExpenseHeads] = useState([]);
+  const [paymentDetails, setPaymentDetails] = useState([]); // New state for payment details
 
   // Extract data passed via route.params
   const expenceData = route?.params?.expence || null;
@@ -562,6 +563,13 @@ const PaymentRequest = ({navigation, route}) => {
               }))
             );
           }
+
+          // Set paymentDetails for UI display
+          if (expenseDetails?.paymentDetails) {
+            setPaymentDetails(expenseDetails.paymentDetails);
+          } else {
+            setPaymentDetails([]);
+          }
         } catch (error) {
           console.error('Error fetching expense details:', error);
 
@@ -701,7 +709,7 @@ const PaymentRequest = ({navigation, route}) => {
               <Text style={styles.expenseSectionTitle}>
                 {expenceData ? 'Edit Expense Items' : 'Expense Items'}
               </Text>
-              {expenseItems.length > 0 && (
+              {expenseItems.length > 0 && !expenceData && (
                 <Text style={styles.itemsCountBadge}>
                   {expenseItems.length} {expenseItems.length === 1 ? 'Item' : 'Items'}
                 </Text>
@@ -710,67 +718,93 @@ const PaymentRequest = ({navigation, route}) => {
 
             <TouchableOpacity
               style={styles.addBtn}
-              onPress={openAddExpenseModal}>
+              onPress={openAddExpenseModal}
+              disabled={!!expenceData} // Disable add button in edit mode
+            >
               <Icon name="plus" size={20} color="#fff" />
               <Text style={styles.addBtnText}>
                 {expenceData ? 'Add' : 'Add Expense'}
               </Text>
             </TouchableOpacity>
 
-
-            {/* Add Expense Modal Button */}
-            
-
-            {/* Always show the grid if there are expense items */}
-
-            
-            {expenseItems.length > 0 && (
-              <View style={styles.gridContainer}>
-                {/* Grid Header */}
-                <View style={styles.gridHeader}>
-                  <Text style={styles.gridHeaderText}>Date</Text>
-                  <Text style={styles.gridHeaderText}>Expense Head</Text>
-                  <Text style={styles.gridHeaderText}>Title</Text>
-                  <Text style={styles.gridHeaderText}>Amount</Text>
-                  <Text style={styles.gridHeaderText}>Document</Text>
-                  <Text style={styles.gridHeaderText}>Actions</Text>
-                </View>
-
-                {/* Grid Rows */}
-                {expenseItems.map(item => (
-                  <View key={item.id} style={styles.gridRow}>
-                    <Text style={styles.gridCell}>{formatDate(item.date)}</Text>
-                    <Text style={styles.gridCell}>{item.head}</Text>
-                    <Text style={styles.gridCell}>{item.title || '—'}</Text>
-                    <Text style={styles.gridCell}>
-                      ₹{formatCurrency(item.amount)}
-                    </Text>
-                    <View style={styles.gridCell}>
-                      {item.document ? (
-                        <Icon
-                          name="file-check-outline"
-                          size={20}
-                          color="#10B981"
-                        />
-                      ) : (
-                        <Icon
-                          name="file-remove-outline"
-                          size={20}
-                          color="#EF4444"
-                        />
-                      )}
-                    </View>
-                    <View style={[styles.gridCell, styles.actionsCell]}>
-                     
-                      <TouchableOpacity
-                        style={styles.gridActionBtn}
-                        onPress={() => handleDeleteExpense(item.id)}>
-                        <Icon name="trash-can" size={18} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
+            {/* Show paymentDetails in edit mode */}
+            {expenceData && paymentDetails && paymentDetails.length > 0 ? (
+              <View style={{marginTop: 16}}>
+                <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 8}}>Payment Details</Text>
+                <View style={styles.gridContainer}>
+                  <View style={styles.gridHeader}>
+                    <Text style={styles.gridHeaderText}>Date</Text>
+                    <Text style={styles.gridHeaderText}>Expense Head</Text>
+                    <Text style={styles.gridHeaderText}>Amount</Text>
+                    <Text style={styles.gridHeaderText}>Document</Text>
                   </View>
-                ))}
+                  {paymentDetails.map(item => (
+                    <View key={item.id} style={styles.gridRow}>
+                      <Text style={styles.gridCell}>
+                        {item.transactionDate ? new Date(item.transactionDate).toLocaleDateString() : '—'}
+                      </Text>
+                      <Text style={styles.gridCell}>{item.expenseHead}</Text>
+                      <Text style={styles.gridCell}>₹{formatCurrency(item.amount)}</Text>
+                      <View style={styles.gridCell}>
+                        {item.documentPath ? (
+                          <Icon name="file-check-outline" size={20} color="#10B981" />
+                        ) : (
+                          <Icon name="file-remove-outline" size={20} color="#EF4444" />
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
               </View>
+            ) : (
+              // Show the normal expense items grid for new requests
+              expenseItems.length > 0 && (
+                <View style={styles.gridContainer}>
+                  {/* Grid Header */}
+                  <View style={styles.gridHeader}>
+                    <Text style={styles.gridHeaderText}>Date</Text>
+                    <Text style={styles.gridHeaderText}>Expense Head</Text>
+                    <Text style={styles.gridHeaderText}>Title</Text>
+                    <Text style={styles.gridHeaderText}>Amount</Text>
+                    <Text style={styles.gridHeaderText}>Document</Text>
+                    <Text style={styles.gridHeaderText}>Actions</Text>
+                  </View>
+
+                  {/* Grid Rows */}
+                  {expenseItems.map(item => (
+                    <View key={item.id} style={styles.gridRow}>
+                      <Text style={styles.gridCell}>{formatDate(item.date)}</Text>
+                      <Text style={styles.gridCell}>{item.head}</Text>
+                      <Text style={styles.gridCell}>{item.title || '—'}</Text>
+                      <Text style={styles.gridCell}>
+                        ₹{formatCurrency(item.amount)}
+                      </Text>
+                      <View style={styles.gridCell}>
+                        {item.document ? (
+                          <Icon
+                            name="file-check-outline"
+                            size={20}
+                            color="#10B981"
+                          />
+                        ) : (
+                          <Icon
+                            name="file-remove-outline"
+                            size={20}
+                            color="#EF4444"
+                          />
+                        )}
+                      </View>
+                      <View style={[styles.gridCell, styles.actionsCell]}>
+                        <TouchableOpacity
+                          style={styles.gridActionBtn}
+                          onPress={() => handleDeleteExpense(item.id)}>
+                          <Icon name="trash-can" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )
             )}
           </View>
         )}
