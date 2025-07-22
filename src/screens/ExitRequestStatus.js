@@ -16,15 +16,12 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
 
-
-// Helper to format date string as DD-MM-YYYY
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 }
 
-// Status badge color helper
 const getStatusColor = (status) => {
   switch ((status || '').toLowerCase()) {
     case 'pending':
@@ -43,16 +40,15 @@ const ExitRequestStatusScreen = () => {
   const employeeDetails = useFetchEmployeeDetails();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [withdrawingId, setWithdrawingId] = useState(null); // Track which request is being withdrawn
+  const [withdrawingId, setWithdrawingId] = useState(null);
   const [canApplyNew, setCanApplyNew] = useState(true);
 
-  // Use useFocusEffect to reload data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       if (employeeDetails?.id) {
         fetchExitRequests();
       }
-      return () => {}; // cleanup if needed
+      return () => {};
     }, [employeeDetails?.id])
   );
 
@@ -64,15 +60,11 @@ const ExitRequestStatusScreen = () => {
       const data = await res.json();
       const exitRequests = Array.isArray(data) ? data : [];
       setRequests(exitRequests);
-      
-      // Check if user can apply new exit request
-      const hasPendingRequest = exitRequests.some(req => 
+
+      const hasPendingRequest = exitRequests.some(req =>
         req.applicationStatus?.toLowerCase() === 'pending'
       );
-      
-      // Set canApplyNew based on existing requests
       setCanApplyNew(!hasPendingRequest);
-      
     } catch (e) {
       console.error('Error fetching exit requests:', e);
       setRequests([]);
@@ -81,15 +73,14 @@ const ExitRequestStatusScreen = () => {
     }
   };
 
-  // Handle withdraw request
   const handleWithdraw = async (id) => {
     Alert.alert(
       'Withdraw Application',
       'Are you sure you want to withdraw this exit application?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Withdraw', 
+        {
+          text: 'Withdraw',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -97,24 +88,15 @@ const ExitRequestStatusScreen = () => {
               const response = await axios.get(
                 `${BASE_URL}/EmployeeExit/WithdrawExitApplication/${id}`
               );
-              
               if (response.status === 200) {
-                Alert.alert(
-                  'Success',
-                  'Exit application withdrawn successfully',
-                  [{ text: 'OK' }]
-                );
-                // Refresh the exit requests after withdrawal
+                Alert.alert('Success', 'Exit application withdrawn successfully');
                 fetchExitRequests();
               } else {
                 Alert.alert('Error', 'Failed to withdraw application');
               }
             } catch (error) {
               console.error('Error withdrawing application:', error);
-              Alert.alert(
-                'Error',
-                error.response?.data?.message || 'Failed to withdraw application'
-              );
+              Alert.alert('Error', error.response?.data?.message || 'Failed to withdraw application');
             } finally {
               setWithdrawingId(null);
             }
@@ -124,7 +106,6 @@ const ExitRequestStatusScreen = () => {
     );
   };
 
-  // Handle navigation to apply new exit request
   const handleApplyNew = () => {
     if (!canApplyNew) {
       Alert.alert(
@@ -134,25 +115,17 @@ const ExitRequestStatusScreen = () => {
       );
       return;
     }
-    
+
     // navigation.navigate('Exit');
   };
-  
+
   return (
     <AppSafeArea>
-      {/* Header */}
       <Appbar.Header elevated style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.navigate('Main')} />
         <Appbar.Content title="My Exit Requests" titleStyle={styles.headerTitle} />
-        {/* <Appbar.Action 
-          icon="plus" 
-          onPress={handleApplyNew} 
-          color="#1E293B"
-          disabled={!canApplyNew}
-        /> */}
       </Appbar.Header>
 
-      {/* Exit Request Cards */}
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -161,29 +134,9 @@ const ExitRequestStatusScreen = () => {
           </View>
         ) : requests.length === 0 ? (
           canApplyNew ? (
-            <View style={styles.formContainer}>
-              <Text style={styles.formTitle}>Apply for Exit</Text>
-              {/* Add form fields here */}
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Exit Date:</Text>
-                <TouchableOpacity style={styles.datePicker}>
-                  <Text style={styles.datePickerText}>Select Date</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Reason:</Text>
-                <TouchableOpacity style={styles.textInput}>
-                  <Text style={styles.textInputPlaceholder}>Enter reason</Text>
-                </TouchableOpacity>
-              </View>
-              <Button 
-                mode="contained" 
-                onPress={() => Alert.alert('Form Submitted', 'Your exit request has been submitted.')}
-                style={styles.submitBtn}
-                labelStyle={styles.submitBtnLabel}
-              >
-                Submit Request
-              </Button>
+            <View style={styles.emptyState}>
+              <Icon name="folder-open-outline" size={64} color="#94A3B8" />
+              <Text style={styles.emptyText}>No Exit Requests Found</Text>
             </View>
           ) : (
             <View style={styles.pendingMessageContainer}>
@@ -191,10 +144,10 @@ const ExitRequestStatusScreen = () => {
               <Text style={styles.pendingMessageText}>
                 You already have a pending exit application. Please withdraw it before submitting a new one.
               </Text>
-              <Button 
-                mode="contained" 
-                onPress={() => navigation.navigate('Home')} 
-                style={styles.cancelBtn} 
+              <Button
+                mode="contained"
+                onPress={() => navigation.navigate('Home')}
+                style={styles.cancelBtn}
                 labelStyle={styles.cancelBtnLabel}
               >
                 Cancel
@@ -205,7 +158,6 @@ const ExitRequestStatusScreen = () => {
           <>
             {requests.map((item, index) => (
               <View key={index} style={styles.card}>
-                {/* Status Badge */}
                 <View style={styles.cardHeader}>
                   <View
                     style={[
@@ -215,33 +167,32 @@ const ExitRequestStatusScreen = () => {
                         borderColor: getStatusColor(item.applicationStatus),
                       },
                     ]}>
-                    <Text style={[styles.statusText, {color: getStatusColor(item.applicationStatus)}]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(item.applicationStatus) }]}>
                       {item.applicationStatus}
                     </Text>
                   </View>
-                  
                   <View style={styles.dateChip}>
                     <Icon name="calendar-clock" size={16} color="#475569" />
                     <Text style={styles.dateChipText}>Applied: {formatDate(item.appliedDt)}</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.cardDivider} />
-                
+
                 <View style={styles.cardBody}>
                   <View style={styles.infoRow}>
                     <Icon name="calendar-remove" size={20} color="#3B82F6" />
                     <Text style={styles.infoLabel}>Exit Date:</Text>
                     <Text style={styles.infoValue}>{formatDate(item.exitDt)}</Text>
                   </View>
-                  
+
                   <View style={styles.infoRow}>
                     <Icon name="information" size={20} color="#3B82F6" />
                     <Text style={styles.infoLabel}>Reason:</Text>
                     <Text style={styles.infoValue}>{item.exitReasons}</Text>
                   </View>
-                  
-                  {item.supervisorRemarks ? (
+
+                  {item.supervisorRemarks && (
                     <View style={styles.remarksContainer}>
                       <View style={styles.remarksHeader}>
                         <Icon name="account-tie" size={18} color="#6B7280" />
@@ -249,20 +200,19 @@ const ExitRequestStatusScreen = () => {
                       </View>
                       <Text style={styles.remarksText}>{item.supervisorRemarks}</Text>
                     </View>
-                  ) : null}
-                  
-                  {item.hrremarks ? (
+                  )}
+
+                  {item.hrremarks && (
                     <View style={styles.remarksContainer}>
                       <View style={styles.remarksHeader}>
                         <Icon name="account-group" size={18} color="#6366F1" />
-                        <Text style={[styles.remarksTitle, {color: '#6366F1'}]}>HR Remarks</Text>
+                        <Text style={[styles.remarksTitle, { color: '#6366F1' }]}>HR Remarks</Text>
                       </View>
-                      <Text style={[styles.remarksText, {color: '#6366F1'}]}>{item.hrremarks}</Text>
+                      <Text style={[styles.remarksText, { color: '#6366F1' }]}>{item.hrremarks}</Text>
                     </View>
-                  ) : null}
+                  )}
                 </View>
 
-                {/* Action buttons */}
                 {item.applicationStatus?.toLowerCase() === 'pending' && (
                   <View style={styles.cardActions}>
                     <Button
@@ -278,8 +228,7 @@ const ExitRequestStatusScreen = () => {
                     </Button>
                   </View>
                 )}
-                
-                {/* Add reapply button for rejected applications */}
+
                 {item.applicationStatus?.toLowerCase() === 'rejected' && (
                   <View style={styles.cardActions}>
                     <Button
@@ -301,6 +250,8 @@ const ExitRequestStatusScreen = () => {
     </AppSafeArea>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   header: {

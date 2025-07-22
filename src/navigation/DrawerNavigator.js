@@ -23,16 +23,18 @@ const Drawer = createDrawerNavigator();
 
 
 // ---------------- Notification Button ----------------
-const NotificationButton = ({navigation}) => {
+const NotificationButton = ({navigation, unreadCount}) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const [visible, setVisible] = useState(false);
 
 
   useEffect(() => {
-    scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
-    opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
-  }, []);
+    if (unreadCount > 0) {
+      scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
+      opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
+    }
+  }, [unreadCount]);
 
   const waveStyle = useAnimatedStyle(() => ({
     transform: [{scale: scale.value}],
@@ -47,10 +49,12 @@ const NotificationButton = ({navigation}) => {
       style={{marginRight: 10}}>
       <MaterialIcons name="notifications-none" size={28} color="#000" />
       {/* Red Dot + Animated Wave */}
-      <View style={styles.dotContainer}>
-        <Animated.View style={[styles.wave, waveStyle]} />
-        <View style={styles.dot} />
-      </View>
+      {unreadCount > 0 && (
+        <View style={styles.dotContainer}>
+          <Animated.View style={[styles.wave, waveStyle]} />
+          <View style={styles.dot} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -154,6 +158,11 @@ const ProfileMenu = ({navigation}) => {
 
 // ---------------- Drawer Navigator ----------------
 export default function DrawerNavigator() {
+  // Replace this with your actual unread notification count logic
+  // For example, get from context or Redux
+  // const { unreadCount } = useNotifications();
+  const unreadCount = 0; // <-- Replace with real value
+
   return (
     <Provider>
       <Drawer.Navigator
@@ -184,7 +193,7 @@ export default function DrawerNavigator() {
                 alignItems: 'center',
                 paddingRight: 10,
               }}>
-              <NotificationButton navigation={navigation} />
+              <NotificationButton navigation={navigation} unreadCount={unreadCount} />
               <ProfileMenu navigation={navigation} />
             </View>
           ),

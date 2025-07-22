@@ -21,6 +21,7 @@ import axios from 'axios';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import FeedbackModal from '../component/FeedbackModal';
 
 
 const ExitApplyScreen = ({navigation}) => {
@@ -29,6 +30,8 @@ const ExitApplyScreen = ({navigation}) => {
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   // Calculate minimum allowed exit date (30 days from today)
   const minimumExitDate = new Date();
@@ -201,19 +204,13 @@ const ExitApplyScreen = ({navigation}) => {
 
       if (response.status === 200) {
         setSubmitSuccess(true);
-        // Show backend response message if available, else default message
-        Alert.alert(
-          'Success',
+        setFeedbackMessage(
           response.data?.message
-            ? `Exit application submitted successfully.\n\n${response.data.message}`
-            : 'Exit application submitted successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('ExitRequestStatus'),
-            },
-          ],
+            ? response.data.message
+            : 'Exit application submitted successfully.'
         );
+        setFeedbackVisible(true);
+        // Navigation will be handled after modal closes
       } else {
         setSubmitSuccess(false);
         Alert.alert('Error', 'Failed to submit exit application');
@@ -414,10 +411,10 @@ const ExitApplyScreen = ({navigation}) => {
               <Controller
                 control={control}
                 name="reason"
-                rules={{required: 'Reason is required', maxLength: 500}}
+                rules={{required: 'Reason is required', maxLength: 100}}
                 render={({field: {onChange, value}}) => (
                   <TextInput
-                    placeholder="Explain your reason for leaving..."
+                    placeholder="Explain your reason for leaving....."
                     placeholderTextColor="#9CA3AF"
                     multiline
                     numberOfLines={5}
@@ -428,7 +425,7 @@ const ExitApplyScreen = ({navigation}) => {
                 )}
               />
               <Text style={styles.charCount}>
-                {watch('reason')?.length || 0}/500 characters
+                {watch('reason')?.length || 0}/100 characters
               </Text>
               {errors.reason && (
                 <Text style={styles.errorText}>{errors.reason.message}</Text>
@@ -483,6 +480,17 @@ const ExitApplyScreen = ({navigation}) => {
         }}
         onCancel={() => setShowAppliedDatePicker(false)}
         theme="light"
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        type="success"
+        message={feedbackMessage}
+        onClose={() => {
+          setFeedbackVisible(false);
+          navigation.navigate('ExitRequestStatus');
+        }}
       />
     </AppSafeArea>
   );

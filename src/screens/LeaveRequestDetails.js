@@ -674,45 +674,6 @@ const LeaveRequest = ({navigation}) => {
       year: 'numeric',
     });
   };
-  // debugger
-  // Function to fetch leave details by ID
-
-  // const fetchLeaveDetailsById = async id => {
-  //   try {
-  //     console.log(`Fetching leave details for ID: ${id}`);
-
-  //      const id = {
-  //       DepartmentId: user?.departmentId || 0,
-  //       DesignationId: user?.designtionId || 0,
-  //       EmployeeId: user?.id || 0,
-  //       ControllerName: 'Leaveapproval',
-  //       ActionName: 'LeaveapprovalList',
-  //       ChildCompanyId: user?.childCompanyId || 1,
-  //       BranchId: user?.branchId || 2,
-  //       UserType: user?.userType || 1,
-  //     };
-
-  //     const response = await axios.get(
-  //       `${BASE_URL}/ApplyLeave/GetApplyLeaveDetailsById/${id}`,
-  //     );
-  //     console.log(
-  //       'Leave Details API ==============================Response:',
-  //       JSON.stringify(response.data, null, 2),
-  //     );
-  //     setLeaveDetails(response.data);
-
-  //     // Fetch leave balances for this employee
-  //     if (response.data && response.data.employeeId) {
-  //       fetchLeaveData(response.data.employeeId);
-  //     }
-
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('Error fetching leave details:', error);
-  //     console.error('Error details:', error.response?.data || error.message);
-  //     return null;
-  //   }
-  // };
 
   const fetchLeaveDetailsById = async id => {
     try {

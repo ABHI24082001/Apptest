@@ -7,12 +7,12 @@ export default function SplashScreen({ navigation }) {
     const checkFirstTime = async () => {
       const hasLoggedIn = await AsyncStorage.getItem('hasLoggedIn');
       if (hasLoggedIn === 'true') {
-        navigation.replace('Main');
+        navigation.replace('Login'); // Navigate to login screen if already logged in
         return;
       }
 
       setTimeout(() => {
-        navigation.replace('Main'); // Navigate to dashboard screen
+        navigation.replace('Login'); // Navigate to dashboard screen
       }, 3000); // Show splash screen for 3 seconds
     };
 

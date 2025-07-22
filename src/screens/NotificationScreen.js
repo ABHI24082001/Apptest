@@ -7,8 +7,6 @@ import { useNavigation } from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
 import BASE_URL from '../constants/apiConfig';
-import { useAuth } from '../constants/AuthContext';
-
 const RequestCard = ({ item, onPress }) => {
   return (
     <TouchableOpacity 
@@ -72,8 +70,14 @@ const RequestDetailsScreen = () => {
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const employeeDetails = useFetchEmployeeDetails();
-  // Get user authentication details
-  const { user } = useAuth();
+debugger
+  console.log('Employee Details:==========================', employeeDetails);
+  console.log('Company ID:', employeeDetails?.companyId);
+  console.log('User ID:', employeeDetails?.userId);
+  console.log('Employee Details:', JSON.stringify(employeeDetails, null, 2));
+
+  const companyId = employeeDetails?.childCompanyId || 1; // fallback to 1 if not loaded
+  const userId = employeeDetails?.id || 11;      // fallback to 11 if not loaded
 
   // Fetch notifications from API
   useEffect(() => {
@@ -86,15 +90,10 @@ const RequestDetailsScreen = () => {
       setLoading(true);
       console.log('Fetching notifications...');
       
-      // Get IDs from user context
-      const userId = user?.id || 1; // Default to 1 if not available
-      const companyId = user?.childCompanyId || 11; // Default to 11 if not available
-      
-      console.log(`Fetching notifications for User ID: ${userId}, Company ID: ${companyId}`);
-      
-      // Use dynamic IDs in the API call
-      const response = await axios.get(`${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${userId}/${companyId}`);
-      
+      // Use dynamic companyId and userId
+      const response = await axios.get(
+        `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`
+      );
       console.log('API Response:', JSON.stringify(response.data));
       
       if (response.data && Array.isArray(response.data)) {
@@ -264,7 +263,7 @@ const RequestDetailsScreen = () => {
     <AppSafeArea>
       {/* Header */}
       <View style={styles.header}>
-       
+        <Text style={styles.headerTitle}>Request Details</Text>
         {unreadCount > 0 && (
           <TouchableOpacity 
             onPress={markAllAsRead}
@@ -300,25 +299,13 @@ const RequestDetailsScreen = () => {
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : notifications.today.length === 0 && notifications.older.length === 0 ? (
-          // Enhanced empty state with better visuals
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="bell-sleep" size={70} color="#BDBDBD" />
-            <Text style={styles.emptyTitle}>No Notifications</Text>
-            <Text style={styles.emptyText}>
-              You don't have any notifications at the moment. 
-              New notifications will appear here.
-            </Text>
-            <TouchableOpacity 
-              style={styles.refreshButton}
-              onPress={fetchNotifications}
-            >
-              <MaterialCommunityIcons name="refresh" size={18} color="#FFFFFF" />
-              <Text style={styles.refreshText}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
           <>
+            {/* Debug info */}
+            <Text style={styles.debugText}>
+              Today: {notifications.today.length}, Older: {notifications.older.length}
+            </Text>
+            
             {/* Today Section */}
             {notifications.today.length > 0 && (
               <View style={styles.section}>
@@ -360,6 +347,13 @@ const RequestDetailsScreen = () => {
                 </View>
               </View>
             )}
+
+            {notifications.today.length === 0 && notifications.older.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
+                <Text style={styles.emptyText}>No notifications to display</Text>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -371,8 +365,8 @@ export default RequestDetailsScreen;
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 12,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
     backgroundColor: '#FAFAFA',
   },
   header: {
@@ -560,36 +554,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    height: 400,
-  },
-  emptyTitle: {
-    marginTop: 16,
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#757575',
+    padding: 20,
+    height: 300,
   },
   emptyText: {
-    marginTop: 8,
-    fontSize: 15,
+    marginTop: 16,
+    fontSize: 16,
     color: '#9E9E9E',
     textAlign: 'center',
-    lineHeight: 22,
-  },
-  refreshButton: {
-    marginTop: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  refreshText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-    marginLeft: 8,
-    fontSize: 15,
   },
   debugText: {
     padding: 8,

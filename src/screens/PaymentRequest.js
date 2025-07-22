@@ -19,7 +19,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axios from 'axios';
-import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BASE_URL from '../constants/apiConfig';
 const PaymentRequest = ({navigation, route}) => {
@@ -37,13 +36,8 @@ const PaymentRequest = ({navigation, route}) => {
   const expenceData = route?.params?.expence || null;
   console.log('PaymentRequest Routes:', expenceData);
 
-  // State for FeedbackModal
-  const [feedbackVisible, setFeedbackVisible] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [feedbackType, setFeedbackType] = useState('success');
-
   const employeeDetails = useFetchEmployeeDetails();
- 
+
   const {
     control,
     handleSubmit,
@@ -76,15 +70,21 @@ const PaymentRequest = ({navigation, route}) => {
   useEffect(() => {
     if (expenceData) {
       // Set the request type
-      setValue('requestType', expenceData.requestType?.toLowerCase() || 'expense');
-      setValue('RequestTypeId', expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1);
-      
+      setValue(
+        'requestType',
+        expenceData.requestType?.toLowerCase() || 'expense',
+      );
+      setValue(
+        'RequestTypeId',
+        expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1,
+      );
+
       // Set remarks if available
       if (expenceData.remarks) {
         setValue('remarks', expenceData.remarks);
         console.log('Setting remarks:', expenceData.remarks);
       }
-      
+
       // Set total amount
       if (expenceData.totalAmount) {
         setTotalAmount(parseFloat(expenceData.totalAmount) || 0);
@@ -93,7 +93,7 @@ const PaymentRequest = ({navigation, route}) => {
 
       // Update UI to show we're in edit mode
       navigation.setOptions({
-        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`
+        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`,
       });
     }
   }, [expenceData, setValue, navigation]);
@@ -110,7 +110,6 @@ const PaymentRequest = ({navigation, route}) => {
     setTotalAmount(sum);
   }, [expenseItems]);
 
-  
   useEffect(() => {
     if (requestType === 'expense' || expenseItems.length > 0) {
       // If we have expense items, force requestType to be 'expense'
@@ -149,7 +148,7 @@ const PaymentRequest = ({navigation, route}) => {
               }
             },
           },
-        ]
+        ],
       );
     }
   }, [requestType, expenseItems.length, setValue]);
@@ -344,14 +343,18 @@ const PaymentRequest = ({navigation, route}) => {
     );
   }
   // Submit form handler
-  const onSubmit = async (data) => {
+  const onSubmit = async data => {
     try {
       const isEditing = !!expenceData?.requestId;
-      if (requestType === 'advance') {       
+      // Always determine request type and RequestTypeId from the picker value
+      const reqType = (data.requestType || '').toLowerCase();
+      const requestTypeId = reqType === 'advance' ? 2 : 1; // 1: Expense, 2: Advance
+
+      if (reqType === 'advance') {
         const formData = {
           PaymentRequest: {
             RequestId: isEditing ? expenceData.requestId : 0,
-            RequestTypeId: data.RequestTypeId,
+            RequestTypeId: 2, // Always 2 for advance
             EmployeeId: employeeDetails?.id,
             ProjectId: null,
             ReportingMgrId: employeeDetails?.reportingEmpId,
@@ -368,14 +371,17 @@ const PaymentRequest = ({navigation, route}) => {
             ModifiedBy: employeeDetails?.id ?? 0,
             ModifiedDate: formatDateForBackend(new Date()),
           },
-          tempPayments: [], // No expense items for Advance
+          tempPayments: [],
         };
 
-        console.log(`${isEditing ? 'Updating' : 'Submitting'} Advance Form Data:`, formData);
+        console.log(
+          `${isEditing ? 'Updating' : 'Submitting'} Advance Form Data:`,
+          formData,
+        );
 
         const response = await axios.post(
           `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
-          formData
+          formData,
         );
 
         console.log('API Response:', response.data);
@@ -387,9 +393,9 @@ const PaymentRequest = ({navigation, route}) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('ExpenseRequestStatus'),
+              onPress: () => navigation.navigate('Main'),
             },
-          ]
+          ],
         );
         reset();
         setTotalAmount(0);
@@ -399,24 +405,19 @@ const PaymentRequest = ({navigation, route}) => {
         } catch (error) {
           console.error('Error clearing stored expense items:', error);
         }
-      } else if (requestType === 'expense') {
-        // Only require at least one expense item if NOT updating (i.e., not edit mode)
+      } else if (reqType === 'expense') {
         if (!isEditing && expenseItems.length === 0) {
           Alert.alert('Error', 'Please add at least one expense item');
           return;
         }
-
-        // Validate that remarks are provided
         if (!data.remarks) {
           Alert.alert('Error', 'Please provide remarks');
           return;
         }
-
-        // Prepare data for Expense submission or update
         const formData = {
           PaymentRequest: {
             RequestId: isEditing ? expenceData.requestId : 0,
-            RequestTypeId: data.RequestTypeId,
+            RequestTypeId: 1, // Always 1 for expense
             EmployeeId: employeeDetails?.id,
             ProjectId: null,
             ReportingMgrId: employeeDetails?.reportingEmpId,
@@ -433,23 +434,26 @@ const PaymentRequest = ({navigation, route}) => {
             ModifiedBy: employeeDetails?.id ?? 0,
             ModifiedDate: formatDateForBackend(new Date()),
           },
-          tempPayments: expenseItems.map((item) => ({
+          tempPayments: expenseItems.map(item => ({
             Id: isEditing ? item.id : 0,
             TransactionDate: formatDateForBackend(item.date),
             ExpenseHeadId: item.headId,
             ExpenseHead: item.head,
             Amount: parseFloat(item.amount),
             ApprovedAmount: 0,
-            RequestType: data.RequestTypeId,
+            RequestType: 1, // Always 1 for expense
             DocumentPath: item.document?.uri || null,
           })),
         };
 
-        console.log(`${isEditing ? 'Updating' : 'Submitting'} Expense Form Data:`, formData);
+        console.log(
+          `${isEditing ? 'Updating' : 'Submitting'} Expense Form Data:`,
+          formData,
+        );
 
         const response = await axios.post(
           `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
-          formData
+          formData,
         );
 
         console.log('API Response:', response.data);
@@ -461,9 +465,9 @@ const PaymentRequest = ({navigation, route}) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('ExpenseRequestStatus'),
+              onPress: () => navigation.navigate('Main'),
             },
-          ]
+          ],
         );
         reset();
         setExpenseItems([]);
@@ -507,14 +511,14 @@ const PaymentRequest = ({navigation, route}) => {
       console.log('Received Payment Data:', paymentData);
     }
   }, [paymentData]);
-// debugger
+  // debugger
   // Fetch expense details if editing an existing request
   useEffect(() => {
     const fetchExpenseDetails = async () => {
       if (expenceData?.requestId && expenceData?.companyId) {
         try {
           const response = await axios.get(
-            `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`
+            `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`,
           );
 
           const expenseDetails = response.data;
@@ -526,7 +530,7 @@ const PaymentRequest = ({navigation, route}) => {
             console.log('Setting remarks:', expenseDetails.remarks);
             setValue('remarks', expenseDetails.remarks);
           }
-          
+
           if (expenseDetails?.totalAmount) {
             const amount = parseFloat(expenseDetails.totalAmount) || 0;
             console.log('Setting total amount:', amount);
@@ -536,13 +540,13 @@ const PaymentRequest = ({navigation, route}) => {
 
           // Display success message with details
           if (expenseDetails) {
-            setFeedbackVisible(true);
-            setFeedbackType('info');
-            setFeedbackMessage(`Loaded request: ${expenceData.requestType} - ₹${expenseDetails.totalAmount}`);
-            
+            // setFeedbackVisible(true);
+            // setFeedbackType('info');
+            // setFeedbackMessage(`Loaded request: ${expenceData.requestType} - ₹${expenseDetails.totalAmount}`);
+
             // Show a summary of the loaded request
             setTimeout(() => {
-              setFeedbackVisible(false);
+              // setFeedbackVisible(false);
             }, 2000);
           }
 
@@ -558,9 +562,12 @@ const PaymentRequest = ({navigation, route}) => {
                 amount: item.amount,
                 date: new Date(item.transactionDate),
                 document: item.documentPath
-                  ? { uri: item.documentPath, name: item.documentPath.split('/').pop() }
+                  ? {
+                      uri: item.documentPath,
+                      name: item.documentPath.split('/').pop(),
+                    }
                   : null,
-              }))
+              })),
             );
           }
 
@@ -578,7 +585,10 @@ const PaymentRequest = ({navigation, route}) => {
             console.error('Response Status:', error.response.status);
           }
 
-          Alert.alert('Error', 'Failed to fetch expense details. Please try again.');
+          Alert.alert(
+            'Error',
+            'Failed to fetch expense details. Please try again.',
+          );
         }
       }
     };
@@ -590,15 +600,21 @@ const PaymentRequest = ({navigation, route}) => {
   useEffect(() => {
     if (expenceData) {
       // Set the request type
-      setValue('requestType', expenceData.requestType?.toLowerCase() || 'expense');
-      setValue('RequestTypeId', expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1);
-      
+      setValue(
+        'requestType',
+        expenceData.requestType?.toLowerCase() || 'expense',
+      );
+      setValue(
+        'RequestTypeId',
+        expenceData.requestType?.toLowerCase() === 'advance' ? 2 : 1,
+      );
+
       // Set remarks if available
       if (expenceData.remarks) {
         setValue('remarks', expenceData.remarks);
         console.log('Setting remarks:', expenceData.remarks);
       }
-      
+
       // Set total amount
       if (expenceData.totalAmount) {
         setTotalAmount(parseFloat(expenceData.totalAmount) || 0);
@@ -607,30 +623,26 @@ const PaymentRequest = ({navigation, route}) => {
 
       // Update UI to show we're in edit mode
       navigation.setOptions({
-        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`
+        headerTitle: `Edit ${expenceData.requestType || 'Payment'} Request`,
       });
     }
   }, [expenceData, setValue, navigation]);
 
-
   // Add a function to handle item selection for editing
-
 
   // Conditional rendering based on request type
   return (
     <AppSafeArea>
-      {/* Feedback Modal */}
-      <FeedbackModal
-        visible={feedbackVisible}
-        onClose={() => setFeedbackVisible(false)}
-        type={feedbackType}
-        message={feedbackMessage}
-      />
-
+      {/* Feedback Modal removed */}
+      {/* <FeedbackModal ... /> */}
       <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.BackAction onPress={() => navigation.navigate('Main')} />
         <Appbar.Content
-          title={expenceData ? `Edit ${expenceData.requestType || 'Payment'} Request` : "Payment Request"}
+          title={
+            expenceData
+              ? `Edit ${expenceData.requestType || 'Payment'} Request`
+              : 'Payment Request'
+          }
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -643,13 +655,12 @@ const PaymentRequest = ({navigation, route}) => {
             {expenceData ? 'Edit Payment Request' : 'Payment Request'}
           </Text>
           <Text style={styles.subHeaderText}>
-            {expenceData 
-              ? 'Update the details of your payment request' 
+            {expenceData
+              ? 'Update the details of your payment request'
               : 'Please fill in the details below to submit your payment request'}
           </Text>
         </View>
 
-       
         <Text style={styles.label}>
           Request Type <Text style={styles.required}>*</Text>
           {errors.requestType && (
@@ -668,18 +679,21 @@ const PaymentRequest = ({navigation, route}) => {
                   Alert.alert(
                     'Cannot Change Request Type',
                     'You have expense items added. Please remove all expense items before changing to Advance request type.',
-                    [{ text: 'OK' }]
+                    [{text: 'OK'}],
                   );
                   return;
                 }
-                
+
                 // Otherwise allow the change
                 onChange(selectedValue);
                 setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2);
                 console.log('Request type changed to:', selectedValue);
               }}
               value={value}
-              disabled={!!expenceData || (value === 'expense' && expenseItems.length > 0)} // Disable when editing or has items
+              disabled={
+                !!expenceData ||
+                (value === 'expense' && expenseItems.length > 0)
+              } // Disable when editing or has items
               placeholder={{label: 'Select Request Type', value: null}}
               items={[
                 {label: 'Expense', value: 'expense'},
@@ -689,11 +703,19 @@ const PaymentRequest = ({navigation, route}) => {
                 ...pickerSelectStyles,
                 inputIOS: {
                   ...pickerSelectStyles.inputIOS,
-                  color: (expenceData || (value === 'expense' && expenseItems.length > 0)) ? '#666' : '#000',
+                  color:
+                    expenceData ||
+                    (value === 'expense' && expenseItems.length > 0)
+                      ? '#666'
+                      : '#000',
                 },
                 inputAndroid: {
                   ...pickerSelectStyles.inputAndroid,
-                  color: (expenceData || (value === 'expense' && expenseItems.length > 0)) ? '#666' : '#000',
+                  color:
+                    expenceData ||
+                    (value === 'expense' && expenseItems.length > 0)
+                      ? '#666'
+                      : '#000',
                 },
               }}
               useNativeAndroidPickerStyle={false}
@@ -711,7 +733,8 @@ const PaymentRequest = ({navigation, route}) => {
               </Text>
               {expenseItems.length > 0 && !expenceData && (
                 <Text style={styles.itemsCountBadge}>
-                  {expenseItems.length} {expenseItems.length === 1 ? 'Item' : 'Items'}
+                  {expenseItems.length}{' '}
+                  {expenseItems.length === 1 ? 'Item' : 'Items'}
                 </Text>
               )}
             </View>
@@ -730,7 +753,10 @@ const PaymentRequest = ({navigation, route}) => {
             {/* Show paymentDetails in edit mode */}
             {expenceData && paymentDetails && paymentDetails.length > 0 ? (
               <View style={{marginTop: 16}}>
-                <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 8}}>Payment Details</Text>
+                <Text
+                  style={{fontWeight: 'bold', fontSize: 16, marginBottom: 8}}>
+                  Payment Details
+                </Text>
                 <View style={styles.gridContainer}>
                   <View style={styles.gridHeader}>
                     <Text style={styles.gridHeaderText}>Date</Text>
@@ -741,15 +767,27 @@ const PaymentRequest = ({navigation, route}) => {
                   {paymentDetails.map(item => (
                     <View key={item.id} style={styles.gridRow}>
                       <Text style={styles.gridCell}>
-                        {item.transactionDate ? new Date(item.transactionDate).toLocaleDateString() : '—'}
+                        {item.transactionDate
+                          ? new Date(item.transactionDate).toLocaleDateString()
+                          : '—'}
                       </Text>
                       <Text style={styles.gridCell}>{item.expenseHead}</Text>
-                      <Text style={styles.gridCell}>₹{formatCurrency(item.amount)}</Text>
+                      <Text style={styles.gridCell}>
+                        ₹{formatCurrency(item.amount)}
+                      </Text>
                       <View style={styles.gridCell}>
                         {item.documentPath ? (
-                          <Icon name="file-check-outline" size={20} color="#10B981" />
+                          <Icon
+                            name="file-check-outline"
+                            size={20}
+                            color="#10B981"
+                          />
                         ) : (
-                          <Icon name="file-remove-outline" size={20} color="#EF4444" />
+                          <Icon
+                            name="file-remove-outline"
+                            size={20}
+                            color="#EF4444"
+                          />
                         )}
                       </View>
                     </View>
@@ -773,7 +811,9 @@ const PaymentRequest = ({navigation, route}) => {
                   {/* Grid Rows */}
                   {expenseItems.map(item => (
                     <View key={item.id} style={styles.gridRow}>
-                      <Text style={styles.gridCell}>{formatDate(item.date)}</Text>
+                      <Text style={styles.gridCell}>
+                        {formatDate(item.date)}
+                      </Text>
                       <Text style={styles.gridCell}>{item.head}</Text>
                       <Text style={styles.gridCell}>{item.title || '—'}</Text>
                       <Text style={styles.gridCell}>
@@ -812,7 +852,7 @@ const PaymentRequest = ({navigation, route}) => {
         {/* Total Amount Input Field */}
         <View style={styles.totalAmountContainer}>
           <Text style={styles.label}>Total Amount</Text>
-          <TextInput
+          {/* <TextInput
             value={
               requestType === 'advance'
                 ? totalAmount.toString()
@@ -831,10 +871,36 @@ const PaymentRequest = ({navigation, route}) => {
               {color: '#000'} // Ensure text is visible
             ]}
             keyboardType="numeric"
+          /> */}
+
+          <TextInput
+            value={
+              requestType === 'advance'
+                ? totalAmount.toString()
+                : `₹${totalAmount}`
+            }
+            placeholder={
+              requestType === 'advance'
+                ? 'Enter advance amount'
+                : 'Total amount (auto-calculated)'
+            }
+            editable={
+              requestType === 'advance' &&
+              !expenceData?.status?.toLowerCase()?.includes('approved')
+            }
+            onChangeText={value => {
+              if (requestType === 'advance') {
+                setTotalAmount(value);
+              }
+            }}
+            style={[
+              styles.input,
+              styles.totalAmountInput,
+              {color: '#000'}, // Ensure text is visible
+            ]}
+            keyboardType="numeric"
           />
         </View>
-
- 
 
         {/* Remarks */}
         <Text style={styles.label}>
@@ -865,9 +931,14 @@ const PaymentRequest = ({navigation, route}) => {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={[styles.submitBtn, expenceData && {backgroundColor: '#0891B2'}]}
+          style={[
+            styles.submitBtn,
+            expenceData && {backgroundColor: '#0891B2'},
+          ]}
           onPress={handleSubmit(onSubmit)}>
-          <Text style={styles.submitText}>{expenceData ? 'Update' : 'Submit'}</Text>
+          <Text style={styles.submitText}>
+            {expenceData ? 'Update' : 'Submit'}
+          </Text>
         </TouchableOpacity>
 
         {/* Show a Cancel button when editing */}
@@ -1010,7 +1081,9 @@ const PaymentRequest = ({navigation, route}) => {
                   </View>
                 ) : (
                   <View style={styles.uploadPlaceholder}>
-                    <TouchableOpacity onPress={handleDocumentPick} style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <TouchableOpacity
+                      onPress={handleDocumentPick}
+                      style={{flexDirection: 'row', alignItems: 'center'}}>
                       <Icon name="upload" size={24} color="#999" />
                       <Text style={styles.uploadPlaceholderText}>
                         Choose PDF or Image
@@ -1038,9 +1111,6 @@ const PaymentRequest = ({navigation, route}) => {
           </View>
         </View>
       </Modal>
-
-
-
     </AppSafeArea>
   );
 };
@@ -1353,8 +1423,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   totalAmountInput: {
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
+    backgroundColor: '#ffffffff',
+    color: '#ffffffff',
     fontWeight: 'bold',
   },
   summaryCard: {
@@ -1505,7 +1575,5 @@ const pickerSelectStyles = {
     right: 10,
   },
 };
-
-
 
 export default PaymentRequest;
