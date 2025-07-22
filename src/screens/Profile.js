@@ -993,10 +993,15 @@ const ProfileScreen = () => {
         response.data
       ) {
         console.log('Backend response:', response.data);
-        Alert.alert('Success', 'Profile updated successfully!');
+        Alert.alert('Success', 'Profile updated successfully!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Main'), // Navigate to Main Screen
+          },
+        ]);
         setEditedFields({});
         setIsEditing(false);
-        refreshAfterSuccess(); // Refresh data after successful update
+        refreshAfterSuccess(); 
       } else {
         throw new Error('Failed to update profile - Invalid response');
       }

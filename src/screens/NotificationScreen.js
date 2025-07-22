@@ -76,8 +76,8 @@ debugger
   console.log('User ID:', employeeDetails?.userId);
   console.log('Employee Details:', JSON.stringify(employeeDetails, null, 2));
 
-  const companyId = employeeDetails?.childCompanyId || 1; // fallback to 1 if not loaded
-  const userId = employeeDetails?.id || 11;      // fallback to 11 if not loaded
+  const companyId = employeeDetails?.childCompanyId ; // fallback to 1 if not loaded
+  const userId = employeeDetails?.id ;      // fallback to 11 if not loaded
 
   // Fetch notifications from API
   useEffect(() => {

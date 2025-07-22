@@ -1,6 +1,12 @@
 import React, {useState, useEffect} from 'react';
 import {createDrawerNavigator} from '@react-navigation/drawer';
-import {TouchableOpacity, View, StyleSheet, Platform , Image} from 'react-native';
+import {
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Platform,
+  Image,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {Menu, Provider} from 'react-native-paper';
 import Animated, {
@@ -14,34 +20,54 @@ import CustomDrawer from '../component/CustomDrawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
-import { useAuth } from '../constants/AuthContext';
-import AntDesign from 'react-native-vector-icons/AntDesign'
-import {BASE_URL} from '../constants/apiConfig';
+import {useAuth} from '../constants/AuthContext';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import BASE_URL from '../constants/apiConfig';
+import axios from 'axios';
 
 const Drawer = createDrawerNavigator();
 
-
-
 // ---------------- Notification Button ----------------
-const NotificationButton = ({navigation, unreadCount}) => {
+const NotificationButton = ({navigation}) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const [visible, setVisible] = useState(false);
-
+  const {user} = useAuth();
+  const [hasNotification, setHasNotification] = useState(false); // <-- new state
 
   useEffect(() => {
-    if (unreadCount > 0) {
-      scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
-      opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
-    }
-  }, [unreadCount]);
+    scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
+    opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
+
+    const fetchNotifications = async () => {
+      try {
+        const companyId = user?.childCompanyId;
+        const userId = user?.id ;
+        if (companyId && userId) {
+          const response = await axios.get(
+            `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`,
+          );
+          console.log('Notification API d==================================:', response.data);
+          // Set notification state based on response
+          setHasNotification(
+            response.data && (
+              Array.isArray(response.data) ? response.data.length > 0 : Object.keys(response.data).length > 0
+            )
+          );
+        }
+      } catch (error) {
+        console.log('Notification API error:', error);
+        setHasNotification(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const waveStyle = useAnimatedStyle(() => ({
     transform: [{scale: scale.value}],
     opacity: opacity.value,
   }));
-
-  
 
   return (
     <TouchableOpacity
@@ -49,7 +75,7 @@ const NotificationButton = ({navigation, unreadCount}) => {
       style={{marginRight: 10}}>
       <MaterialIcons name="notifications-none" size={28} color="#000" />
       {/* Red Dot + Animated Wave */}
-      {unreadCount > 0 && (
+      {hasNotification && (
         <View style={styles.dotContainer}>
           <Animated.View style={[styles.wave, waveStyle]} />
           <View style={styles.dot} />
@@ -61,53 +87,48 @@ const NotificationButton = ({navigation, unreadCount}) => {
 
 // ---------------- Profile Menu ----------------
 const ProfileMenu = ({navigation}) => {
-
-
   const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
   const [visible, setVisible] = useState(false);
   const {user} = useAuth();
 
+  const imageUrl = user?.empImage // make sure we actually have a filename
+    ? `${IMG_BASE_URL}${user.empImage}` // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
+    : null;
 
+  console.log('employee avatar ➜', imageUrl);
 
-    const imageUrl =
-  user?.empImage            // make sure we actually have a filename
-    ? `${IMG_BASE_URL}${user.empImage}`   // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
-    : null;  
-
-    console.log('employee avatar ➜', imageUrl); 
-    
   return (
     <Menu
-    visible={visible}
-    onDismiss={() => setVisible(false)}
-    anchor={
-      <TouchableOpacity
-        onPress={() => setVisible(true)}
-        style={{marginRight: 10}}>
-        {imageUrl ? (
-          <Image
-            source={{uri: imageUrl}}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              borderWidth: 1,
-              borderColor: '#ccc',
-            }}
-            resizeMode="cover"
-          onError={e =>
-            console.log('⚠️ avatar load failed:', e.nativeEvent.error)
-          }
-          />
-        ) : (
-          <MaterialCommunityIcons
-            name="account-circle"
-            size={26}
-            color="#000"
-          />
-        )}
-      </TouchableOpacity>
-    }>
+      visible={visible}
+      onDismiss={() => setVisible(false)}
+      anchor={
+        <TouchableOpacity
+          onPress={() => setVisible(true)}
+          style={{marginRight: 10}}>
+          {imageUrl ? (
+            <Image
+              source={{uri: imageUrl}}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                borderWidth: 1,
+                borderColor: '#ccc',
+              }}
+              resizeMode="cover"
+              onError={e =>
+                console.log('⚠️ avatar load failed:', e.nativeEvent.error)
+              }
+            />
+          ) : (
+            <MaterialCommunityIcons
+              name="account-circle"
+              size={26}
+              color="#000"
+            />
+          )}
+        </TouchableOpacity>
+      }>
       <Menu.Item
         onPress={() => {
           setVisible(false);
@@ -158,11 +179,6 @@ const ProfileMenu = ({navigation}) => {
 
 // ---------------- Drawer Navigator ----------------
 export default function DrawerNavigator() {
-  // Replace this with your actual unread notification count logic
-  // For example, get from context or Redux
-  // const { unreadCount } = useNotifications();
-  const unreadCount = 0; // <-- Replace with real value
-
   return (
     <Provider>
       <Drawer.Navigator
@@ -193,7 +209,7 @@ export default function DrawerNavigator() {
                 alignItems: 'center',
                 paddingRight: 10,
               }}>
-              <NotificationButton navigation={navigation} unreadCount={unreadCount} />
+              <NotificationButton navigation={navigation} />
               <ProfileMenu navigation={navigation} />
             </View>
           ),
