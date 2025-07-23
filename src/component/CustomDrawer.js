@@ -148,7 +148,9 @@ const CustomDrawer = ({navigation}) => {
       </TouchableOpacity>
     );
   };
+  const [visible, setVisible] = useState(false);
 
+  const [imageUrl, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
 
@@ -170,20 +172,49 @@ const CustomDrawer = ({navigation}) => {
     fetchEmployeeData();
   }, [user]);
 
-  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
-  const imageUrl = user?.empImage // make sure we actually have a filename
-    ? `${IMG_BASE_URL}${user.empImage}` // ➜ https://hcmv2.anantatek.com/assets/UploadImg/23042025150637.jpeg
-    : null;
+  useEffect(() => {
+      // Always log the user object for debugging
+      console.log('ProfileMenu user:', user);
+      debugger; // Debug here to inspect user object
+  
+      if (user?.empImage) {
+        // Compose the direct image URL using empImage
+        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
+        setImageUrl(directImageUrl);
+  
+        // Optionally, check if the image exists on the server
+        const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
+        fetch(fetchUrl, { method: 'GET' })
+          .then(response => {
+            console.log('Profile image fetch URL:', fetchUrl);
+            console.log('Profile image fetch response:', response);
+            debugger; // Debug here to inspect fetch response
+            if (!response.ok) {
+              setImageUrl(null);
+            }
+          })
+          .catch(err => {
+            console.log('Profile image fetch error:', err);
+            setImageUrl(null);
+          });
+      } else {
+        setImageUrl(null);
+      }
+    }, [user?.empImage]);
+
+  const IMG_BASE_URL = 'http://192.168.29.2:90/assets/UploadImg/';
+ 
 
   console.log('employee avatar ➜', imageUrl);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
+        visible={visible}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.profile, avatarStyle]}>
-          <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.9}>
+          <TouchableOpacity  onPress={() => setVisible(true)} activeOpacity={0.9}>
             <Image
               source={
                 imageUrl ? {uri: imageUrl} : require('../assets/image/boy.png')
