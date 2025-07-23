@@ -538,7 +538,8 @@ const ProfileScreen = () => {
 
           // If backend returns a direct image URL, use it for preview
           const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
-         
+          const STATIC_PROFILE_PHOTO_URL =
+            'http://192.168.29.2:90/assets/UploadImg/20250723104918323.jpg';
 
           setUploadedPhoto({uri: directImageUrl});
 
@@ -877,7 +878,11 @@ const ProfileScreen = () => {
 
   // Use uploadedPhotoFileName for immediate UI update if available
   const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
- 
+  const imageUrl = uploadedPhotoFileName
+    ? `${staticBaseUrl}${uploadedPhotoFileName}`
+    : employeeDetails?.empImage
+    ? `${staticBaseUrl}${employeeDetails.empImage}`
+    : null;
 
   // Data configurations
   const generalInfoData = [
