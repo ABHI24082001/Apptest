@@ -340,6 +340,8 @@ const ProfileScreen = () => {
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
+  const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
 
   // Refresh functionality
   const onRefresh = useCallback(async () => {
@@ -482,303 +484,26 @@ const ProfileScreen = () => {
     }
   };
 
-  // Generate a unique filename for the uploaded photo
-  // const uploadProfilePhoto = async (photo, fileName) => {
-  //   setUploading(true);
-  //   try {
-  //     console.log('Starting photo upload process for:', photo.uri);
-
-  //     // Read file as base64
-  //     const response = await fetch(photo.uri);
-  //     const blob = await response.blob();
-
-  //     return new Promise((resolve, reject) => {
-  //       const reader = new FileReader();
-  //       reader.onload = async () => {
-  //         try {
-  //           // The result contains the full data URL with prefix
-  //           // We need to extract just the base64 part
-  //           let base64Data = reader.result;
-
-  //           // Check if the result is in the expected format
-  //           if (base64Data.includes('base64,')) {
-  //             base64Data = base64Data.split('base64,')[1];
-  //           }
-
-  //           if (!base64Data) {
-  //             console.error('No valid base64 data available');
-  //             setUploading(false);
-  //             setUploadedPhoto(null);
-  //             Alert.alert('Error', 'Failed to process the image data');
-  //             reject(new Error('No image data available'));
-  //             return;
-  //           }
-
-  //           console.log('Image successfully converted to base64');
-
-  //           const payload = {
-  //             Id: employeeDetails.id,
-  //             EmployeeId: employeeDetails.employeeId,
-  //             EmployeeName: employeeDetails.employeeName,
-  //             // Include all required fields that were already there
-  //             Username: employeeDetails.username,
-  //             Gender: employeeDetails.gender,
-  //             City: employeeDetails.city,
-  //             PcontactNo: employeeDetails.pcontactNo,
-  //             EmailAddress: employeeDetails.emailAddress,
-  //             MaritalStatus: employeeDetails.maritalStatus,
-  //             EmpFather: employeeDetails.empFather,
-  //             EmpMother: employeeDetails.empMother,
-  //             PermaAddress: employeeDetails.permaAddress,
-  //             PresentAddress: employeeDetails.presentAddress,
-  //             EmergencyContactNo: employeeDetails.emergencyContactNo,
-  //             ModifiedBy: employeeDetails.id,
-  //             ModifiedDate: formatDateForBackend(new Date()),
-  //             // Just send the filename, not the full path
-  //             EmpImage: fileName,
-  //             ImageBase64: base64Data,
-  //           };
-
-  //           console.log('Uploading photo to:', `${BASE_URL}/EmpRegistration/SaveEmpRegistration`);
-  //           console.log('With filename:', fileName);
-
-  //           try {
-  //             // Use axios with proper error handling
-  //             const response = await axios.post(
-  //               `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-  //               payload,
-  //               {
-  //                 // Add proper timeout and headers
-  //                 timeout: 30000,
-  //                 headers: {
-  //                   'Content-Type': 'application/json',
-  //                   'Accept': 'application/json',
-  //                 }
-  //               }
-  //             );
-
-  //             // Check response status properly
-  //             if (response && response.status >= 200 && response.status < 300) {
-  //               console.log('Upload successful, server responded with:', response.status);
-  //               Alert.alert('Success', 'Profile photo updated successfully!');
-  //               refreshAfterSuccess();
-  //               resolve(response.data);
-  //             } else {
-  //               console.error('Server returned unexpected status:', response.status);
-  //               throw new Error(`Server returned status ${response.status}`);
-  //             }
-  //           } catch (error) {
-  //             console.error('API call failed:', error);
-
-  //             // Detailed error logging
-  //             if (error.response) {
-  //               // The request was made and the server responded with a status code
-  //               // that falls out of the range of 2xx
-  //               console.error('Error response data:', error.response.data);
-  //               console.error('Error response status:', error.response.status);
-  //               console.error('Error response headers:', error.response.headers);
-
-  //               Alert.alert('Upload Failed', `Server error: ${error.response.status}. Please try again later.`);
-  //             } else if (error.request) {
-  //               // The request was made but no response was received
-  //               console.error('No response received:', error.request);
-  //               Alert.alert('Network Error', 'No response from server. Please check your connection.');
-  //             } else {
-  //               // Something happened in setting up the request
-  //               console.error('Error message:', error.message);
-  //               Alert.alert('Error', error.message || 'Failed to upload photo');
-  //             }
-
-  //             reject(error);
-  //           }
-  //         } catch (innerError) {
-  //           console.error('Error in FileReader onload handler:', innerError);
-  //           Alert.alert('Error', 'Failed to process the image. Please try again with a different image.');
-  //           reject(innerError);
-  //         } finally {
-  //           setUploading(false);
-  //           setUploadedPhoto(null);
-  //         }
-  //       };
-
-  //       reader.onerror = (error) => {
-  //         console.error('FileReader error:', error);
-  //         reject(new Error('Failed to read file'));
-  //         setUploading(false);
-  //         setUploadedPhoto(null);
-  //         Alert.alert('Error', 'Failed to read the selected image');
-  //       };
-
-  //       // Start reading the blob as a data URL (base64)
-  //       reader.readAsDataURL(blob);
-  //     });
-  //   } catch (error) {
-  //     console.error('Profile photo update error:', error);
-  //     Alert.alert('Error', 'Failed to process the selected photo');
-  //     setUploading(false);
-  //     setUploadedPhoto(null);
-  //     throw error;
-  //   }
-  // };
-
-  const handleProfilePhotoUpdate = async () => {
+  const uploadDocumentBase64 = async photo => {
     try {
-      // Using @react-native-documents/picker
-      const result = await pick({
-        type: ['image/*'], // Simpler MIME type specification
-        title: 'Select a profile photo',
-        message: 'Choose a photo to set as your profile picture',
-        cancelText: 'Cancel',
-        confirmText: 'Select',
-        multiple: false,
-        allowMultiSelection: false,
-      }).catch(err => {
-        console.log('Document picker error: ', err);
-        return null;
-      });
-
-      // If no document was picked or the picker was cancelled
-      if (!result || result.length === 0) {
-        console.log('User cancelled document picker or no document selected');
-        return;
-      }
-
-      const photo = result[0]; // Get the first document
-
-      // Log the document details for debugging
-      console.log('Selected document:', photo);
-
-      // Validate file type is an image
-      const isImage =
-        photo.type?.startsWith('image/') ||
-        photo.uri?.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
-
-      if (!isImage) {
-        Alert.alert('Error', 'Please select a valid image file');
-        return;
-      }
-
-      // Check if file size is available and validate it
-      if (photo.size && photo.size > 5 * 1024 * 1024) {
-        Alert.alert('Error', 'Photo size should be less than 5MB');
-        return;
-      }
-
-      // Generate a unique filename with extension from the original file
-      const fileExtension = photo.name ? photo.name.split('.').pop() : 'jpg';
-      const newFileName = `profile_${Date.now()}.${fileExtension}`;
-
-      // Create a photo object compatible with our upload function
-      const processedPhoto = {
-        uri: photo.uri,
-        type: photo.type || 'image/jpeg',
-        name: photo.name || 'photo.jpg',
-        fileName: newFileName,
-      };
-
-      // Set the photo for preview
-      setUploadedPhoto(processedPhoto);
-
-      // Show confirmation dialog
-      Alert.alert(
-        'Confirm Photo Update',
-        'Do you want to update your profile photo?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setUploadedPhoto(null),
-          },
-          {
-            text: 'Update',
-            onPress: () => uploadProfilePhoto(processedPhoto, newFileName),
-          },
-        ],
-      );
-    } catch (err) {
-      console.error('Document picker error:', err);
-      Alert.alert('Error', 'Failed to select photo. Please try again.');
-    }
-  };
-
-  const uploadProfilePhoto = async (photo, fileName) => {
-    setUploading(true);
-    try {
-      // Read file as base64 using RNFS
+      setUploading(true);
       const base64Data = await RNFS.readFile(photo.uri, 'base64');
-
-      if (!base64Data) {
-        setUploading(false);
-        setUploadedPhoto(null);
-        Alert.alert('Error', 'Failed to process the image data');
-        throw new Error('No image data available');
-      }
+      const fileName = photo.name || photo.fileName || 'photo.jpg';
+      const extension = fileName.split('.').pop() || 'jpg';
 
       const payload = {
-        Id: employeeDetails.id,
-        EmployeeId: employeeDetails.employeeId ?? '',
-        EmployeeName: employeeDetails.employeeName ?? '',
-        Dob: formatDateForBackend(employeeDetails.dob),
-        BloodGroup: employeeDetails.bloodGroup ?? '',
-        Gender: employeeDetails.gender ?? '',
-        MaritalStatus: employeeDetails.maritalStatus ?? '',
-        Religion: employeeDetails.religion ?? '',
-        PcontactNo: employeeDetails.pcontactNo ?? '',
-        EmergencyContactNo: employeeDetails.emergencyContactNo ?? '',
-        EmailAddress: employeeDetails.emailAddress ?? '',
-        EmpImage: employeeDetails.empImage ?? '',
-        EmpFather: employeeDetails.empFather ?? '',
-        EmpMother: employeeDetails.empMother ?? '',
-        PoliceStation: employeeDetails.policeStation ?? '',
-        ZipCode: employeeDetails.zipCode ?? '',
-        CountryId: employeeDetails.countryId ?? 0,
-        StateId: employeeDetails.stateId ?? 0,
-        City: employeeDetails.city ?? '',
-        EmployeeType: employeeDetails.employeeType ?? 0,
-        ProvisionEndDt: employeeDetails.provisionEndDt ?? null,
-        PresentAddress: employeeDetails.presentAddress ?? '',
-        PermaAddress: employeeDetails.permaAddress ?? '',
-        DateofJoin: formatDateForBackend(employeeDetails.dateofJoin),
-        ChildCompanyId: employeeDetails.childCompanyId ?? null,
-        BranchId: employeeDetails.branchId ?? null,
-        DepartmentId: employeeDetails.departmentId ?? 0,
-        CompanyVerticalId: employeeDetails.companyVerticalId ?? null,
-        DesigntionId: employeeDetails.designtionId ?? 0,
-        ReportingEmpId: employeeDetails.reportingEmpId ?? null,
-        ExistingBank: employeeDetails.existingBank ?? '',
-        BankAcNo: employeeDetails.bankAcNo ?? '',
-        BankIfsc: employeeDetails.bankIfsc ?? '',
-        UploadResume: employeeDetails.uploadResume ?? '',
-        HighDegree: employeeDetails.highDegree ?? '',
-        YearPassing: employeeDetails.yearPassing ?? '',
-        Percentage: employeeDetails.percentage ?? null,
-        University: employeeDetails.university ?? '',
-        OtherQualification: employeeDetails.otherQualification ?? '',
-        Uanno: employeeDetails.uanno ?? '',
-        Esino: employeeDetails.esino ?? '',
-        PanNo: employeeDetails.panNo ?? '',
-        AadhaarNo: employeeDetails.aadhaarNo ?? '',
-        Category: employeeDetails.category ?? '',
-        UploadPan: employeeDetails.uploadPan ?? '',
-        UploadAadhaar: employeeDetails.uploadAadhaar ?? '',
-        UploadSignature: employeeDetails.uploadSignature ?? '',
-        Username: employeeDetails.username ?? '',
-        Password: employeeDetails.password ?? '',
-        IsDelete: employeeDetails.isDelete ?? 0,
-        Flag: employeeDetails.flag ?? 1,
-        CreatedBy: employeeDetails.createdBy ?? employeeDetails.id ?? 0,
-        CreatedDate: formatDateForBackend(employeeDetails.createdDate),
-        ModifiedBy: employeeDetails.modifiedBy ?? employeeDetails.id ?? 0,
-        ModifiedDate: formatDateForBackend(new Date()),
-        EmpImage: fileName,
-        ImageBase64: base64Data,
+        fileName: fileName,
+        base64File: base64Data,
+        extension: extension,
+        category: 'img',
       };
 
+      console.log('📤 Uploading payload:', payload);
+
       const response = await axios.post(
-        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+        'http://192.168.29.2:90/UploadDocument/UploadDocument',
         payload,
         {
-          timeout: 30000,
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
@@ -786,42 +511,151 @@ const ProfileScreen = () => {
         },
       );
 
-      if (response && response.status >= 200 && response.status < 300) {
-        Alert.alert('Success', 'Profile photo updated successfully!');
-        refreshAfterSuccess();
-        setUploadedPhoto(null);
+      console.log('✅ Upload status:', response.status);
+      console.log('📥 Server response:', response.data);
+
+      if (
+        response.status >= 200 &&
+        response.status < 300 &&
+        response.data?.fileName
+      ) {
+        Alert.alert('Success', 'Profile photo uploaded!');
+        setUploadedPhotoFileName(response.data.fileName); // Set uploaded filename for UI
+        await saveProfileImage(response.data.fileName);
+        console.log('First image uploaded:', response.data.fileName);
+
+        // Prepare fileNameWithExtension for GET API
+        const fileName = response.data.fileName;
+        const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
+        const directImageUrl = `${staticBaseUrl}${fileName}`;
+
+        try {
+          debugger; // For inspection
+          // GET request to fetch the image
+          const fetchResponse = await axios.get(fetchUrl, {
+            responseType: 'arraybuffer',
+          });
+
+          // If backend returns a direct image URL, use it for preview
+          const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
+         
+
+          setUploadedPhoto({uri: directImageUrl});
+
+          // Console all relevant data
+          console.log('fetchUrl:', fetchUrl);
+          console.log('response.data.fileName:', fileName);
+          console.log('Direct image URL:', directImageUrl);
+          console.log('Fetch API response (arraybuffer):', fetchResponse);
+        } catch (fetchErr) {
+          // If backend returns validation error, log it
+          if (fetchErr.response && fetchErr.response.status === 400) {
+            console.error('Validation error:', fetchErr.response.data);
+          } else {
+            console.error('Error fetching image from GET API:', fetchErr);
+          }
+        }
       } else {
         throw new Error(`Server returned status ${response.status}`);
       }
     } catch (error) {
-      handleUploadError(error);
-      setUploadedPhoto(null);
+      console.error('❌ UploadDocument error:', error.message);
+      Alert.alert('Upload Failed', 'Could not upload profile photo');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleUploadError = error => {
-    if (error.response) {
-      console.error('Error response data:', error.response.data);
-      console.error('Error response status:', error.response.status);
-      Alert.alert(
-        'Upload Failed',
-        `Server error: ${error.response.status}. Please try again later.`,
+  // Save and update profile image function
+  const saveProfileImage = async fileName => {
+    try {
+      const payload = {
+        ...employeeDetails,
+        empImage: fileName,
+        ModifiedDate: formatDateForBackend(new Date()),
+        // Optionally update ModifiedBy, etc.
+      };
+
+      // Remove unwanted keys if needed (like arrays, etc.)
+      delete payload.tblApplyLeaveApprovals;
+      delete payload.tblApplyLeaves;
+      delete payload.tblFinalLeaveApprovals;
+      delete payload.tblNotifications;
+
+      console.log(
+        'Sending profile update to:',
+        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
-    } else if (error.request) {
-      console.error('No response received:', error.request);
-      Alert.alert(
-        'Network Error',
-        'No response from server. Check your connection.',
+      console.log('Profile payload:', payload);
+
+      const response = await axios.post(
+        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
+        payload,
       );
-    } else {
-      console.error('Error message:', error.message);
-      Alert.alert('Error', error.message || 'Failed to upload photo');
+
+      if (response.status >= 200 && response.status < 300) {
+        Alert.alert('Success', 'Profile image updated!');
+        // Optionally refresh profile data here
+      } else {
+        throw new Error('Failed to update profile image');
+      }
+    } catch (error) {
+      console.error('Profile image update error:', error.message);
+      Alert.alert('Error', 'Failed to update profile image');
     }
   };
 
-  // Helper function to handle upload errors
+  const handleProfilePhotoUpdate = async () => {
+    if (isPickingPhoto) {
+      Alert.alert('Please wait', 'Photo picker is already in progress.');
+      return;
+    }
+    setIsPickingPhoto(true);
+    try {
+      const result = await pick({
+        type: ['image/*'],
+        title: 'Select a profile photo',
+        message: 'Choose a photo to set as your profile picture',
+        cancelText: 'Cancel',
+        confirmText: 'Select',
+        multiple: false,
+        allowMultiSelection: false,
+      });
+
+      if (!result || result.length === 0) {
+        console.log('User cancelled or no photo selected');
+        return;
+      }
+
+      const photo = result[0];
+
+      console.log('📷 Selected image:', photo);
+
+      // Validate it's an image
+      const isImage =
+        photo.type?.startsWith('image/') ||
+        photo.uri?.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
+
+      if (!isImage) {
+        Alert.alert('Invalid File', 'Please select a valid image file');
+        return;
+      }
+
+      await uploadDocumentBase64(photo);
+    } catch (err) {
+      if (err?.message?.includes('already in progress')) {
+        Alert.alert(
+          'Warning',
+          'Previous picker did not settle. Please try again.',
+        );
+      } else {
+        console.error('Document picker error:', err);
+        Alert.alert('Error', 'Failed to select photo. Please try again.');
+      }
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  };
 
   // Handle field edit
   const handleEdit = field => {
@@ -1001,7 +835,7 @@ const ProfileScreen = () => {
         ]);
         setEditedFields({});
         setIsEditing(false);
-        refreshAfterSuccess(); 
+        refreshAfterSuccess();
       } else {
         throw new Error('Failed to update profile - Invalid response');
       }
@@ -1030,7 +864,6 @@ const ProfileScreen = () => {
     setIsEditing(false);
     setEditedFields({});
   };
-
   if (!employeeDetails) {
     return (
       <AppSafeArea>
@@ -1042,14 +875,9 @@ const ProfileScreen = () => {
     );
   }
 
-  // Remove this duplicate BASE_URL declaration
-  // const BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
-
-  // Use the imported BASE_URL with the correct path for images
-  const imageBaseUrl = `${BASE_URL}/assets/UploadImg/`;
-  const imageUrl = employeeDetails?.empImage
-    ? `${imageBaseUrl}${employeeDetails.empImage}`
-    : null;
+  // Use uploadedPhotoFileName for immediate UI update if available
+  const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
+ 
 
   // Data configurations
   const generalInfoData = [
@@ -1211,14 +1039,15 @@ const ProfileScreen = () => {
                 <View style={styles.profileImageContainer}>
                   <Image
                     source={
-                      uploadedPhoto
-                        ? {uri: uploadedPhoto.uri}
-                        : imageUrl
+                      imageUrl
                         ? {uri: imageUrl}
-                        : require('../assets/image/boy.png')
+                        : {
+                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                          }
                     }
                     style={styles.profileImage}
                   />
+
                   <View style={styles.profilePhotoOverlay}>
                     {uploading ? (
                       <ActivityIndicator size={20} color="#fff" />
@@ -1549,3 +1378,4 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
+
