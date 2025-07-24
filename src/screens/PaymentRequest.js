@@ -31,7 +31,7 @@ const PaymentRequest = ({navigation, route}) => {
   const [totalAmount, setTotalAmount] = useState(0);
   const [expenseHeads, setExpenseHeads] = useState([]);
   const [paymentDetails, setPaymentDetails] = useState([]); // New state for payment details
-
+  const [isDateSelected, setIsDateSelected] = useState(false); // New state
   // Extract data passed via route.params
   const expenceData = route?.params?.expence || null;
   console.log('PaymentRequest Routes:', expenceData);
@@ -763,15 +763,18 @@ const PaymentRequest = ({navigation, route}) => {
                     <Text style={styles.gridHeaderText}>Expense Head</Text>
                     <Text style={styles.gridHeaderText}>Amount</Text>
                     <Text style={styles.gridHeaderText}>Document</Text>
+                    <Text style={styles.gridHeaderText}>Remarks</Text>
+                    <Text style={styles.gridHeaderText}>Actions</Text>
                   </View>
                   {paymentDetails.map(item => (
+                    
                     <View key={item.id} style={styles.gridRow}>
                       <Text style={styles.gridCell}>
                         {item.transactionDate
                           ? new Date(item.transactionDate).toLocaleDateString()
                           : '—'}
                       </Text>
-                      <Text style={styles.gridCell}>{item.expenseHead}</Text>
+                      <Text style={styles.gridCell}>{item.expenseHead || '—'}</Text>
                       <Text style={styles.gridCell}>
                         ₹{formatCurrency(item.amount)}
                       </Text>
@@ -789,6 +792,32 @@ const PaymentRequest = ({navigation, route}) => {
                             color="#EF4444"
                           />
                         )}
+                      </View>
+                      <Text style={styles.gridCell}>{item.remark || '—'}</Text>
+                      <View style={[styles.gridCell, styles.actionsCell]}>
+                        <TouchableOpacity
+                          style={styles.gridActionBtn}
+                          onPress={() => {
+                            Alert.alert(
+                              'Delete Payment Detail',
+                              'Are you sure you want to delete this payment detail?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: () => {
+                                    // Remove from paymentDetails state
+                                    setPaymentDetails(prev =>
+                                      prev.filter(detail => detail.id !== item.id)
+                                    );
+                                  },
+                                },
+                              ]
+                            );
+                          }}>
+                          <Icon name="trash-can" size={18} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))}
@@ -976,9 +1005,26 @@ const PaymentRequest = ({navigation, route}) => {
               <TouchableOpacity
                 style={styles.inputWithIcon}
                 onPress={() => setOpenDatePicker(true)}>
-                <Text style={styles.dateText}>{date.toDateString()}</Text>
+                <Text
+                  style={[styles.dateText, !isDateSelected && {color: '#aaa'}]}>
+                  {isDateSelected ? date.toDateString() : 'Select Date'}
+                </Text>
                 <Icon name="calendar-month-outline" size={22} color="#555" />
               </TouchableOpacity>
+
+              <DatePicker
+                modal
+                open={openDatePicker}
+                date={date}
+                mode="date"
+                onConfirm={selectedDate => {
+                  setOpenDatePicker(false);
+                  setDate(selectedDate);
+                  setIsDateSelected(true); // Mark that user has selected a date
+                  setValue('date', selectedDate);
+                }}
+                onCancel={() => setOpenDatePicker(false)}
+              />
 
               <DatePicker
                 modal

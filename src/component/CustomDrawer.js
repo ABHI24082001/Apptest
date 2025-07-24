@@ -175,7 +175,7 @@ const CustomDrawer = ({navigation}) => {
   useEffect(() => {
       // Always log the user object for debugging
       console.log('ProfileMenu user:', user);
-      debugger; // Debug here to inspect user object
+      // debugger; // Debug here to inspect user object
   
       if (user?.empImage) {
         // Compose the direct image URL using empImage
@@ -188,7 +188,7 @@ const CustomDrawer = ({navigation}) => {
           .then(response => {
             console.log('Profile image fetch URL:', fetchUrl);
             console.log('Profile image fetch response:', response);
-            debugger; // Debug here to inspect fetch response
+            // debugger; // Debug here to inspect fetch response
             if (!response.ok) {
               setImageUrl(null);
             }

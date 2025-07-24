@@ -530,7 +530,7 @@ const ProfileScreen = () => {
         const directImageUrl = `${staticBaseUrl}${fileName}`;
 
         try {
-          debugger; // For inspection
+          // debugger; // For inspection
           // GET request to fetch the image
           const fetchResponse = await axios.get(fetchUrl, {
             responseType: 'arraybuffer',

@@ -220,7 +220,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       ApprovalStatus: data.ApprovalStatus ?? 1,
     };
 
-    // console.log('Payload sent:', payload);
+    console.log('Payload sent:', payload);
 
     setIsSubmitting(true);
 
@@ -235,7 +235,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
           timeout: 20000,
         },
       );
-      // console.log('Backend API response:', response?.data);
+      console.log('Backend API response:', response?.data);
 
       if (response?.data?.isSuccess || response?.status === 200) {
         const successMessage = data.ApplyLeaveId
@@ -358,10 +358,13 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 style={styles.iosPickerButton}
                 onPress={() =>
                   showIOSPicker(
-                    leavePolicies.map(policy => ({
-                      label: policy.leaveName,
-                      value: policy.policyId,
-                    })),
+                    [
+                      { label: 'Select Leave', value: '' },
+                      ...leavePolicies.map(policy => ({
+                        label: policy.leaveName,
+                        value: policy.policyId,
+                      })),
+                    ],
                     watch('LeaveId'),
                     value => setValue('LeaveId', value)
                   )
@@ -382,7 +385,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                       selectedValue={value}
                       onValueChange={onChange}
                       style={styles.picker}>
-                      
+                      <Picker.Item label="Select Leave" value="" />
                       {leavePolicies.map(policy => (
                         <Picker.Item
                           key={policy.policyId}

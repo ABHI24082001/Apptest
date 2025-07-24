@@ -189,11 +189,23 @@ const LeaveRequestStatusScreen = () => {
     navigation.navigate('ApplyLeave', {leaveData: leaveDataToPass});
   };
 
+  const leaveTypeOptions = [
+    { label: 'Full Day', value: '1' },
+    { label: 'Half Day', value: '2' },
+    { label: 'Company Off', value: '3' },
+  ];
+
+  // Helper to get label from value
+  const getLeaveTypeLabel = (value) => {
+    const found = leaveTypeOptions.find(opt => String(opt.value) === String(value));
+    return found ? found.label : 'N/A';
+  };
+
   return (
     <AppSafeArea>
       {/* Header */}
       <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.BackAction onPress={() => navigation.navigate('Main')} />
         <Appbar.Content title="My Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
@@ -251,7 +263,7 @@ const LeaveRequestStatusScreen = () => {
             <TouchableOpacity
               style={[
                 styles.dateButton,
-                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+                toDate && {borderColor: '#3B82F6', backgroundColor: '#EFF6FF'},
               ]}
               onPress={() => setShowToPicker(true)}>
               <View style={styles.dateButtonContent}>
@@ -276,7 +288,7 @@ const LeaveRequestStatusScreen = () => {
             <TouchableOpacity
               style={[
                 styles.applyFilterButton,
-                !fromDate && !toDate && { opacity: 0.6 },
+                !fromDate && !toDate && {opacity: 0.6},
               ]}
               onPress={applyDateFilter}>
               <Icon name="filter" size={16} color="#FFFFFF" />
@@ -323,7 +335,7 @@ const LeaveRequestStatusScreen = () => {
           <Text style={styles.loaderText}>Loading leave data...</Text>
         </View>
       ) : (
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           refreshControl={
             <RefreshControl
@@ -340,10 +352,9 @@ const LeaveRequestStatusScreen = () => {
               {(fromDate || toDate) && (
                 <Text style={styles.emptySubText}>for selected date range</Text>
               )}
-              <TouchableOpacity 
-                style={styles.refreshButton} 
-                onPress={onRefresh}
-              >
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={onRefresh}>
                 <Icon name="refresh" size={18} color="#fff" />
                 <Text style={styles.refreshButtonText}>Refresh</Text>
               </TouchableOpacity>
@@ -355,16 +366,36 @@ const LeaveRequestStatusScreen = () => {
                 <StatusCard
                   key={item.id}
                   title={`${item.employeeName || 'Leave Request'}`}
-                  subtitle={`${item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''} to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
+                  subtitle={`${
+                    item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''
+                  } to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
                   details={[
-                    {icon: 'briefcase-outline', label: 'Leave Type', value: item.leaveName || 'N/A'},
-                    {icon: 'calendar-range', label: 'Leave Days', value: item.leaveDays || '0'},
-                    {icon: 'clock-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                    {
+                      icon: 'briefcase-outline',
+                      label: 'Leave Type',
+                      value: item.leaveName || 'N/A',
+                    },
+                    {
+                      icon: 'calendar-range',
+                      label: 'Leave Days',
+                      value: item.leaveNo || 'N/A',
+                    },
+                    {
+                      icon: 'account-clock',
+                      label: 'Leave Type ',
+                      value: getLeaveTypeLabel(item.leaveType),
+                    },
+                    {
+                      icon: 'clock-outline',
+                      label: 'Applied On',
+                      value: formatDate(item.createdDate),
+                    },
                   ]}
                   status={item.status || 'Pending'}
                   remarks={item.remarks}
                   onEdit={() => handleEditLeave(item)}
-                  onDelete={() => item.status === 'Pending' && 
+                  onDelete={() =>
+                    item.status === 'Pending' &&
                     Alert.alert(
                       'Delete Leave Request',
                       'Are you sure you want to delete this leave request?',
@@ -380,7 +411,7 @@ const LeaveRequestStatusScreen = () => {
                   }
                 />
               ))}
-              
+
               {/* Pagination component - only show if we have enough items */}
               {filteredData.length > itemsPerPage && (
                 <Pagination

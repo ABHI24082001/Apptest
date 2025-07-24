@@ -70,7 +70,7 @@ const RequestDetailsScreen = () => {
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const employeeDetails = useFetchEmployeeDetails();
-debugger
+// debugger
   console.log('Employee Details:==========================', employeeDetails);
   console.log('Company ID:', employeeDetails?.companyId);
   console.log('User ID:', employeeDetails?.userId);
