@@ -11,7 +11,7 @@ import {
   Pressable,
   Modal,
   ScrollView,
-  Linking
+  Linking,
 } from 'react-native';
 import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -27,11 +27,17 @@ import PDFViewer from '../component/Payslipcomponent';
 import RNFS from 'react-native-fs';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import RNPrint from 'react-native-print';
+import {useAuth } from '../constants/AuthContext';
+
+const STATIC_LOGO_FILENAME = '28072025121916.png';
+const STATIC_LOGO_URL = `https://hcmv2.anantatek.com/assets/UploadImg/${STATIC_LOGO_FILENAME}`; // <-- Set your actual logo hosting path here
 
 const MyPaySlip = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
+  const {user} = useAuth();
 
+  console.log(user, 'User Details from Auth Context');
   const [apiPayslips, setApiPayslips] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState(null);
   const [fromDate, setFromDate] = useState(null);
@@ -109,9 +115,12 @@ const MyPaySlip = () => {
       );
 
       console.log('✅ API Response:', response.data);
-      setApiPayslips(response.data?.payRollDraftViewModels || []); 
+      setApiPayslips(response.data?.payRollDraftViewModels || []);
 
-      console.log('📥 Received Payslips:', response.data?.payRollDraftViewModels || []);
+      console.log(
+        '📥 Received Payslips:',
+        response.data?.payRollDraftViewModels || [],
+      );
     } catch (error) {
       console.error('❌ Error fetching payslip data:', error);
       if (error.response) {
@@ -137,124 +146,142 @@ const MyPaySlip = () => {
     fetchPayslips().finally(() => setRefreshing(false));
   };
 
-  const generatePayslipPDF = async (payslipData) => {
+
+  const generatePayslipPDF = async payslipData => {
     try {
-      const formatCurrency = (value) => {
+      const formatCurrency = value => {
         if (isNaN(parseFloat(value))) return '₹0.00';
         return `₹${parseFloat(value).toFixed(2)}`;
       };
 
       const formattedData = {
-      empId: payslipData.employeeCodeNo || 'N/A',
-      name: payslipData.employeeName || 'N/A',
-      designation: employeeDetails.designationName || 'N/A',
-      department: employeeDetails.departmentName || 'N/A',
-      doj: payslipData.doj || '10-06-2023',
-      netPay: formatCurrency(payslipData.netPayble),
-      paidDays: payslipData.noOfPaybleDays || 0,
-      lopDays: payslipData.unpaidLeave || 0,
-      earnings: [
-        {name: 'Basic', amount: formatCurrency(payslipData.basicSalary)},
-        {name: 'HRA', amount: formatCurrency(payslipData.hra)},
-        {
-          name: 'Conveyance Allowance',
-          amount: formatCurrency(payslipData.convAllowance),
-        },
-        {
-          name: 'Travel Allowance',
-          amount: formatCurrency(payslipData.travelExpense),
-        },
-        {
-          name: 'Telephone Allowance',
-          amount: formatCurrency(payslipData.teleExpense),
-        },
-        {
-          name: 'Medical Allowance',
-          amount: formatCurrency(payslipData.medicalAllowance),
-        },
-        payslipData.performanceBonus > 0 && {
-          name: 'Performance Bonus',
-          amount: formatCurrency(payslipData.performanceBonus),
-        },
-        {
-          name: 'Expense Claim Amount',
-          amount: formatCurrency(payslipData.ExpenseClaimAmount),
-        },
-        {
-          name: 'Overtime Amount',
-          amount: formatCurrency(payslipData.overTimeAmount),
-        },
-      ].filter(Boolean),
-      deductions: [
-        {
-          name: 'Esic Employee',
-          amount: formatCurrency(payslipData.esicemployee),
-        },
-        {name: 'EPF Employee', amount: formatCurrency(payslipData.epfemployee)},
-        payslipData.tdsAmt > 0 && {
-          name: 'TDS',
-          amount: formatCurrency(payslipData.tdsAmt),
-        },
-      
+        empId: payslipData.employeeCodeNo || 'N/A',
+        name: payslipData.employeeName || 'N/A',
+        designation: employeeDetails.designationName || 'N/A',
+        department: employeeDetails.departmentName || 'N/A',
+        doj: payslipData.doj || '10-06-2023',
+        netPay: formatCurrency(payslipData.netPayble),
+        paidDays: payslipData.noOfPaybleDays || 0,
+        lopDays: payslipData.unpaidLeave || 0,
+        earnings: [
+          {name: 'Basic', amount: formatCurrency(payslipData.basicSalary)},
+          {name: 'HRA', amount: formatCurrency(payslipData.hra)},
+          {
+            name: 'Conveyance Allowance',
+            amount: formatCurrency(payslipData.convAllowance),
+          },
+          {
+            name: 'Travel Allowance',
+            amount: formatCurrency(payslipData.travelExpense),
+          },
+          {
+            name: 'Telephone Allowance',
+            amount: formatCurrency(payslipData.teleExpense),
+          },
+          {
+            name: 'Medical Allowance',
+            amount: formatCurrency(payslipData.medicalAllowance),
+          },
+          payslipData.performanceBonus > 0 && {
+            name: 'Performance Bonus',
+            amount: formatCurrency(payslipData.performanceBonus),
+          },
+          {
+            name: 'Expense Claim Amount',
+            amount: formatCurrency(payslipData.ExpenseClaimAmount),
+          },
+          {
+            name: 'Overtime Amount',
+            amount: formatCurrency(payslipData.overTimeAmount),
+          },
+        ].filter(Boolean),
+        deductions: [
+          {
+            name: 'Esic Employee',
+            amount: formatCurrency(payslipData.esicemployee),
+          },
+          {
+            name: 'EPF Employee',
+            amount: formatCurrency(payslipData.epfemployee),
+          },
+          payslipData.tdsAmt > 0 && {
+            name: 'TDS',
+            amount: formatCurrency(payslipData.tdsAmt),
+          },
 
-        {
-          name: 'Advance Recovery',
-          amount: formatCurrency(payslipData.advancePayment),
-        },
-        {
-          name: 'Professional Tax',
-          amount: formatCurrency(payslipData.professionalTax),
-        },
-        {
-          name: 'Miscellaneous Deduction',
-          amount: formatCurrency(payslipData.miscellaneousDeduction),
-        },
+          {
+            name: 'Advance Recovery',
+            amount: formatCurrency(payslipData.advancePayment),
+          },
+          {
+            name: 'Professional Tax',
+            amount: formatCurrency(payslipData.professionalTax),
+          },
+          {
+            name: 'Miscellaneous Deduction',
+            amount: formatCurrency(payslipData.miscellaneousDeduction),
+          },
 
-        // payslipData.Advancerecovery > 0 && {
-        //   name: 'Advance Recovery',
-        //   amount: formatCurrency(payslipData.AdvanceRecovery)
-        // },
-        payslipData.lateComminAmount > 0 && {
-          name: 'Late Comimg Deduction',
-          amount: formatCurrency(payslipData.lateComminAmount),
-        },
-        {
-          name: 'Early Going Deduction',
-          amount: formatCurrency(payslipData.earlyGoingDeduction),
-        },
-        {
-          name: 'Un-Approved Leave Amount',
-          amount: formatCurrency(payslipData.unapprovedLeaveAmount),
-        },
-      ].filter(Boolean),
-      payPeriod:
-        payslipData.paySliperiod ||
-        new Date(payslipData.payslipDate).toLocaleDateString('en-US', {
-          month: 'long',
-          year: 'numeric',
-        }),
-    };
+          // payslipData.Advancerecovery > 0 && {
+          //   name: 'Advance Recovery',
+          //   amount: formatCurrency(payslipData.AdvanceRecovery)
+          // },
+          payslipData.lateComminAmount > 0 && {
+            name: 'Late Comimg Deduction',
+            amount: formatCurrency(payslipData.lateComminAmount),
+          },
+          {
+            name: 'Early Going Deduction',
+            amount: formatCurrency(payslipData.earlyGoingDeduction ?? 4.23),
+          },
+          {
+            name: 'Un-Approved Leave Amount',
+            amount: formatCurrency(payslipData.unapprovedLeaveAmount),
+          },
+        ].filter(Boolean),
+        payPeriod:
+          payslipData.paySliperiod ||
+          new Date(payslipData.payslipDate).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          }),
+      };
 
+      const calculateTotal = items =>
+        items.reduce(
+          (total, item) =>
+            total + parseFloat(item.amount.replace(/[^0-9.]/g, '')),
+          0,
+        );
 
-    const calculateTotal = (items) =>
-      items.reduce((total, item) => total + parseFloat(item.amount.replace(/[^0-9.]/g, '')), 0);
+      const totalEarnings = calculateTotal(formattedData.earnings);
+      const totalDeductions = calculateTotal(formattedData.deductions);
 
-    const totalEarnings = calculateTotal(formattedData.earnings);
-    const totalDeductions = calculateTotal(formattedData.deductions);
-
-    const generateRows = (items) => items.map(item => `
+      const generateRows = items =>
+        items
+          .map(
+            item => `
       <div class="d-flex justify-content-between px-2 py-1">
         <p class="mb-1 fw-semibold">${item.name}</p>
         <p class="mb-1 fw-semibold">${item.amount}</p>
       </div>
-    `).join('');
+    `,
+          )
+          .join('');
 
-    const earningsHtml = generateRows(formattedData.earnings);
-    const deductionsHtml = generateRows(formattedData.deductions);
+      const earningsHtml = generateRows(formattedData.earnings);
+      const deductionsHtml = generateRows(formattedData.deductions);
 
-    const logoBase64 = `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAADrL+HoY7K6mL5mpr3kunKrqXz2`;
+      // Fetch static logo from the server
+      const logoResponse = await axios.get(STATIC_LOGO_URL, {
+        responseType: 'arraybuffer',
+      });
+      const logoBase64 = `data:image/png;base64,${Buffer.from(
+        logoResponse.data,
+      ).toString('base64')}`;
+   
 
-        const dynamicHtml = `
+      const dynamicHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -338,17 +365,29 @@ const MyPaySlip = () => {
     <hr class="mt-2 mb-1">
 
     <div class="mt-2">
-      <h2 class="fw-bold mb-1">Payslip for the Period: ${formattedData.payPeriod}</h2>
-      <h3 class="mb-1">${formattedData.name} (Emp ID: ${formattedData.empId})</h3>
-      <p class="mb-1">${formattedData.designation}, ${formattedData.department}</p>
+      <h2 class="fw-bold mb-1">Payslip for the Period: ${
+        formattedData.payPeriod
+      }</h2>
+      <h3 class="mb-1">${formattedData.name} (Emp ID: ${
+        formattedData.empId
+      })</h3>
+      <p class="mb-1">${formattedData.designation}, ${
+        formattedData.department
+      }</p>
       <p>Date of Joining: ${formattedData.doj}</p>
     </div>
 
     <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
       <div>
-        <p class="fw-semibold">UAN: ${employeeDetails.uanno ? employeeDetails.uanno : 'NA'}</p>
-        <p class="fw-semibold">PF A/C: ${employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'}</p>
-        <p class="fw-semibold">Bank A/C: ${employeeDetails.bankAcNo ? employeeDetails.bankAcNo : 'NA'}</p>
+        <p class="fw-semibold">UAN: ${
+          employeeDetails.uanno ? employeeDetails.uanno : 'NA'
+        }</p>
+        <p class="fw-semibold">PF A/C: ${
+          employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'
+        }</p>
+        <p class="fw-semibold">Bank A/C: ${
+          employeeDetails.bankAcNo ? employeeDetails.bankAcNo : 'NA'
+        }</p>
       </div>
       <div class="text-right">
               <p class="net-pay">Employee Net Pay: ${formattedData.netPay}</p>
@@ -381,8 +420,6 @@ const MyPaySlip = () => {
 </html>
 `;
 
-
-
       const options = {
         html: dynamicHtml,
         fileName: `payslip_${formattedData.empId}_${Date.now()}`,
@@ -403,7 +440,7 @@ const MyPaySlip = () => {
   const downloadCancelled = React.useRef(false);
 
   // Update downloadPayslip to support cancel
-  const downloadPayslip = async (payslipData) => {
+  const downloadPayslip = async payslipData => {
     try {
       setDownloadLoading(true);
       setPdfError(null);
@@ -432,13 +469,10 @@ const MyPaySlip = () => {
     setPdfError(null);
   };
 
-  const openPayslipPreview = (payslipData) => {
+  const openPayslipPreview = payslipData => {
     setSelectedPayslip(payslipData);
     setShowPayslipModal(true);
   };
-
-
-
 
   const renderItem = ({item}) => (
     <Card style={styles.card}>
@@ -466,7 +500,9 @@ const MyPaySlip = () => {
               // Only show ActivityIndicator and Cancel button if downloading
               <View style={{alignItems: 'center'}}>
                 <ActivityIndicator size="small" color="#6D75FF" />
-                <TouchableOpacity onPress={handleCancelDownload} style={{marginTop: 2}}>
+                <TouchableOpacity
+                  onPress={handleCancelDownload}
+                  style={{marginTop: 2}}>
                   <Text style={{color: '#ff5c5c', fontSize: 12}}>Cancel</Text>
                 </TouchableOpacity>
               </View>
@@ -481,8 +517,6 @@ const MyPaySlip = () => {
 
   const ListHeader = () => (
     <View style={styles.headerContainer}>
-     
-
       <View style={styles.dateRow}>
         <TouchableOpacity
           style={styles.dateButton}
@@ -567,7 +601,6 @@ const MyPaySlip = () => {
         onCancel={() => setShowToPicker(false)}
       />
 
-     
       {/* Error Modal - optional */}
       {pdfError && (
         <Modal
@@ -578,7 +611,7 @@ const MyPaySlip = () => {
             <View style={styles.errorModalContent}>
               <Text style={styles.errorModalTitle}>Error</Text>
               <Text style={styles.errorModalText}>{pdfError}</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.errorModalButton}
                 onPress={() => setPdfError(null)}>
                 <Text style={styles.errorModalButtonText}>OK</Text>
@@ -594,8 +627,8 @@ const MyPaySlip = () => {
         animationType="slide"
         onRequestClose={() => setShowPayslipModal(false)}>
         {selectedPayslip && (
-          <PDFViewer 
-            payslipData={selectedPayslip} 
+          <PDFViewer
+            payslipData={selectedPayslip}
             visible={showPayslipModal}
             onClose={() => setShowPayslipModal(false)}
             employeeDetails={employeeDetails}
@@ -779,10 +812,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-
-
-
-
 
 export default MyPaySlip;
