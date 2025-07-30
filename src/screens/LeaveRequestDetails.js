@@ -1098,6 +1098,13 @@ const LeaveRequest = ({navigation}) => {
               <Text style={styles.durationText}>
                 {item.remarks || 'No reason '}
               </Text>
+              {/* Add right side dropdown arrow icon */}
+              <Icon
+                name="chevron-down"
+                size={18}
+                color="#6b7280"
+                style={{marginLeft: 8, position: 'absolute', right: 0, top: 0}}
+              />
             </View>
           </View>
 
@@ -1295,6 +1302,12 @@ const LeaveRequest = ({navigation}) => {
                         )}
                       </View>
                     </View>
+                    {/* Custom validation message for sum exceeding applied leave */}
+                    {Number(approvedLeaveCount[itemId] || 0) + Number(unapprovedLeaveCount[itemId] || 0) > Number(item.leaveNo || 0) && (
+                      <Text style={styles.errorText}>
+                        Approve leave or unapprove leave leave no should not be greater than applied Leave no. Kindly review and adjust your request.
+                      </Text>
+                    )}
                   </Card.Content>
                 </Card>
               )}
@@ -2310,9 +2323,3 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-//     borderRadius: 6,
-//     borderWidth: 1,
-//     borderColor: '#DBEAFE',
-//     marginLeft: 8,
-//   },
-// });

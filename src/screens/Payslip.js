@@ -18,7 +18,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
-import DownloadSuccessModal from '../component/DownloadSuccessModal';
+
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 import axios from 'axios';
@@ -144,15 +144,12 @@ const MyPaySlip = () => {
         return `₹${parseFloat(value).toFixed(2)}`;
       };
 
-     const formattedData = {
+      const formattedData = {
       empId: payslipData.employeeCodeNo || 'N/A',
       name: payslipData.employeeName || 'N/A',
       designation: employeeDetails.designationName || 'N/A',
       department: employeeDetails.departmentName || 'N/A',
       doj: payslipData.doj || '10-06-2023',
-      uan: payslipData.uan || 'N/A',
-      pfAccount: payslipData.pafAccNo || 'N/A',
-      bankAccount: payslipData.bankAcNo || 'N/A',
       netPay: formatCurrency(payslipData.netPayble),
       paidDays: payslipData.noOfPaybleDays || 0,
       lopDays: payslipData.unpaidLeave || 0,
@@ -185,7 +182,7 @@ const MyPaySlip = () => {
         },
         {
           name: 'Overtime Amount',
-          amount: formatCurrency(payslipData.OvertimeAmount),
+          amount: formatCurrency(payslipData.overTimeAmount),
         },
       ].filter(Boolean),
       deductions: [
@@ -198,10 +195,7 @@ const MyPaySlip = () => {
           name: 'TDS',
           amount: formatCurrency(payslipData.tdsAmt),
         },
-        {
-          name: 'Professional Tax',
-          amount: formatCurrency(payslipData.professionalTax),
-        },
+      
 
         {
           name: 'Advance Recovery',
@@ -260,13 +254,12 @@ const MyPaySlip = () => {
 
     const logoBase64 = `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAADrL+HoY7K6mL5mpr3kunKrqXz2`;
 
-
-      const dynamicHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-             <style>
+        const dynamicHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -331,13 +324,13 @@ const MyPaySlip = () => {
       color: #2e7d32;
     }
   </style>
-        </head>
-        <body>
+</head>
+<body>
   <div class="payslip">
     <div class="d-flex justify-content-between align-items-start">
       <div>
-        <h1 class="fw-bold mb-1">Info Trading Pvt Ltd</h1>
-        <p class="text-muted">Delhi Secretariat, I.P. Estate, New Delhi-110002</p>
+        <h1 class="fw-bold mb-1">Honey and Heath Trading</h1>
+        <p class="text-muted">Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum,New Delhi,456123</p>
       </div>
       <img src="${logoBase64}" width="70" />
     </div>
@@ -345,7 +338,7 @@ const MyPaySlip = () => {
     <hr class="mt-2 mb-1">
 
     <div class="mt-2">
-      <h2 class="fw-bold mb-1">Payslip for: ${formattedData.payPeriod}</h2>
+      <h2 class="fw-bold mb-1">Payslip for the Period: ${formattedData.payPeriod}</h2>
       <h3 class="mb-1">${formattedData.name} (Emp ID: ${formattedData.empId})</h3>
       <p class="mb-1">${formattedData.designation}, ${formattedData.department}</p>
       <p>Date of Joining: ${formattedData.doj}</p>
@@ -353,14 +346,15 @@ const MyPaySlip = () => {
 
     <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
       <div>
-        <p class="fw-semibold">UAN: ${formattedData.uan}</p>
-        <p class="fw-semibold">PF A/C: ${formattedData.pfAccount}</p>
-        <p class="fw-semibold">Bank A/C: ${formattedData.bankAccount}</p>
+        <p class="fw-semibold">UAN: ${employeeDetails.uanno ? employeeDetails.uanno : 'NA'}</p>
+        <p class="fw-semibold">PF A/C: ${employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'}</p>
+        <p class="fw-semibold">Bank A/C: ${employeeDetails.bankAcNo ? employeeDetails.bankAcNo : 'NA'}</p>
       </div>
       <div class="text-right">
-        <p class="fw-semibold">Paid Days: ${formattedData.paidDays}</p>
+              <p class="net-pay">Employee Net Pay: ${formattedData.netPay}</p>
+        <p class="fw-semibold">Paid Days: ${formattedData.paidDays || 31}</p>
         <p class="fw-semibold">LOP Days: ${formattedData.lopDays}</p>
-        <p class="net-pay">Net Pay: ${formattedData.netPay}</p>
+      
       </div>
     </div>
 
@@ -384,8 +378,10 @@ const MyPaySlip = () => {
     </div>
   </div>
 </body>
-        </html>
-      `;
+</html>
+`;
+
+
 
       const options = {
         html: dynamicHtml,
@@ -403,25 +399,37 @@ const MyPaySlip = () => {
     }
   };
 
+  // Add a ref to track if download is cancelled
+  const downloadCancelled = React.useRef(false);
+
+  // Update downloadPayslip to support cancel
   const downloadPayslip = async (payslipData) => {
     try {
       setDownloadLoading(true);
       setPdfError(null);
-      
+      downloadCancelled.current = false;
+
       const filePath = await generatePayslipPDF(payslipData);
-      
+      if (downloadCancelled.current) return;
+
       if (filePath) {
-        // Use RNPrint to print the file
         await RNPrint.print({filePath});
-        // Show success modal
         setModalVisible(true);
       }
     } catch (error) {
+      if (downloadCancelled.current) return;
       console.error('Download error:', error);
       setPdfError(error.message || 'Failed to download PDF');
     } finally {
-      setDownloadLoading(false);
+      if (!downloadCancelled.current) setDownloadLoading(false);
     }
+  };
+
+  // Cancel download handler
+  const handleCancelDownload = () => {
+    downloadCancelled.current = true;
+    setDownloadLoading(false);
+    setPdfError(null);
   };
 
   const openPayslipPreview = (payslipData) => {
@@ -455,7 +463,13 @@ const MyPaySlip = () => {
             onPress={() => downloadPayslip(item)}
             disabled={downloadLoading}>
             {downloadLoading ? (
-              <ActivityIndicator size="small" color="#6D75FF" />
+              // Only show ActivityIndicator and Cancel button if downloading
+              <View style={{alignItems: 'center'}}>
+                <ActivityIndicator size="small" color="#6D75FF" />
+                <TouchableOpacity onPress={handleCancelDownload} style={{marginTop: 2}}>
+                  <Text style={{color: '#ff5c5c', fontSize: 12}}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <Icon name="download" size={24} color="#6D75FF" />
             )}
@@ -550,13 +564,7 @@ const MyPaySlip = () => {
         onCancel={() => setShowToPicker(false)}
       />
 
-      {/* Success Modal */}
-      <DownloadSuccessModal
-        visible={modalVisible}
-        fileName="MyPayslip_April.pdf"
-        onClose={() => setModalVisible(false)}
-      />
-
+     
       {/* Error Modal - optional */}
       {pdfError && (
         <Modal
@@ -768,6 +776,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+
+
 
 
 

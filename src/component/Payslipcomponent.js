@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,26 +12,31 @@ import {
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import Pdf from 'react-native-pdf';
 import RNPrint from 'react-native-print';
+import LottieView from 'lottie-react-native';
 
 
 const PDFViewer = ({payslipData, visible, onClose , employeeDetails }) => {
   const [pdfPath, setPdfPath] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isCancelled = useRef(false);
 
 
   console.log(employeeDetails, 'employeeDetails ==================================================================================in PDFViewer');
 
   useEffect(() => {
+    isCancelled.current = false;
     if (payslipData && visible) {
       generatePDF();
     }
+    // Cleanup: set cancel flag if component unmounts or modal closes
+    return () => { isCancelled.current = true; };
   }, [payslipData, visible]);
 
 const generatePDF = async () => {
   setIsLoading(true);
   setError(null);
-
+  setPdfPath(null);
   try {
     const formatCurrency = (value) => {
       if (isNaN(parseFloat(value))) return '₹0.00';
@@ -44,9 +49,6 @@ const generatePDF = async () => {
       designation: employeeDetails.designationName || 'N/A',
       department: employeeDetails.departmentName || 'N/A',
       doj: payslipData.doj || '10-06-2023',
-      uan: payslipData.uan || 'N/A',
-      pfAccount: payslipData.pafAccNo || 'N/A',
-      bankAccount: payslipData.bankAcNo || 'N/A',
       netPay: formatCurrency(payslipData.netPayble),
       paidDays: payslipData.noOfPaybleDays || 0,
       lopDays: payslipData.unpaidLeave || 0,
@@ -79,7 +81,7 @@ const generatePDF = async () => {
         },
         {
           name: 'Overtime Amount',
-          amount: formatCurrency(payslipData.OvertimeAmount),
+          amount: formatCurrency(payslipData.overTimeAmount),
         },
       ].filter(Boolean),
       deductions: [
@@ -92,10 +94,7 @@ const generatePDF = async () => {
           name: 'TDS',
           amount: formatCurrency(payslipData.tdsAmt),
         },
-        {
-          name: 'Professional Tax',
-          amount: formatCurrency(payslipData.professionalTax),
-        },
+      
 
         {
           name: 'Advance Recovery',
@@ -228,8 +227,8 @@ const generatePDF = async () => {
   <div class="payslip">
     <div class="d-flex justify-content-between align-items-start">
       <div>
-        <h1 class="fw-bold mb-1">Info Trading Pvt Ltd</h1>
-        <p class="text-muted">Delhi Secretariat, I.P. Estate, New Delhi-110002</p>
+        <h1 class="fw-bold mb-1">Honey and Heath Trading</h1>
+        <p class="text-muted">Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum,New Delhi,456123</p>
       </div>
       <img src="${logoBase64}" width="70" />
     </div>
@@ -237,7 +236,7 @@ const generatePDF = async () => {
     <hr class="mt-2 mb-1">
 
     <div class="mt-2">
-      <h2 class="fw-bold mb-1">Payslip for: ${formattedData.payPeriod}</h2>
+      <h2 class="fw-bold mb-1">Payslip for the Period: ${formattedData.payPeriod}</h2>
       <h3 class="mb-1">${formattedData.name} (Emp ID: ${formattedData.empId})</h3>
       <p class="mb-1">${formattedData.designation}, ${formattedData.department}</p>
       <p>Date of Joining: ${formattedData.doj}</p>
@@ -245,14 +244,15 @@ const generatePDF = async () => {
 
     <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
       <div>
-        <p class="fw-semibold">UAN: ${formattedData.uan}</p>
-        <p class="fw-semibold">PF A/C: ${formattedData.pfAccount}</p>
-        <p class="fw-semibold">Bank A/C: ${formattedData.bankAccount}</p>
+        <p class="fw-semibold">UAN: ${employeeDetails.uanno ? employeeDetails.uanno : 'NA'}</p>
+        <p class="fw-semibold">PF A/C: ${employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'}</p>
+        <p class="fw-semibold">Bank A/C: ${employeeDetails.bankAcNo ? employeeDetails.bankAcNo : 'NA'}</p>
       </div>
       <div class="text-right">
-        <p class="fw-semibold">Paid Days: ${formattedData.paidDays}</p>
+              <p class="net-pay">Employee Net Pay: ${formattedData.netPay}</p>
+        <p class="fw-semibold">Paid Days: ${formattedData.paidDays || 31}</p>
         <p class="fw-semibold">LOP Days: ${formattedData.lopDays}</p>
-        <p class="net-pay">Net Pay: ${formattedData.netPay}</p>
+      
       </div>
     </div>
 
@@ -287,14 +287,16 @@ const generatePDF = async () => {
     };
 
     const file = await RNHTMLtoPDF.convert(options);
+    if (isCancelled.current) return; // Don't update state if cancelled
     if (!file.filePath) throw new Error('Failed to generate PDF file');
     setPdfPath(file.filePath);
     
   } catch (err) {
+    if (isCancelled.current) return;
     console.error('PDF generation error:', err);
     setError(err.message || 'Failed to generate PDF');
   } finally {
-    setIsLoading(false);
+    if (!isCancelled.current) setIsLoading(false);
   }
 };
 
@@ -321,6 +323,16 @@ const printBill = async () => {
   }
 };
 
+const handleClose = () => {
+  if (isLoading) {
+    isCancelled.current = true;
+    setIsLoading(false);
+    setError(null);
+    setPdfPath(null);
+  }
+  onClose();
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -328,18 +340,23 @@ const printBill = async () => {
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Payslip</Text>
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.printButton} onPress={printBill}>
+            <TouchableOpacity style={styles.printButton} onPress={printBill} disabled={isLoading}>
               <Text style={styles.buttonText}>Print</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeText}>Close</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <Text style={styles.closeText}>{isLoading ? 'Cancel' : 'Close'}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0066cc" />
+            <LottieView
+              source={require('../lotti/download.json')}
+              autoPlay
+              loop
+              style={{width: 120, height: 120}}
+            />
             <Text style={styles.loadingText}>Generating PDF document...</Text>
           </View>
         ) : error ? (
@@ -456,5 +473,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 
 export default PDFViewer;
