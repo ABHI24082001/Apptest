@@ -12,6 +12,7 @@ import {
   Modal,
   ScrollView,
   Linking,
+  Image,
 } from 'react-native';
 import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -52,13 +53,7 @@ const MyPaySlip = () => {
   const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [pdfError, setPdfError] = useState(null);
   const [downloadLoading, setDownloadLoading] = useState(false);
-
-  // const filterOptions = [
-  //   {label: 'Last Month', value: 'last_month'},
-  //   {label: 'Last 3 Months', value: 'last_3_months'},
-  //   {label: 'Quarterly', value: 'quarterly'},
-  //   {label: 'Yearly', value: 'yearly'},
-  // ];
+  const [logoBase64, setLogoBase64] = useState('');
 
   const formatForDotNet = date => {
     const d = new Date(date);
@@ -130,6 +125,58 @@ const MyPaySlip = () => {
     }
   };
 
+  const [visible, setVisible] = useState(false);
+   const [imageUrl, setImageUrl] = useState(null);
+    const [employeeData, setEmployeeData] = useState(null);
+    // const {user} = useAuth();
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axiosinstance.get(
+            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
+          );
+          setEmployeeData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [user]);
+
+ useEffect(() => {
+      // Always log the user object for debugging
+      console.log('ProfileMenu user:', user);
+      // debugger; // Debug here to inspect user object
+  
+      if (user?.empImage) {
+        // Compose the direct image URL using empImage
+        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
+        setImageUrl(directImageUrl);
+  
+        // Optionally, check if the image exists on the server
+        const fetchUrl = `http://192.168.29.2:91/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
+        fetch(fetchUrl, { method: 'GET' })
+          .then(response => {
+            console.log('Profile image fetch URL:', fetchUrl);
+            console.log('Profile image fetch response:', response);
+            // debugger; // Debug here to inspect fetch response
+            if (!response.ok) {
+              setImageUrl(null);
+            }
+          })
+          .catch(err => {
+            console.log('Profile image fetch error:', err);
+            setImageUrl(null);
+          });
+      } else {
+        setImageUrl(null);
+      }
+    }, [user?.empImage]);
+
+
   useEffect(() => {
     if (
       fromDate &&
@@ -141,6 +188,10 @@ const MyPaySlip = () => {
       fetchPayslips().finally(() => setIsLoading(false));
     }
   }, [fromDate, toDate, employeeDetails]);
+
+
+    const IMG_BASE_URL = 'http://192.168.29.2:90/assets/UploadImg/';
+
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -277,9 +328,8 @@ const MyPaySlip = () => {
       const logoResponse = await axiosinstance.get(STATIC_LOGO_URL, {
         responseType: 'arraybuffer',
       });
-      const logoBase64 = `data:image/png;base64,${Buffer.from(
-        logoResponse.data,
-      ).toString('base64')}`;
+      const logoBase64Data = Buffer.from(logoResponse.data).toString('base64');
+      const logoBase64 = `data:image/png;base64,${logoBase64Data}`;
    
 
       const dynamicHtml = `
@@ -381,7 +431,7 @@ const MyPaySlip = () => {
     <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
       <div>
         <p class="fw-semibold">UAN: ${
-          employeeDetails.uanno ? employeeDetails.uanno : 'NA'
+          employeeData.uanno ? employeeData.uanno : 'NA'
         }</p>
         <p class="fw-semibold">PF A/C: ${
           employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'
@@ -563,6 +613,15 @@ const MyPaySlip = () => {
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
       </Appbar.Header>
+
+      {/* Show logoBase64 image if available */}
+      {typeof logoBase64 === 'string' && !!logoBase64 && (
+        <Image
+          source={{ uri: `data:image/png;base64,${logoBase64}` }}
+          style={{ width: 70, height: 70, alignSelf: 'center', marginVertical: 10 }}
+          resizeMode="contain"
+        />
+      )}
 
       <FlatList
         data={apiPayslips}
@@ -815,3 +874,4 @@ const styles = StyleSheet.create({
 });
 
 export default MyPaySlip;
+

@@ -102,10 +102,7 @@ const CustomDrawer = ({navigation}) => {
     transform: [{scale: withSpring(avatarScale.value)}],
   }));
 
-  const handleAvatarPress = () => {
-    avatarScale.value = 0.95;
-    setTimeout(() => (avatarScale.value = 1), 200);
-  };
+
 
   const DrawerItem = ({icon, activeIcon, label, screen, params}) => {
     const isActive = selectedScreen === screen;
@@ -182,9 +179,9 @@ const CustomDrawer = ({navigation}) => {
         // Compose the direct image URL using empImage
         const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
         setImageUrl(directImageUrl);
-  
+  debugger
         // Optionally, check if the image exists on the server
-        const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
+        const fetchUrl = `https://hcmapiv2.anantatek.com/api/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
         fetch(fetchUrl, { method: 'GET' })
           .then(response => {
             console.log('Profile image fetch URL:', fetchUrl);
@@ -203,8 +200,7 @@ const CustomDrawer = ({navigation}) => {
       }
     }, [user?.empImage]);
 
-  const IMG_BASE_URL = 'http://192.168.29.2:90/assets/UploadImg/';
- 
+  const IMG_BASE_URL = 'https://hcmapiv2.anantatek.com/api/UploadImg/';
 
   console.log('employee avatar ➜', imageUrl);
 

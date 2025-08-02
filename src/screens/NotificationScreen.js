@@ -12,49 +12,26 @@ const RequestCard = ({ item, onPress }) => {
     <TouchableOpacity 
       activeOpacity={0.9} 
       onPress={onPress}
-      style={[styles.card, { borderLeftColor: item.color }]}
+      style={[styles.card, { borderLeftColor: '#2196F3' }]}
     >
       <View style={styles.row}>
-        {typeof item.avatar === 'string' ? (
-          <Avatar.Text 
-            size={44} 
-            label={item.avatar} 
-            style={[styles.avatar, { backgroundColor: `${item.color}20` }]} 
-            labelStyle={styles.avatarText}
-          />
-        ) : (
-          <Avatar.Image size={44} source={item.avatar} style={styles.avatar} />
-        )}
         <View style={styles.textContent}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{item.type}</Text>
-            {item.unread && <View style={styles.unreadBadge} />}
-          </View>
-          <View style={styles.statusRow}>
-            <MaterialCommunityIcons 
-              name={item.icon} 
-              size={16} 
-              color={item.color} 
-              style={styles.statusIcon}
-            />
-            <Text style={[styles.statusText, { color: item.color }]} numberOfLines={1}>
-              {item.status}
-            </Text>
-          </View>
-          <Text style={styles.meta} numberOfLines={1}>
-            {`${item.name}, ${item.title}${item.department ? `, ${item.department}` : ''}`}
+          <Text style={styles.employeeName} numberOfLines={1}>
+            {item.employeeName || 'Unknown'}
           </Text>
-          <Text style={styles.idText} numberOfLines={1}>{`ID: ${item.id}`}</Text>
+          <Text style={styles.notificationText} numberOfLines={2}>
+            {item.notification}
+          </Text>
+          <View style={styles.timeRow}>
+            <MaterialCommunityIcons 
+              name="clock-time-four-outline" 
+              size={14} 
+              color="#757575" 
+              style={styles.timeIcon}
+            />
+            <Text style={styles.timeText}>{item.time}</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.timeRow}>
-        <MaterialCommunityIcons 
-          name="clock-time-four-outline" 
-          size={14} 
-          color="#757575" 
-          style={styles.timeIcon}
-        />
-        <Text style={styles.timeText}>{item.time}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -113,36 +90,26 @@ const RequestDetailsScreen = () => {
   // Process and format notifications with improved date handling
   const processNotifications = (data) => {
     try {
-      console.log('Processing notifications:', data.length);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const todayNotifications = [];
       const olderNotifications = [];
       let unreadCounter = 0;
-      
+
       data.forEach(item => {
         try {
           const notificationDate = new Date(item.createdDate);
-          console.log(`Notification date: ${notificationDate} for item: ${item.id}`);
           const formattedDate = formatDate(item.createdDate);
-          
-          // Create notification object with default values for missing fields
+
           const notification = {
             id: item.id || Math.random().toString(),
-            type: getNotificationType(item.notification || ''),
-            name: item.employeeName || 'Unknown',
-            title: 'Employee', // Default title
-            department: '', 
+            employeeName: item.employeeName || 'Unknown',
+            notification: item.notification || '',
             time: formattedDate,
-            status: getNotificationStatus(item.notification || ''),
-            color: getStatusColor(item.notification || ''),
-            icon: getStatusIcon(item.notification || ''),
-            avatar: (item.employeeName && item.employeeName.charAt(0)) || 'U',
             unread: true,
           };
-          
-          // Check if the date is valid before comparing
+
           if (!isNaN(notificationDate.getTime())) {
             if (notificationDate >= today) {
               todayNotifications.push(notification);
@@ -150,18 +117,14 @@ const RequestDetailsScreen = () => {
               olderNotifications.push(notification);
             }
           } else {
-            // If date is invalid, default to older notifications
             olderNotifications.push(notification);
           }
-          
           unreadCounter++;
         } catch (itemErr) {
           console.error('Error processing notification item:', itemErr, item);
         }
       });
-      
-      console.log(`Processed: Today: ${todayNotifications.length}, Older: ${olderNotifications.length}`);
-      
+
       setNotifications({
         today: todayNotifications,
         older: olderNotifications
@@ -202,37 +165,6 @@ const RequestDetailsScreen = () => {
       console.error('Error formatting time:', err);
       return '';
     }
-  };
-  
-  const getNotificationType = (notification) => {
-    if (notification.includes('leave')) return 'Leave Status Update';
-    if (notification.includes('exit')) return 'Exit Request';
-    if (notification.includes('shift')) return 'Shift Update';
-    return 'Notification';
-  };
-  
-  const getNotificationStatus = (notification) => {
-    if (notification.includes('approved')) return 'Approved';
-    if (notification.includes('rejected')) return 'Rejected by HR';
-    if (notification.includes('assigned')) return 'New Assignment';
-    if (notification.includes('deassigned')) return 'Removed from Assignment';
-    return 'Notification';
-  };
-  
-  const getStatusColor = (notification) => {
-    if (notification.includes('approved')) return '#4CAF50';
-    if (notification.includes('rejected')) return '#FF5252';
-    if (notification.includes('assigned')) return '#2196F3';
-    if (notification.includes('deassigned')) return '#FFC107';
-    return '#757575';
-  };
-  
-  const getStatusIcon = (notification) => {
-    if (notification.includes('approved')) return 'check-circle';
-    if (notification.includes('rejected')) return 'close-circle';
-    if (notification.includes('assigned')) return 'account-check';
-    if (notification.includes('deassigned')) return 'account-remove';
-    return 'bell';
   };
 
   const markAllAsRead = () => {
@@ -447,60 +379,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  avatar: {
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   textContent: {
     flex: 1,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+  employeeName: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#212121',
-    flex: 1,
-  },
-  unreadBadge: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2196F3',
-    marginLeft: 8,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 4,
   },
-  statusIcon: {
-    marginRight: 4,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  meta: {
-    fontSize: 13,
-    color: '#616161',
-    marginBottom: 2,
-  },
-  idText: {
-    fontSize: 12,
-    color: '#9E9E9E',
+  notificationText: {
+    fontSize: 14,
+    color: '#424242',
+    marginBottom: 8,
   },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    justifyContent: 'flex-end',
+    marginTop: 4,
   },
   timeIcon: {
     marginRight: 4,
