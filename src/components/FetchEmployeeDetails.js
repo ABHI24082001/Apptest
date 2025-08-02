@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
-import axios from 'axios';
+// import axiosinstance from 'axiosinstance';
 import {useAuth} from '../constants/AuthContext';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 const useFetchEmployeeDetails = () => {
   const {user} = useAuth();
@@ -10,7 +11,7 @@ const useFetchEmployeeDetails = () => {
       try {
         if (user?.id) {
           console.log('Fetching employee details for user ID:', user.id); // Debug user ID
-          const response = await axios.get(
+          const response = await axiosinstance.get(
             // `https://hcmapiv2.anantatek.com/api/EmpRegistration/GetEmpRegistrationById/${user.id}`,
            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
           );
@@ -34,7 +35,7 @@ export default useFetchEmployeeDetails;
 
 
 
-// const styles = StyleSheet.create({
+
 //   header: {
 //     backgroundColor: '#fff',
 //     elevation: Platform.OS === 'android' ? 3 : 0,

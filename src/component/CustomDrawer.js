@@ -19,7 +19,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from '../constants/AuthContext';
-import axios from 'axios';
+
+import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
@@ -159,7 +160,7 @@ const CustomDrawer = ({navigation}) => {
     const fetchEmployeeData = async () => {
       try {
         if (user?.id) {
-          const response = await axios.get(
+          const response = await axiosInstance.get(
             `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
           );
           setEmployeeData(response.data);

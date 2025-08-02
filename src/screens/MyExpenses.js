@@ -20,7 +20,7 @@ import {
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import LinearGradient from 'react-native-linear-gradient';
 
 import AppSafeArea from '../component/AppSafeArea';
@@ -75,10 +75,10 @@ const LeaveReportScreen = ({ navigation }) => {
       const payload = buildCommonParameterPayload();
 
       if (tab === 'expense') {
-        const expenseRes = await axios.post(`${BASE_URL}/PaymentAdvanceRequest/GetExpenseReport`, payload);
+        const expenseRes = await axiosinstance.post(`${BASE_URL}/PaymentAdvanceRequest/GetExpenseReport`, payload);
         setExpenseData(expenseRes.data || []);
       } else {
-        const advanceRes = await axios.post(`${BASE_URL}/PaymentAdvanceRequest/GetAdvanceReport`, payload);
+        const advanceRes = await axiosinstance.post(`${BASE_URL}/PaymentAdvanceRequest/GetAdvanceReport`, payload);
         setAdvanceData(advanceRes.data || []);
       }
     } catch (error) {

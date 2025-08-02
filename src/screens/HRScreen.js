@@ -14,7 +14,7 @@ import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Avatar, Chip, Divider, Button} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 
 
@@ -89,7 +89,7 @@ const LeaveRequest = ({navigation}) => {
         apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
       }
       // debugger;;
-      ApprovalList = await axios.get(apiUrl);
+      ApprovalList = await axiosinstance.get(apiUrl);
       ApprovalList.data = ApprovalList.data.filter(
         item => item.employeeId != employeeDetails?.id,
       );
@@ -100,7 +100,7 @@ const LeaveRequest = ({navigation}) => {
 
     let roleurl = '';
     roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
-    const response = await axios.get(roleurl);
+    const response = await axiosinstance.get(roleurl);
     let roleData = null;
     console.log('Role Details========:', response.data);
     if (Array.isArray(response.data)) {
@@ -163,7 +163,7 @@ const LeaveRequest = ({navigation}) => {
         requestData,
       );
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
@@ -217,7 +217,7 @@ const LeaveRequest = ({navigation}) => {
         fromLeaveDate: formatDateForBackend(leaveItem.fromLeaveDate),
       };
 
-      const payrollRes = await axios.post(
+      const payrollRes = await axiosinstance.post(
         `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
         payrollCheckBody,
       );
@@ -313,7 +313,7 @@ const LeaveRequest = ({navigation}) => {
 
       console.log('Submitting leave approval to:', endpoint);
 
-      const approvalRes = await axios.post(endpoint, approvalPayload);
+      const approvalRes = await axiosinstance.post(endpoint, approvalPayload);
       const {data} = approvalRes;
       
       // Log the full backend response for debugging

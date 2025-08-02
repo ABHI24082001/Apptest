@@ -23,7 +23,7 @@ import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {useAuth} from '../constants/AuthContext';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import BASE_URL from '../constants/apiConfig';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 
 const Drawer = createDrawerNavigator();
 
@@ -44,7 +44,7 @@ const NotificationButton = ({navigation}) => {
         const companyId = user?.childCompanyId;
         const userId = user?.id ;
         if (companyId && userId) {
-          const response = await axios.get(
+          const response = await axiosinstance.get(
             `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`,
           );
           console.log('Notification API d==================================:', response.data);

@@ -37,7 +37,7 @@ import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 
@@ -442,7 +442,7 @@ const ProfileScreen = () => {
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
 
-      const response = await axios
+      const response = await axiosinstance
         .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
         .catch(error => {
           console.error(
@@ -500,7 +500,7 @@ const ProfileScreen = () => {
 
       console.log('📤 Uploading payload:', payload);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         'http://192.168.29.2:90/UploadDocument/UploadDocument',
         payload,
         {
@@ -532,7 +532,7 @@ const ProfileScreen = () => {
         try {
           // debugger; // For inspection
           // GET request to fetch the image
-          const fetchResponse = await axios.get(fetchUrl, {
+          const fetchResponse = await axiosinstance.get(fetchUrl, {
             responseType: 'arraybuffer',
           });
 
@@ -589,7 +589,7 @@ const ProfileScreen = () => {
       );
       console.log('Profile payload:', payload);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
         payload,
       );
@@ -810,7 +810,7 @@ const ProfileScreen = () => {
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
 
-      const response = await axios
+      const response = await axiosinstance
         .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
         .catch(error => {
           console.error(

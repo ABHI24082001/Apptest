@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import {useAuth} from '../constants/AuthContext';
 
 const useFetchLeaveData = () => {
@@ -14,7 +14,7 @@ const useFetchLeaveData = () => {
 
         if (!employeeId || !companyId) return;
 
-        const response = await axios.get(
+        const response = await axiosinstance.get(
           `https://hcmapiv2.anantatek.com/api/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
         );
 

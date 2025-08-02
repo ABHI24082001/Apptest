@@ -21,7 +21,8 @@ import {useNavigation} from '@react-navigation/native';
 
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
+
 import moment from 'moment';
 import PDFViewer from '../component/Payslipcomponent';
 import RNFS from 'react-native-fs';
@@ -109,7 +110,7 @@ const MyPaySlip = () => {
 
       console.log('📤 Sending Payload to API:', payload);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/PayRollRun/GetEmployeePaySlipList`,
         payload,
       );
@@ -273,7 +274,7 @@ const MyPaySlip = () => {
       const deductionsHtml = generateRows(formattedData.deductions);
 
       // Fetch static logo from the server
-      const logoResponse = await axios.get(STATIC_LOGO_URL, {
+      const logoResponse = await axiosinstance.get(STATIC_LOGO_URL, {
         responseType: 'arraybuffer',
       });
       const logoBase64 = `data:image/png;base64,${Buffer.from(

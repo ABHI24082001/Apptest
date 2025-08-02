@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import useFetchEmployeeDetails from './FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 
@@ -29,7 +29,7 @@ const useFetchAuth = (controllerName = 'Leaveapproval', actionName = 'Leaveappro
 
       console.log('Sending request data for access:', requestData);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );

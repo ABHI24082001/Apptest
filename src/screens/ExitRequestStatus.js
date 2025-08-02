@@ -13,7 +13,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Appbar, Button } from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 
 function formatDate(dateStr) {
@@ -85,7 +85,7 @@ const ExitRequestStatusScreen = () => {
           onPress: async () => {
             try {
               setWithdrawingId(id);
-              const response = await axios.get(
+              const response = await axiosinstance.get(
                 `${BASE_URL}/EmployeeExit/WithdrawExitApplication/${id}`
               );
               if (response.status === 200) {

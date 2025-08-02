@@ -14,14 +14,16 @@ import CoreText from '../component/CoreText';
 import {useNavigation} from '@react-navigation/native';
 import {useForm} from 'react-hook-form';
 import HookFormInput from '../component/HookFormInput';
-import axios from 'axios';
+
 import BASE_URL from '../constants/apiConfig';
+import {setAuthToken, setUserIdHeader} from '../utils/axiosInstance'
+import axiosInstance from '../utils/axiosInstance'; 
 // const BASE_URL = 'https://hcmapiv2.anantatek.com/api/';
 const ERROR_COLOR = '#f44336';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../constants/AuthContext';
-const SignInScreen = () => {
+const LoginScreen = () => {
   const {
     control,
     handleSubmit,
@@ -37,82 +39,224 @@ const SignInScreen = () => {
 
   const {login} = useAuth();
 
-  const onSubmit = async (data) => {
-    const { username, password } = data;
-    setLoading(true);
-    setLoginMessage({ type: '', text: '' });
-    clearErrors();
-  
-    try {
-      const response = await axios.post(`${BASE_URL}/EmpRegistration/GetAuthUser`, {
+
+
+
+// const onSubmit = async (data) => {
+//   const { username, password } = data;
+//   setLoading(true);
+//   setLoginMessage({ type: '', text: '' });
+//   clearErrors();
+
+//   const token =
+//     'SoN8HIgE3rYpS22E4ngvUj7Bj5PypE0JKUvbgIo3N7bMy1bVnhAWNKyFaMmBAnZz+n1Nyry29JujM3MmZJ4fdpzC2LMf0pCoR4a44dJxDXtutvdcMLZVBNoMYNcwbnx5Na1/ujDmC2SO/mCYZ8HXuL++c+EMS3EDVHc0gEcjxyEOb8rMv3q5XOY8Ha+hV0DIn5e1lfsp18cz9Kwm0mBlo9IykXIyeQyNCp1/AxhmaRQkb37BLRLOXfX251myZJbm';
+
+//   try {
+//     // 🔍 Step 1: Fetch User ID
+//     console.log('🔄 Sending request to FetchCompanyUserId...');
+//     const fetchUserIdResponse = await axiosInstance.post(
+//       `${BASE_URL}/EmpRegistration/FetchCompanyUserId`,
+//       {
+//         UserName: username,
+//         Password: password,
+//         descriptor: null,
+//       },
+//       {
+//         headers: {
+         
+//           Authorization: `Bearer ${token}`,
+//           UserId: '0',
+//         },
+//       }
+//     );
+   
+//     console.log('✅ FetchCompanyUserId Response:', fetchUserIdResponse.data);
+//     const fetchedUserId = fetchUserIdResponse?.data;
+
+
+//     if (!fetchedUserId) {
+//       console.warn(
+//         '⚠️ User ID not found in response:',
+//         fetchUserIdResponse.data
+//       );
+//       console.warn('⚠️ User ID not found in response:', fetchUserIdResponse.data);
+//       throw new Error('User ID not found. Please check your username/password.');
+//     }
+
+//     // 🔐 Step 2: Authenticate User
+//     console.log(
+//       `🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`
+//     );
+//     console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
+
+
+//     setAuthToken(token);           // ✅ Set token globally
+//     setUserIdHeader(fetchedUserId); // ✅ Set userId globally
+//     const getAuthUserResponse = await axiosinstance.post(
+//       `${BASE_URL}/EmpRegistration/GetAuthUser`,
+//       {
+//         UserName: username,
+//         Password: password,
+//         UserType: 0,
+//       },
+//       {
+//         headers: {
+//           'Content-Type': 'application/json',
+//           Authorization: `Bearer ${token}`,
+//           UserId: String(fetchedUserId),
+//         },
+//       }
+//     );
+
+//     console.log('✅ GetAuthUser============================ Response:', getAuthUserResponse.data);
+
+//     if (getAuthUserResponse.data) {
+//       await AsyncStorage.setItem('hasLoggedIn', 'true');
+//       login(getAuthUserResponse.data, token);
+
+//       setLoginMessage({
+//         type: 'success',
+//         text: 'Login Successful. Welcome back!',
+//       });
+
+//       navigation.navigate('Main');
+//     } else {
+//       setLoginMessage({
+//         type: 'error',
+//         text: 'Invalid username or password.',
+//       });
+//     }
+//   } catch (error) {
+//     console.error('❌ Login flow error:', error?.response?.data || error.message);
+
+//     const status = error?.response?.status;
+//     const message = error?.response?.data?.message || error?.message || 'Login failed';
+
+//     const isUsernameError = message.toLowerCase().includes('username');
+//     const isPasswordError = message.toLowerCase().includes('password');
+
+//     if (status === 404 || isUsernameError || isPasswordError) {
+//       if (isUsernameError) {
+//         setError('username', { type: 'manual', message: 'Username is invalid' });
+//       }
+//       if (isPasswordError) {
+//         setError('password', { type: 'manual', message: 'Password is invalid' });
+//       }
+//       if (!isUsernameError && !isPasswordError) {
+//         setLoginMessage({ type: 'error', text: 'Username or Password is invalid' });
+//       }
+//     } else {
+//       setLoginMessage({ type: 'error', text: message });
+//     }
+//   } finally {
+//     console.log('✅ Login process completed.');
+//     setLoading(false);
+//   }
+// };
+
+
+
+const onSubmit = async (data) => {
+  const { username, password } = data;
+  setLoading(true);
+  setLoginMessage({ type: '', text: '' });
+  clearErrors();
+
+  const token =
+    'SoN8HIgE3rYpS22E4ngvUj7Bj5PypE0JKUvbgIo3N7bMy1bVnhAWNKyFaMmBAnZz+n1Nyry29JujM3MmZJ4fdpzC2LMf0pCoR4a44dJxDXtutvdcMLZVBNoMYNcwbnx5Na1/ujDmC2SO/mCYZ8HXuL++c+EMS3EDVHc0gEcjxyEOb8rMv3q5XOY8Ha+hV0DIn5e1lfsp18cz9Kwm0mBlo9IykXIyeQyNCp1/AxhmaRQkb37BLRLOXfX251myZJbm';
+
+  try {
+    // 🔍 Step 1: Fetch User ID
+    console.log('🔄 Sending request to FetchCompanyUserId...');
+    const fetchUserIdResponse = await axiosInstance.post(
+      '/EmpRegistration/FetchCompanyUserId',
+      {
+        UserName: username,
+        Password: password,
+        descriptor: null,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          UserId: '0',
+        },
+      }
+    );
+
+    const fetchedUserId = fetchUserIdResponse?.data;
+
+    if (!fetchedUserId) {
+      throw new Error('User ID not found. Please check your username/password.');
+    }
+
+    // ✅ Set token and userId globally for all axiosInstance calls
+    setAuthToken(token);
+    setUserIdHeader(fetchedUserId);
+
+    // 🔐 Step 2: Authenticate User
+    console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
+
+    const getAuthUserResponse = await axiosInstance.post(
+      '/EmpRegistration/GetAuthUser',
+      {
         UserName: username,
         Password: password,
         UserType: 0,
+      }
+    );
+
+    console.log('✅ GetAuthUser Response:', getAuthUserResponse.data);
+
+    if (getAuthUserResponse.data) {
+      await AsyncStorage.setItem('hasLoggedIn', 'true');
+      login(getAuthUserResponse.data, token, fetchedUserId); // ✅ Include userId if needed
+
+      setLoginMessage({
+        type: 'success',
+        text: 'Login Successful. Welcome back!',
       });
-  
-      if (response.data) {
-        console.log('Login Response:', response.data); // ✅ Console log user data
-  
-        await AsyncStorage.setItem('hasLoggedIn', 'true');
-  
-        login(response.data); // ✅ Set user globally
-  
-        setLoginMessage({
-          type: 'success',
-          text: 'Login Successful. Welcome back!',
-        });
-  
-        navigation.navigate('Main');
-      } else {
-        setLoginMessage({
-          type: 'error',
-          text: 'Invalid username or password',
-        });
-      }
-  
-    } catch (error) {
-      const status = error?.response?.status;
-      const errorMessage = error?.response?.data?.message || error?.message || 'Login failed';
-      const lowerMsg = errorMessage.toLowerCase();
-  
-      const isUsernameError = lowerMsg.includes('username');
-      const isPasswordError = lowerMsg.includes('password');
-  
-      if (status === 404 || isUsernameError || isPasswordError) {
-        if (isUsernameError) {
-          setError('username', {
-            type: 'manual',
-            message: 'Username is invalid',
-          });
-        }
-        if (isPasswordError) {
-          setError('password', {
-            type: 'manual',
-            message: 'Password is invalid',
-          });
-        }
-        if (!isUsernameError && !isPasswordError) {
-          setLoginMessage({
-            type: 'error',
-            text: 'Username or Password is invalid',
-          });
-        }
-      } else {
-        setLoginMessage({
-          type: 'error',
-          text: errorMessage,
-        });
-      }
-  
-    } finally {
-      setLoading(false);
+
+      navigation.navigate('Main');
+    } else {
+      setLoginMessage({
+        type: 'error',
+        text: 'Invalid username or password.',
+      });
     }
-  };
-  
+  } catch (error) {
+    console.error('❌ Login flow error:', error?.response?.data || error.message);
+
+    const status = error?.response?.status;
+    const message = error?.response?.data?.message || error?.message || 'Login failed';
+
+    const isUsernameError = message.toLowerCase().includes('username');
+    const isPasswordError = message.toLowerCase().includes('password');
+
+    if (status === 404 || isUsernameError || isPasswordError) {
+      if (isUsernameError) {
+        setError('username', { type: 'manual', message: 'Username is invalid' });
+      }
+      if (isPasswordError) {
+        setError('password', { type: 'manual', message: 'Password is invalid' });
+      }
+      if (!isUsernameError && !isPasswordError) {
+        setLoginMessage({ type: 'error', text: 'Username or Password is invalid' });
+      }
+    } else {
+      setLoginMessage({ type: 'error', text: message });
+    }
+  } finally {
+    console.log('✅ Login process completed.');
+    setLoading(false);
+  }
+};
 
 
 
-  
+
+
+
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
@@ -221,7 +365,7 @@ const SignInScreen = () => {
   );
 };
 
-export default SignInScreen;
+export default LoginScreen;
 
 const styles = StyleSheet.create({
   safeContainer: {

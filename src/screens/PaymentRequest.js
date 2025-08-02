@@ -18,7 +18,7 @@ import {pick} from '@react-native-documents/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BASE_URL from '../constants/apiConfig';
 const PaymentRequest = ({navigation, route}) => {
@@ -211,7 +211,7 @@ const PaymentRequest = ({navigation, route}) => {
   useEffect(() => {
     const fetchExpenseHeads = async () => {
       try {
-        const response = await axios.get(
+        const response = await axiosinstance.get(
           `${BASE_URL}/ExpHeadMaster/GetExpenseHeadList/${employeeDetails?.childCompanyId}`,
         );
         setExpenseHeads(
@@ -379,7 +379,7 @@ const PaymentRequest = ({navigation, route}) => {
           formData,
         );
 
-        const response = await axios.post(
+        const response = await axiosinstance.post(
           `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
           formData,
         );
@@ -451,7 +451,7 @@ const PaymentRequest = ({navigation, route}) => {
           formData,
         );
 
-        const response = await axios.post(
+        const response = await axiosinstance.post(
           `${BASE_URL}/PaymentAdvanceRequest/SaveAndUpdatePaymentAdvanceRequest`,
           formData,
         );
@@ -517,7 +517,7 @@ const PaymentRequest = ({navigation, route}) => {
     const fetchExpenseDetails = async () => {
       if (expenceData?.requestId && expenceData?.companyId) {
         try {
-          const response = await axios.get(
+          const response = await axiosinstance.get(
             `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveDetailsRequest/${expenceData.companyId}/${expenceData.requestId}`,
           );
 
@@ -1020,24 +1020,13 @@ const PaymentRequest = ({navigation, route}) => {
                 onConfirm={selectedDate => {
                   setOpenDatePicker(false);
                   setDate(selectedDate);
-                  setIsDateSelected(true); // Mark that user has selected a date
+                  setIsDateSelected(true);
                   setValue('date', selectedDate);
                 }}
                 onCancel={() => setOpenDatePicker(false)}
               />
 
-              <DatePicker
-                modal
-                open={openDatePicker}
-                date={date}
-                mode="date"
-                onConfirm={selectedDate => {
-                  setOpenDatePicker(false);
-                  setDate(selectedDate);
-                  setValue('date', selectedDate);
-                }}
-                onCancel={() => setOpenDatePicker(false)}
-              />
+             
 
               {/* Expense Head */}
               <Text style={styles.label}>

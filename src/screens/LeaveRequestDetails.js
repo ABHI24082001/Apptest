@@ -27,7 +27,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import FeedbackModal from '../component/FeedbackModal';
 
@@ -189,7 +189,7 @@ const LeaveRequest = ({navigation}) => {
         apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
       }
       // debugger;;
-      ApprovalList = await axios.get(apiUrl);
+      ApprovalList = await axiosinstance.get(apiUrl);
       ApprovalList.data = ApprovalList.data.filter(
         item => item.employeeId != employeeDetails?.id,
       );
@@ -206,7 +206,7 @@ const LeaveRequest = ({navigation}) => {
 
     let roleurl = '';
     roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
-    const response = await axios.get(roleurl);
+    const response = await axiosinstance.get(roleurl);
     let roleData = null;
     // console.log('Role Details========:', response.data);
 
@@ -283,7 +283,7 @@ const LeaveRequest = ({navigation}) => {
       //   requestData,
       // );
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
@@ -381,7 +381,7 @@ const LeaveRequest = ({navigation}) => {
         fromLeaveDate: formatDateForBackend(leaveDetails.fromLeaveDate),
       };
 
-      const payrollRes = await axios.post(
+      const payrollRes = await axiosinstance.post(
         `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
         payrollCheckBody,
       );
@@ -485,7 +485,7 @@ const LeaveRequest = ({navigation}) => {
 
       console.log('Submitting leave approval to:', endpoint);
 
-      const approvalRes = await axios.post(endpoint, approvalPayload);
+      const approvalRes = await axiosinstance.post(endpoint, approvalPayload);
       const {data} = approvalRes;
 
       // Log the full backend response for debugging
@@ -630,7 +630,7 @@ const LeaveRequest = ({navigation}) => {
 
       console.log('Submitting leave rejection to:', endpoint);
 
-      const rejectionRes = await axios.post(endpoint, rejectPayload);
+      const rejectionRes = await axiosinstance.post(endpoint, rejectPayload);
       const {data} = rejectionRes;
 
       // Log the full backend response for debugging
@@ -708,7 +708,7 @@ const LeaveRequest = ({navigation}) => {
       console.log(`Calling API: ${apiUrl}`);
       console.log('Request Payload:', payload);
 
-      const response = await axios.get(apiUrl);
+      const response = await axiosinstance.get(apiUrl);
 
       console.log(
         `${source} API Response:`,
@@ -744,7 +744,7 @@ const LeaveRequest = ({navigation}) => {
         `Fetching leave balances for employee ${employeeId} in company ${companyId}`,
       );
 
-      const response = await axios.get(
+      const response = await axiosinstance.get(
         `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
       );
 
@@ -794,7 +794,7 @@ const LeaveRequest = ({navigation}) => {
       const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId}`;
       console.log('Fetching employees from:', apiUrl);
 
-      const response = await axios.get(apiUrl);
+      const response = await axiosinstance.get(apiUrl);
 
       if (!response.data || !Array.isArray(response.data)) {
         console.log('No employee data received or invalid format');
@@ -845,7 +845,7 @@ const LeaveRequest = ({navigation}) => {
           const shiftApiUrl = `${BASE_URL}/Shift/GetRotaAsignedEmployeeByEmployeeId/${requestEmployeeId}`;
           console.log('Fetching shift employees from:', shiftApiUrl);
 
-          const shiftResponse = await axios.get(shiftApiUrl);
+          const shiftResponse = await axiosinstance.get(shiftApiUrl);
 
           if (shiftResponse.data && Array.isArray(shiftResponse.data)) {
             shiftEmployeeIds = shiftResponse.data;

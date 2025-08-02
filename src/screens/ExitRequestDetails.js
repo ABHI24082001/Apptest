@@ -25,7 +25,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import {Picker} from '@react-native-picker/picker';
 import AppSafeArea from '../component/AppSafeArea';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import {useAuth} from '../constants/AuthContext';
 import DatePicker from 'react-native-date-picker';
@@ -252,7 +252,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
       console.log('Checking account authorization with data:', requestData);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
@@ -320,7 +320,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
       // Post request to fetch all authorization records
       // for the `Employeeexit` controller and `EmpExitApplicationSupervisorList` action
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
@@ -492,7 +492,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       console.log('Sending approval request with data:', updatedRequest);
       
       // Make API call
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );
@@ -574,7 +574,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       console.log('Sending rejection request with data:', updatedRequest);
       
       // Make API call
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         updatedRequest
       );

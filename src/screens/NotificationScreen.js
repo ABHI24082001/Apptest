@@ -5,7 +5,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AppSafeArea from '../component/AppSafeArea';
 import { useNavigation } from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 const RequestCard = ({ item, onPress }) => {
   return (
@@ -91,7 +91,7 @@ const RequestDetailsScreen = () => {
       console.log('Fetching notifications...');
       
       // Use dynamic companyId and userId
-      const response = await axios.get(
+      const response = await axiosinstance.get(
         `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`
       );
       console.log('API Response:', JSON.stringify(response.data));

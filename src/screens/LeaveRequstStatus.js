@@ -15,7 +15,7 @@ import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
 import StatusCard from '../components/StatusCard'; // Import the StatusCard component
 import Pagination from '../components/Pagination'; // Import the Pagination component
@@ -49,7 +49,7 @@ const LeaveRequestStatusScreen = () => {
     try {
       setLoading(true);
       if (employeeDetails?.id) {
-        const response = await axios.get(
+        const response = await axiosinstance.get(
           `${BASE_URL}/ApplyLeave/GetAllEmployeeApplyLeave/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
         );
         setLeaveData(response.data);
@@ -168,7 +168,7 @@ const LeaveRequestStatusScreen = () => {
       console.log('Deleting leave data:', leaveToDelete); // Log the leave data being deleted
       console.log('Leave ID to delete:', id); // Log the ID being deleted
 
-      const response = await axios.get(
+      const response = await axiosinstance.get(
         `${BASE_URL}/ApplyLeave/DeleteApplyLeave/${id}`,
       );
 

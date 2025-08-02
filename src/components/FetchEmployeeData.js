@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import {useAuth} from '../constants/AuthContext';
 import BASE_URL from '../constants/apiConfig';
 
@@ -10,7 +10,7 @@ const useFetchEmployeeData = () => {
     const fetchEmployeeData = async () => {
       try {
         if (user?.id) {
-          const response = await axios.get(
+          const response = await axiosinstance.get(
             `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
           );
           setEmployeeData(response.data);

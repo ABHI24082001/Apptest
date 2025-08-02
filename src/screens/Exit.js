@@ -17,7 +17,7 @@ import moment from 'moment';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
 import AppSafeArea from '../component/AppSafeArea';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
@@ -61,7 +61,7 @@ const ExitApplyScreen = ({navigation}) => {
 
         setCheckingStatus(true);
         try {
-          const response = await axios.get(
+          const response = await axiosinstance.get(
             `${BASE_URL}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
           );
 
@@ -196,7 +196,7 @@ const ExitApplyScreen = ({navigation}) => {
 
       console.log('Exit Application Payload:', exitApplicationData);
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
         exitApplicationData,
       );

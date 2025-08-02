@@ -29,7 +29,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import {useAuth} from '../constants/AuthContext';
 // Import the Pagination component
 import Pagination from '../components/Pagination';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import LinearGradient from 'react-native-linear-gradient';
 import WebView from 'react-native-webview';
@@ -201,7 +201,7 @@ const ExpenseRequestDetails = ({navigation}) => {
       console.log(`Calling API: ${apiUrl}`);
       console.log('Request Payload:', payload);
 
-      const response = await axios.get(apiUrl);
+      const response = await axiosinstance.get(apiUrl);
 
       // Log the complete response for debugging
       console.log('Expense Details from API:', response.data);
@@ -233,7 +233,7 @@ const ExpenseRequestDetails = ({navigation}) => {
       const employeeId = response.data?.paymentRequest?.employeeId;
       if (employeeId) {
         try {
-          const empResponse = await axios.get(
+          const empResponse = await axiosinstance.get(
             `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${employeeId}`,
           );
 
@@ -383,7 +383,7 @@ const ExpenseRequestDetails = ({navigation}) => {
 
       console.log('Checking payroll with data:', payrollCheckBody);
 
-      const payrollRes = await axios.post(
+      const payrollRes = await axiosinstance.post(
         `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
         payrollCheckBody,
       );
@@ -519,7 +519,7 @@ const ExpenseRequestDetails = ({navigation}) => {
       console.log(`Using API URL: ${endpoint}`);
       console.log('⬆️⬆️⬆️ APPROVAL PAYLOAD ⬆️⬆️⬆️');
 
-      const approvalRes = await axios.post(endpoint, approvalPayload);
+      const approvalRes = await axiosinstance.post(endpoint, approvalPayload);
       console.log('Approval response:', approvalRes.data);
 
       if (approvalRes.data?.isSuccess) {
@@ -602,7 +602,7 @@ const ExpenseRequestDetails = ({navigation}) => {
                 ? `${BASE_URL}/PaymentAdvanceRequest/SaveClaimRequestFinalApproval`
                 : `${BASE_URL}/PaymentAdvanceRequest/SaveClaimRequestMGRApproval`;
 
-              const response = await axios.post(endpoint, payload);
+              const response = await axiosinstance.post(endpoint, payload);
 
               if (response.data?.isSuccess) {
                 setFeedbackType('fail');
@@ -652,7 +652,7 @@ const ExpenseRequestDetails = ({navigation}) => {
         requestData,
       );
 
-      const response = await axios.post(
+      const response = await axiosinstance.post(
         `${BASE_URL}/FunctionalAccess/GetAllAuthorizatonPersonForTheAction`,
         requestData,
       );
@@ -699,7 +699,7 @@ const ExpenseRequestDetails = ({navigation}) => {
       let roleData = null;
       try {
         const roleUrl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
-        const roleResponse = await axios.get(roleUrl);
+        const roleResponse = await axiosinstance.get(roleUrl);
         console.log(
           'Role Details from API:',
           JSON.stringify(roleResponse.data, null, 2),
@@ -732,7 +732,7 @@ const ExpenseRequestDetails = ({navigation}) => {
           : `${BASE_URL}/PaymentAdvanceRequest/GetRequestsForMgrApproval/${companyId}/${employeeId}`;
 
         console.log(`Fetching approval data from: ${apiUrl}`);
-        const response = await axios.get(apiUrl);
+        const response = await axiosinstance.get(apiUrl);
 
         if (Array.isArray(response.data)) {
           // Filter out user's own requests

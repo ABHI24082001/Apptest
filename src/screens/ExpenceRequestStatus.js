@@ -12,7 +12,7 @@ import { Appbar, Divider } from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 const ExpenceRequestStatus = ({ navigation, route }) => {

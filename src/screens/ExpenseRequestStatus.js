@@ -16,7 +16,7 @@ import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import TabFilter from '../components/TabFilter'; // Import the reusable TabFilter component
 import StatusCard from '../components/StatusCard'; // Import the reusable component
 import BASE_URL from '../constants/apiConfig';
@@ -43,7 +43,7 @@ const ExpenseRequestStatusScreen = () => {
     }
 
     try {
-      const response = await axios.get(
+      const response = await axiosinstance.get(
         `${BASE_URL}/PaymentAdvanceRequest/GetPaymentAdvanveRequestList/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
       );
       setExpenseData(response.data);
@@ -133,7 +133,7 @@ useEffect(() => {
 
   const handleDeleteExpense = async (requestId, companyId) => {
     try {
-      const response = await axios.get(
+      const response = await axiosinstance.get(
         `${BASE_URL}/PaymentAdvanceRequest/DeletePaymentAdvanveRequest/${requestId}/${companyId}`
       );
 

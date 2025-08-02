@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Alert, Platform, ToastAndroid } from 'react-native';
 import { Button, Card, Snackbar, ActivityIndicator } from 'react-native-paper';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import * as geolib from 'geolib';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 // import CameraComponent from './CameraComponent';
@@ -20,7 +20,7 @@ const TEST_COORDINATES = {
 const attendanceApi = {
   checkIn: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/attendance/check-in`, data);
+      const response = await axiosinstance.post(`${API_URL}/attendance/check-in`, data);
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || error.message };
@@ -29,7 +29,7 @@ const attendanceApi = {
   
   checkOut: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/attendance/check-out`, data);
+      const response = await axiosinstance.post(`${API_URL}/attendance/check-out`, data);
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || error.message };
@@ -91,7 +91,7 @@ const AttendanceTracker = ({
       setCheckInStatus('');
       
       // Fetch geo-fence details from the API
-      const response = await axios.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
+      const response = await axiosinstance.get(`${API_URL}GeoFencing/GetGeoFenceDetails/4`);
       console.log('Geo Fence Details:', response.data);
 
       // Extract coordinates and radius from API response

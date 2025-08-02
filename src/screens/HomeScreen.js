@@ -17,9 +17,10 @@ import LeaveStatus from '../component/LeaveStatus';
 import ShiftCalendarSection from '../component/ShiftCalendarSection';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
-import axios from 'axios';
+
 import {useAuth} from '../constants/AuthContext';
-import useFetchEmployeeData from '../components/FetchEmployeeData';
+import axiosInstance from '../utils/axiosInstance'; 
+
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 
 const Dashboard = () => {
@@ -31,8 +32,8 @@ const Dashboard = () => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [shiftCompleted, setShiftCompleted] = useState(false);
   const [selectedShiftInfo, setSelectedShiftInfo] = useState(null);
-  const employeeData = useFetchEmployeeData();
-  const employeeDetails = useFetchEmployeeDetails();
+
+  const employeeData = useFetchEmployeeDetails();
   const [leaveData, setLeaveData] = useState([]);
 
   const leaveUsers = [
@@ -123,7 +124,7 @@ const Dashboard = () => {
 
         if (!employeeId || !companyId) return;
 
-        const response = await axios.get(
+        const response = await axiosInstance.get(
           `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
         );
 

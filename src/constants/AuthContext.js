@@ -1,7 +1,7 @@
 // context/AuthContext.js
 import React, {createContext, useContext, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { setAuthToken, setUserIdHeader} from '../utils/axiosInstance'
 const AuthContext = createContext();
 
 export const AuthProvider = ({children}) => {
@@ -16,10 +16,17 @@ export const AuthProvider = ({children}) => {
     loadUser();
   }, []);
 
-  const login = async (userData) => {
-    setUser(userData);
-    await AsyncStorage.setItem('user', JSON.stringify(userData));
-  };
+
+
+  const login = async (userData, token, userId) => {
+  setAuthToken(token);           // ✅ Set token globally
+  setUserIdHeader(userId);       // ✅ Set userId globally
+
+  setUser(userData);
+  await AsyncStorage.setItem('user', JSON.stringify(userData));
+  await AsyncStorage.setItem('token', token);
+  await AsyncStorage.setItem('userId', String(userId));
+};
 
   const logout = async () => {
     setUser(null);

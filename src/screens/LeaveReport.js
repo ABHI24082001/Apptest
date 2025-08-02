@@ -19,7 +19,7 @@ import {
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 import LinearGradient from 'react-native-linear-gradient';
 
 import AppSafeArea from '../component/AppSafeArea';
@@ -69,7 +69,7 @@ const LeaveReportScreen = ({ navigation }) => {
     console.log('Posting CommonParameter payload:', payload);
     try {
       // Replace with your actual API endpoint
-      const response = await axios.post(`${BASE_URL}/LeaveApproval/GetLeaveReport`, payload);
+      const response = await axiosinstance.post(`${BASE_URL}/LeaveApproval/GetLeaveReport`, payload);
       // Handle response as needed
       console.log('API response:===============', response.data);
     } catch (error) {
@@ -83,7 +83,7 @@ const LeaveReportScreen = ({ navigation }) => {
     setLoading(true);
     try {
       const payload = buildCommonParameterPayload();
-      const response = await axios.post(`${BASE_URL}/LeaveApproval/GetLeaveReport`, payload);
+      const response = await axiosinstance.post(`${BASE_URL}/LeaveApproval/GetLeaveReport`, payload);
       // Set leaveData directly from API response
       setLeaveData(response.data || []);
     } catch (error) {

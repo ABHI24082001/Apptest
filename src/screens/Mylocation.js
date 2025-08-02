@@ -1,7 +1,7 @@
 // import { StyleSheet, Text, View, ActivityIndicator, Alert } from 'react-native';
 // import React, { useEffect, useState } from 'react';
 // import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-// import axios from 'axios';
+// import axiosinstance from 'axiosinstance';
 // import { WebView } from 'react-native-webview';
 
 // const Mylocation = () => {

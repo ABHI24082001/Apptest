@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useForm, Controller} from 'react-hook-form';
-import axios from 'axios';
+// import axiosinstance from 'axiosinstance';
+import axiosInstance from '../utils/axiosInstance';
 import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Button} from 'react-native-paper';
 import LeaveHeader from '../component/LeaveHeader';
@@ -116,7 +117,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
         }
 
         // Fetch leave policies for Leave Name dropdown
-        const policiesResponse = await axios.get(
+        const policiesResponse = await axiosInstance.get(
           `${BASE_URL}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
         
         );
@@ -225,7 +226,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     setIsSubmitting(true);
 
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${BASE_URL}/ApplyLeave/SaveAndUpdateApplyLeave`,
         payload,
         {
@@ -290,7 +291,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     const fetchLeaveData = async () => {
       try {
         if (employeeDetails?.id && employeeDetails?.childCompanyId) {
-          const response = await axios.get(
+          const response = await axiosInstance.get(
             `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`
           );
 

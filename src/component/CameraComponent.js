@@ -7,7 +7,7 @@ import base64 from 'react-native-base64';
 import { runOnJS } from 'react-native-reanimated';
 import * as Base64 from 'react-native-quick-base64';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 
 // Add imports for all available Base64 packages
 import RNBlobUtil from 'react-native-blob-util';
@@ -20,7 +20,7 @@ const fetchEmployeeBiometricData = async (employeeId = 33, companyId = 2) => {
   try {
     console.log(`Fetching biometric data for employee ${employeeId}, company ${companyId}...`);
     const API_URL = 'http://192.168.29.2:90/api';
-    const response = await axios.get(
+    const response = await axiosinstance.get(
       `${API_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetails/${employeeId}/${companyId}`
     );
     

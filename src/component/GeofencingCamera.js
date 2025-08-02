@@ -7,7 +7,7 @@ import * as geolib from 'geolib';
 import { FaceDetector } from 'react-native-vision-camera-face-detector';
 import base64 from 'react-native-base64';
 import { runOnJS } from 'react-native-reanimated';
-import axios from 'axios';
+import axiosinstance from '../utils/axiosInstance';
 
 // Face detection settings
 const FACE_DETECTION_CONFIG = {
