@@ -81,7 +81,7 @@ const RequestDetailsScreen = () => {
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
-      setError(`Failed to load notifications: ${err.message}`);
+      // Do not set error, just log it
     } finally {
       setLoading(false);
     }
@@ -216,21 +216,6 @@ const RequestDetailsScreen = () => {
             <ActivityIndicator size="large" color="#2196F3" />
             <Text style={styles.loaderText}>Loading notifications...</Text>
           </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <MaterialCommunityIcons name="alert-circle" size={40} color="#FF5252" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => {
-                setLoading(true);
-                setError(null);
-                fetchNotifications();
-              }}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
           <>
             {/* Debug info */}
@@ -284,6 +269,19 @@ const RequestDetailsScreen = () => {
               <View style={styles.emptyContainer}>
                 <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
                 <Text style={styles.emptyText}>No notifications to display</Text>
+                <TouchableOpacity 
+                  style={styles.retryButton}
+                  onPress={() => {
+                    setLoading(true);
+                    fetchNotifications();
+                  }}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.retryText}>Refresh</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
           </>
