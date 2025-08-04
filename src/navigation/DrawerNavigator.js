@@ -87,7 +87,7 @@ const NotificationButton = ({navigation}) => {
 
 // ---------------- Profile Menu ----------------
 const ProfileMenu = ({navigation}) => {
-  const IMG_BASE_URL = 'http://192.168.29.2:90/assets/UploadImg/';
+  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
   const [visible, setVisible] = useState(false);
   const {user} = useAuth();
   const [imageUrl, setImageUrl] = useState(null);
@@ -103,7 +103,7 @@ const ProfileMenu = ({navigation}) => {
       setImageUrl(directImageUrl);
 
       // Optionally, check if the image exists on the server
-      const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
+      const fetchUrl = `https://hcmv2.anantatek.com/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
       fetch(fetchUrl, { method: 'GET' })
         .then(response => {
           console.log('Profile image fetch URL:', fetchUrl);

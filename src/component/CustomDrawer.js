@@ -171,34 +171,17 @@ const CustomDrawer = ({navigation}) => {
   }, [user]);
 
   useEffect(() => {
-      // Always log the user object for debugging
-      console.log('ProfileMenu user:', user);
-      // debugger; // Debug here to inspect user object
-  
-      if (user?.empImage) {
-        // Compose the direct image URL using empImage
-        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
-        setImageUrl(directImageUrl);
-  debugger
-        // Optionally, check if the image exists on the server
-        const fetchUrl = `https://hcmapiv2.anantatek.com/api/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
-        fetch(fetchUrl, { method: 'GET' })
-          .then(response => {
-            console.log('Profile image fetch URL:', fetchUrl);
-            console.log('Profile image fetch response:', response);
-            // debugger; // Debug here to inspect fetch response
-            if (!response.ok) {
-              setImageUrl(null);
-            }
-          })
-          .catch(err => {
-            console.log('Profile image fetch error:', err);
-            setImageUrl(null);
-          });
-      } else {
-        setImageUrl(null);
-      }
-    }, [user?.empImage]);
+    // Always log the user object for debugging
+    console.log('ProfileMenu user:', user);
+
+    if (user?.empImage) {
+      // Use the static image URL directly
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+      setImageUrl(staticImageUrl);
+    } else {
+      setImageUrl(null);
+    }
+  }, [user?.empImage]);
 
   const IMG_BASE_URL = 'https://hcmapiv2.anantatek.com/api/UploadImg/';
 
@@ -642,5 +625,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+// export default CustomDrawer;
+//     fontSize: 17,
+//     fontWeight: '600',
+//     color: '#34495E',
+//   },
+//   footer: {
+//     padding: 25,
+//     borderTopWidth: 1,
+//     borderColor: '#D6DBDF',
+//     backgroundColor: '#fff',
+//   },
+//   logout: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//   },
+// });
 
 export default CustomDrawer;

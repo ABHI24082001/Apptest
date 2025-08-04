@@ -1,5 +1,5 @@
 import axios from 'axios';
-import BASE_URL from '../constants/apiConfig'; // should be 'http://192.168.29.2:90'
+import BASE_URL from '../constants/apiConfig';
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -8,7 +8,8 @@ const axiosInstance = axios.create({
   },
 });
 
-export const setAuthToken = token => {
+// 🟢 Set Authorization token
+export const setAuthToken = (token) => {
   if (token) {
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
@@ -16,7 +17,8 @@ export const setAuthToken = token => {
   }
 };
 
-export const setUserIdHeader = userId => {
+// 🟢 Set UserId
+export const setUserIdHeader = (userId) => {
   if (userId) {
     axiosInstance.defaults.headers.common['UserId'] = String(userId);
   } else {

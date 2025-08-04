@@ -37,12 +37,12 @@ import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axiosinstance from '../utils/axiosInstance';
+// import axiosinstance from '../utils/axiosInstance';
 import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
-
+import axios from 'axios';
 const {width: screenWidth} = Dimensions.get('window');
-
+import {useAuth} from '../constants/AuthContext';
 // Enhanced EditableField Component
 const EditableField = ({
   icon,
@@ -342,7 +342,10 @@ const ProfileScreen = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
   const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
-
+   const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
+     const [visible, setVisible] = useState(false);
+     const {user} = useAuth();
+     const [imageUrl, setImageUrl] = useState(null);
   // Refresh functionality
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -500,7 +503,7 @@ const ProfileScreen = () => {
 
       console.log('📤 Uploading payload:', payload);
 
-      const response = await axiosinstance.post(
+      const response = await axios.post(
         'http://192.168.29.2:90/UploadDocument/UploadDocument',
         payload,
         {
@@ -532,14 +535,13 @@ const ProfileScreen = () => {
         try {
           // debugger; // For inspection
           // GET request to fetch the image
-          const fetchResponse = await axiosinstance.get(fetchUrl, {
+          const fetchResponse = await axios.get(fetchUrl, {
             responseType: 'arraybuffer',
           });
 
           // If backend returns a direct image URL, use it for preview
           const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
-          const STATIC_PROFILE_PHOTO_URL =
-            'http://192.168.29.2:90/assets/UploadImg/20250723104918323.jpg';
+        
 
           setUploadedPhoto({uri: directImageUrl});
 
@@ -860,6 +862,37 @@ const ProfileScreen = () => {
     }
   };
 
+
+    useEffect(() => {
+      // Always log the user object for debugging
+      console.log('ProfileMenu user:', user);
+      // debugger; // Debug here to inspect user object
+  
+      if (user?.empImage) {
+        // Compose the direct image URL using empImage
+        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
+        setImageUrl(directImageUrl);
+  
+        // Optionally, check if the image exists on the server
+        const fetchUrl = `https://hcmv2.anantatek.com/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
+        fetch(fetchUrl, { method: 'GET' })
+          .then(response => {
+            console.log('Profile image fetch URL:', fetchUrl);
+            console.log('Profile image fetch response:', response);
+            // debugger; // Debug here to inspect fetch response
+            if (!response.ok) {
+              setImageUrl(null);
+            }
+          })
+          .catch(err => {
+            console.log('Profile image fetch error:', err);
+            setImageUrl(null);
+          });
+      } else {
+        setImageUrl(null);
+      }
+    }, [user?.empImage]);
+
   // Handle cancel edit
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -878,7 +911,7 @@ const ProfileScreen = () => {
 
   // Use uploadedPhotoFileName for immediate UI update if available
   const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
-  const imageUrl = uploadedPhotoFileName
+  const imageUrll = uploadedPhotoFileName
     ? `${staticBaseUrl}${uploadedPhotoFileName}`
     : employeeDetails?.empImage
     ? `${staticBaseUrl}${employeeDetails.empImage}`
