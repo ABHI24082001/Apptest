@@ -35,14 +35,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
-import BASE_URL from '../constants/apiConfig';
+// import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-// import axiosinstance from '../utils/axiosInstance';
+import axiosinstance from '../utils/axiosInstance';
 import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
 const {width: screenWidth} = Dimensions.get('window');
 import {useAuth} from '../constants/AuthContext';
+
+const BASE_URL = 'http://192.168.29.2:91/api';
 // Enhanced EditableField Component
 const EditableField = ({
   icon,
@@ -142,7 +144,7 @@ const ProfileSection = ({
     ),
     opacity: animatedHeight.value,
   }));
-
+  debugger;
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{rotate: `${animatedRotation.value}deg`}],
   }));
@@ -332,7 +334,7 @@ const ChangePasswordModal = ({
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
-
+  debugger;
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState({});
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -342,10 +344,7 @@ const ProfileScreen = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
   const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
-   const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
-     const [visible, setVisible] = useState(false);
-     const {user} = useAuth();
-     const [imageUrl, setImageUrl] = useState(null);
+
   // Refresh functionality
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -445,7 +444,7 @@ const ProfileScreen = () => {
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
 
-      const response = await axiosinstance
+      const response = await axios
         .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
         .catch(error => {
           console.error(
@@ -487,6 +486,95 @@ const ProfileScreen = () => {
     }
   };
 
+  //   const uploadDocumentBase64 = async photo => {
+  //     try {
+  //       setUploading(true);
+  //       const base64Data = await RNFS.readFile(photo.uri, 'base64');
+  //       const fileName = photo.name || photo.fileName || 'photo.jpg';
+  //       const extension = fileName.split('.').pop() || 'jpg';
+
+  //       const payload = {
+  //         fileName: fileName,
+  //         base64File: base64Data,
+  //         extension: extension,
+  //         category: 'img',
+  //       };
+
+  //       // console.log('📤 Uploading payload:', payload);
+
+  //       const response = await axios.post(
+  //         'http://192.168.29.2:90/UploadDocument/UploadDocument',
+  //         payload,
+  //         // {
+  //         //   headers: {
+  //         //     'Content-Type': 'application/json',
+  //         //     Accept: 'application/json',
+  //         //   },
+  //         // },
+  //       );
+  // debugger;
+  //       console.log('✅ Upload status:', response.status);
+  //       console.log('📥 Server response:', response.data);
+
+  //       if (
+  //         response.status >= 200 &&
+  //         response.status < 300 &&
+  //         response.data?.fileName
+  //       ) {
+  //         Alert.alert('Success', 'Profile photo uploaded!');
+  //         debugger;
+  //         setUploadedPhotoFileName(response.data.fileName); // Set uploaded filename for UI
+  //         await saveProfileImage(response.data.fileName);
+  //         console.log('First image uploaded:', response.data.fileName);
+  // debugger
+  //         // Prepare fileNameWithExtension for GET API
+  //         const fileName = response.data.fileName;
+  //         console.log()
+  //         const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
+  //         const directImageUrl = `${staticBaseUrl}${fileName}`;
+
+  //         console.log(directImageUrl)
+
+  //         try {
+  //           // debugger; // For inspection
+  //           // GET request to fetch the image
+  //           const fetchResponse = await axios.get(fetchUrl, {
+  //             responseType: 'arraybuffer',
+  //           });
+
+  //           // If backend returns a direct image URL, use it for preview
+  //           const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
+
+  //           setUploadedPhoto({uri: directImageUrl});
+
+  //           // Console all relevant data
+  //           console.log('fetchUrl:', fetchUrl);
+  //           console.log('response.data.fileName:', fileName);
+  //           console.log('Direct image URL:', directImageUrl);
+  //           console.log('Fetch API response (arraybuffer):', fetchResponse);
+  //         } catch (fetchErr) {
+  //           // If backend returns validation error, log it
+  //           if (fetchErr.response && fetchErr.response.status === 400) {
+  //             console.error('Validation error:', fetchErr.response.data);
+  //           } else {
+  //             console.error('Error fetching image from GET API:', fetchErr);
+  //           }
+  //         }
+  //       } else {
+  //         throw new Error(`Server returned status ${response.status}`);
+  //       }
+  //     } catch (error) {
+  //       console.error('❌ UploadDocument error:', error.message);
+  //       Alert.alert('Upload Failed', 'Could not upload profile photo');
+  //     } finally {
+  //       setUploading(false);
+  //     }
+  //   };
+
+  // Save and update profile image function
+
+  debugger;
+
   const uploadDocumentBase64 = async photo => {
     try {
       setUploading(true);
@@ -503,14 +591,20 @@ const ProfileScreen = () => {
 
       console.log('📤 Uploading payload:', payload);
 
-      const response = await axios.post(
+      // const response = await axios.post(
+      //   'http://192.168.29.2:90/UploadDocument/UploadDocument',
+      //   payload,
+
+      // );
+
+      const response = await fetch(
         'http://192.168.29.2:90/UploadDocument/UploadDocument',
-        payload,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Accept: 'application/json',
           },
+          body: JSON.stringify(payload),
         },
       );
 
@@ -522,42 +616,34 @@ const ProfileScreen = () => {
         response.status < 300 &&
         response.data?.fileName
       ) {
+        const uploadedFileName = response.data.fileName;
         Alert.alert('Success', 'Profile photo uploaded!');
-        setUploadedPhotoFileName(response.data.fileName); // Set uploaded filename for UI
-        await saveProfileImage(response.data.fileName);
-        console.log('First image uploaded:', response.data.fileName);
+        setUploadedPhotoFileName(uploadedFileName);
 
-        // Prepare fileNameWithExtension for GET API
-        const fileName = response.data.fileName;
-        const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
-        const directImageUrl = `${staticBaseUrl}${fileName}`;
+        // Save to profile
+        debugger;
+        console.log(
+          'Step 3: Saving profile image with filename:',
+          uploadedFileName,
+        );
+        await saveProfileImage(uploadedFileName);
 
-        try {
-          // debugger; // For inspection
-          // GET request to fetch the image
-          const fetchResponse = await axios.get(fetchUrl, {
-            responseType: 'arraybuffer',
-          });
+        // Fetch uploaded image from server
+        const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
+        console.log('Step 4: Fetching image from:', fetchUrl);
 
-          // If backend returns a direct image URL, use it for preview
-          const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
-        
+        const fileResponse = await axios.get(fetchUrl, {
+          responseType: 'blob',
+        });
 
-          setUploadedPhoto({uri: directImageUrl});
+        console.log('Step 4: Fetched image response:', fileResponse);
 
-          // Console all relevant data
-          console.log('fetchUrl:', fetchUrl);
-          console.log('response.data.fileName:', fileName);
-          console.log('Direct image URL:', directImageUrl);
-          console.log('Fetch API response (arraybuffer):', fetchResponse);
-        } catch (fetchErr) {
-          // If backend returns validation error, log it
-          if (fetchErr.response && fetchErr.response.status === 400) {
-            console.error('Validation error:', fetchErr.response.data);
-          } else {
-            console.error('Error fetching image from GET API:', fetchErr);
-          }
-        }
+        // Convert blob to object URL for preview
+        const blob = fileResponse.data;
+        const objectUrl = URL.createObjectURL(blob);
+        setUploadedPhoto({uri: objectUrl});
+
+        console.log('Step 5: Image preview URI:', objectUrl);
       } else {
         throw new Error(`Server returned status ${response.status}`);
       }
@@ -569,7 +655,6 @@ const ProfileScreen = () => {
     }
   };
 
-  // Save and update profile image function
   const saveProfileImage = async fileName => {
     try {
       const payload = {
@@ -591,7 +676,7 @@ const ProfileScreen = () => {
       );
       console.log('Profile payload:', payload);
 
-      const response = await axiosinstance.post(
+      const response = await axios.post(
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
         payload,
       );
@@ -812,7 +897,7 @@ const ProfileScreen = () => {
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
 
-      const response = await axiosinstance
+      const response = await axios
         .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
         .catch(error => {
           console.error(
@@ -862,37 +947,6 @@ const ProfileScreen = () => {
     }
   };
 
-
-    useEffect(() => {
-      // Always log the user object for debugging
-      console.log('ProfileMenu user:', user);
-      // debugger; // Debug here to inspect user object
-  
-      if (user?.empImage) {
-        // Compose the direct image URL using empImage
-        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
-        setImageUrl(directImageUrl);
-  
-        // Optionally, check if the image exists on the server
-        const fetchUrl = `https://hcmv2.anantatek.com/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
-        fetch(fetchUrl, { method: 'GET' })
-          .then(response => {
-            console.log('Profile image fetch URL:', fetchUrl);
-            console.log('Profile image fetch response:', response);
-            // debugger; // Debug here to inspect fetch response
-            if (!response.ok) {
-              setImageUrl(null);
-            }
-          })
-          .catch(err => {
-            console.log('Profile image fetch error:', err);
-            setImageUrl(null);
-          });
-      } else {
-        setImageUrl(null);
-      }
-    }, [user?.empImage]);
-
   // Handle cancel edit
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -911,7 +965,7 @@ const ProfileScreen = () => {
 
   // Use uploadedPhotoFileName for immediate UI update if available
   const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
-  const imageUrll = uploadedPhotoFileName
+  const imageUrl = uploadedPhotoFileName
     ? `${staticBaseUrl}${uploadedPhotoFileName}`
     : employeeDetails?.empImage
     ? `${staticBaseUrl}${employeeDetails.empImage}`
@@ -1416,4 +1470,3 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
-
