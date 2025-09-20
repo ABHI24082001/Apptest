@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Modal,
   Dimensions,
   FlatList,
@@ -13,28 +12,111 @@ import {
 import moment from 'moment';
 import RNPickerSelect from 'react-native-picker-select';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-
+import BASE_URL from '../constants/apiConfig';
 const { width } = Dimensions.get('window');
-
+import axiosInstance from '../utils/axiosInstance';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 export default function MonthCalendarWithAgenda({
   events = {},
   initialDate = moment().format('YYYY-MM-DD'),
   onDateChange = () => {},
+  employeeId,
+  childCompanyId,
+  branchId,
 }) {
   const [currentMonth, setCurrentMonth] = useState(moment(initialDate));
   const [daysInMonth, setDaysInMonth] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
   const [showPicker, setShowPicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(currentMonth.year());
+  const [attendanceData, setAttendanceData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+
+  const employeeDetails = useFetchEmployeeDetails();
+
+  const fetchAttendanceData = async () => {
+    try {
+      if (!employeeDetails) {
+        console.log('Employee details not loaded yet');
+        return;
+      }
+
+      setLoading(true);
+debugger
+      // Use employee details from the hook
+      const empId = employeeDetails?.id || employeeId;
+      const empChildCompanyId = employeeDetails?.childCompanyId || childCompanyId;
+      const empBranchId = employeeDetails?.branchId || branchId;
+      const empDepartmentId = employeeDetails?.departmentId || 0;
+      const empDesignationId = employeeDetails?.designtionId || 0;
+      const empEmployeeType = employeeDetails?.employeeType || 0;
+
+      // Make sure we have the correct API endpoint with leading slash if needed
+      const endpoint = `${BASE_URL}/BiomatricAttendance/GetCalendorForSingleEmployee`;
+      
+      console.log('Making API request to:', endpoint);
+
+      const requestData = {
+        EmployeeId: empId,
+        Month: currentMonth.month() + 1,
+        Year: currentMonth.year(),
+        ChildCompanyId: empChildCompanyId,
+        BranchId: empBranchId,
+        FromDate: currentMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
+        ToDate: currentMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
+        EmployeeTypeId: empEmployeeType,
+        DepartmentId: empDepartmentId,
+        DesignationId: empDesignationId,
+        UserType: 0,
+        CalculationType: 0,
+        hasAllReportAccess: false,
+        // Adding other fields from the example request
+        YearList: null,
+        BranchName: null,
+        Did: 0,
+        UserId: 0,
+        status: null,
+        Ids: null,
+        CoverLatter: null
+      };
+      
+      console.log('Request data:', JSON.stringify(requestData));
+      
+      const response = await axiosInstance.post(endpoint, requestData);
+      
+      console.log('API Response:', response.status);
+      setAttendanceData(response.data);
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      
+      // More detailed error logging
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (employeeDetails) {
+      fetchAttendanceData();
+    }
+  }, [currentMonth, employeeDetails]);
 
   // Event types configuration
   const eventTypes = {
-    'day-shift': { color: '#4CAF50', icon: 'wb-sunny' },
-    'night-shift': { color: '#303F9F', icon: 'nights-stay' },
-    holiday: { color: '#FF5252', icon: 'celebration' },
-    leave: { color: '#FF9800', icon: 'beach-access' },
-    meeting: { color: '#9C27B0', icon: 'meeting-room' },
-    'week-off': { color: '#2196F3', icon: 'weekend' },
+    'present': { color: '#666666', icon: 'check', status: 'P' },
+    'absent': { color: '#FF0000', icon: 'close', status: 'A' },
+    'weekend': { color: '#FFFFFF', icon: 'weekend' },
+    'holiday': { color: '#FF0000', icon: 'celebration' },
   };
 
   useEffect(() => {
@@ -66,65 +148,87 @@ export default function MonthCalendarWithAgenda({
     setShowPicker(false);
   };
 
-  // Sample events data structure
-  const sampleEvents = {
-    [moment().format('YYYY-MM-DD')]: [
-      {
-        id: '1',
-        type: 'day-shift',
-        name: 'Morning Shift',
-        time: '09:00 - 17:00',
-        location: 'Main Office',
-        notes: 'Regular working hours',
-      },
-      {
-        id: '2',
-        type: 'meeting',
-        name: 'Team Sync',
-        time: '10:00 - 11:00',
-        location: 'Conference Room A',
-      },
-    ],
-    [moment().add(1, 'days').format('YYYY-MM-DD')]: [
-      {
-        id: '3',
-        type: 'night-shift',
-        name: 'Night Shift',
-        time: '22:00 - 06:00',
-        notes: 'Bring security access card',
-      },
-    ],
-    [moment().add(2, 'days').format('YYYY-MM-DD')]: [
-      {
-        id: '4',
-        type: 'week-off',
-        name: 'Weekly Off',
-      },
-    ],
-    [moment().add(3, 'days').format('YYYY-MM-DD')]: [
-      {
-        id: '5',
-        type: 'holiday',
-        name: 'Public Holiday',
-        description: 'National holiday',
-      },
-    ],
-    [moment().add(5, 'days').format('YYYY-MM-DD')]: [
-      {
-        id: '6',
-        type: 'leave',
-        name: 'Annual Leave',
-        description: 'Family vacation',
-        notes: 'Out of office',
-      },
-    ],
+  // Generate events for the current month
+  const generateMonthEvents = () => {
+    const events = {};
+    const start = currentMonth.clone().startOf('month');
+    const end = currentMonth.clone().endOf('month');
+
+    if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) {
+      return events;
+    }
+
+    const attendance = attendanceData.calendarModels[0];
+    const holidays = attendanceData.holidays || [];
+
+    for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
+      const dayOfWeek = date.day();
+      const dateStr = date.format('YYYY-MM-DD');
+      const dayOfMonth = parseInt(date.format('D'));
+      
+      // Weekend check
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        events[dateStr] = [{
+          id: `weekend-${dateStr}`,
+          type: 'weekend',
+          name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
+        }];
+        continue;
+      }
+
+      // Holiday check
+      const isHoliday = holidays.some(h => h.day === dayOfMonth);
+      if (isHoliday) {
+        events[dateStr] = [{
+          id: `holiday-${dateStr}`,
+          type: 'holiday',
+          name: 'Holiday'
+        }];
+        continue;
+      }
+
+      // Attendance check
+      const loginKey = `${getDayText(dayOfMonth)}LogIn`;
+      const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
+      
+      if (attendance[loginKey] && attendance[logoutKey]) {
+        events[dateStr] = [{
+          id: `present-${dateStr}`,
+          type: 'present',
+          name: 'Present',
+          time: `${attendance[loginKey]} - ${attendance[logoutKey]}`
+        }];
+      } else {
+        events[dateStr] = [{
+          id: `absent-${dateStr}`,
+          type: 'absent',
+          name: 'Absent'
+        }];
+      }
+    }
+    
+    return events;
   };
+
+  const getDayText = (day) => {
+    const texts = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+      'eleven', 'twelve', 'thirteen', 'forteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen',
+      'nineteen', 'twenty', 'twentyOne', 'twentyTwo', 'twentyThree', 'twentyFour', 'twentyFive',
+      'twentySix', 'twentySeven', 'twentyEight', 'twentyNine', 'thirty', 'thirtyOne'];
+    return texts[day];
+  };
+
+  const sampleEvents = generateMonthEvents();
 
   const renderDay = ({ item }) => {
     const isSelected = item.key === selectedDate;
     const evts = events[item.key] || [];
     const dayName = item.date.format('ddd'); // Mon, Tue
     const dateNumber = item.date.format('D'); // 6, 7
+    const dayOfWeek = item.date.day(); // 0 for Sunday, 6 for Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isAbsent = evts.some(e => e.type === 'absent');
+    const isPresent = evts.some(e => e.type === 'present');
   
     return (
       <TouchableOpacity
@@ -132,7 +236,13 @@ export default function MonthCalendarWithAgenda({
           setSelectedDate(item.key);
           onDateChange(item.key);
         }}
-        style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+        style={[
+          styles.dayCard, 
+          isWeekend && styles.weekendCard,
+          isAbsent && styles.absentCard,
+          isPresent && styles.presentCard,
+          isSelected && styles.dayCardSelected
+        ]}
       >
         {/* Day Name */}
         <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
@@ -140,7 +250,7 @@ export default function MonthCalendarWithAgenda({
         </Text>
   
         {/* Date Number */}
-        <Text style={[styles.dateLabel, isSelected && styles.dateLabelSelected]}>
+        <Text style={[styles.dateLabel, isSelected && styles.dayLabelSelected]}>
           {dateNumber}
         </Text>
   
@@ -152,6 +262,25 @@ export default function MonthCalendarWithAgenda({
               size={12}
               color={eventTypes[e.type]?.color || '#777'}
             />
+            {e.type === 'present' && (
+              <>
+                <Text style={[styles.statusText, { color: eventTypes[e.type]?.color }]}>P</Text>
+                <Text style={styles.timeText}>In: {e.time.split(' - ')[0]}</Text>
+                <Text style={styles.timeText}>Out: {e.time.split(' - ')[1]}</Text>
+              </>
+            )}
+            {e.type === 'absent' && (
+              <Text style={[
+                styles.statusText, 
+                { 
+                  color: eventTypes[e.type]?.color,
+                  backgroundColor: '#FFEBEE',
+                  paddingHorizontal: 4,
+                  paddingVertical: 2,
+                  borderRadius: 4
+                }
+              ]}>A</Text>
+            )}
           </View>
         ))}
       </TouchableOpacity>
@@ -189,6 +318,12 @@ export default function MonthCalendarWithAgenda({
         keyExtractor={(d) => d.key}
         renderItem={renderDay}
         contentContainerStyle={styles.daysContainer}
+        initialScrollIndex={daysInMonth.findIndex(day => day.key === moment().format('YYYY-MM-DD'))}
+        getItemLayout={(data, index) => ({
+          length: CARD_WIDTH + 8,
+          offset: (CARD_WIDTH + 8) * index,
+          index,
+        })}
       />
 
       {/* Agenda */}
@@ -203,7 +338,13 @@ export default function MonthCalendarWithAgenda({
           </View>
         ) : (
           agendaItems.map((evt) => (
-            <View key={evt.id} style={styles.eventCard}>
+            <View key={evt.id} style={[
+              styles.eventCard,
+              evt.type === 'absent' && { backgroundColor: '#FFEBEE', borderLeftColor: '#FF0000' },
+              evt.type === 'weekend' && { backgroundColor: '#FFF8E1', borderLeftColor: '#FFA500' },
+              evt.type === 'holiday' && { backgroundColor: '#FFEBEE', borderLeftColor: '#FF0000' },
+              evt.type === 'present' && { borderLeftColor: '#666666' }
+            ]}>
               <View style={styles.eventRow}>
                 <MaterialIcons
                   name={eventTypes[evt.type]?.icon || 'event'}
@@ -212,7 +353,14 @@ export default function MonthCalendarWithAgenda({
                 />
                 <Text style={styles.eventTitle}>{evt.name}</Text>
               </View>
-              {evt.time && <Text style={styles.eventDetail}>{evt.time}</Text>}
+              {evt.time && (
+                <View style={styles.timeDetails}>
+                  <Text style={styles.timeLabel}>Login: </Text>
+                  <Text style={styles.timeValue}>{evt.time.split(' - ')[0]}</Text>
+                  <Text style={styles.timeLabel}> Logout: </Text>
+                  <Text style={styles.timeValue}>{evt.time.split(' - ')[1]}</Text>
+                </View>
+              )}
               {evt.location && <Text style={styles.eventDetail}>{evt.location}</Text>}
             </View>
           ))
@@ -245,14 +393,21 @@ export default function MonthCalendarWithAgenda({
 const CARD_WIDTH = 50;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F8F9FA' 
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderColor: '#EEE',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   title: {
     fontSize: 18,
@@ -260,21 +415,63 @@ const styles = StyleSheet.create({
     color: '#3F51B5',
   },
   daysContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    backgroundColor: '#ffffffff',
+    borderRadius: 16,
+    margin: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   dayCard: {
-    width: CARD_WIDTH,
+    width: CARD_WIDTH + 10,
     alignItems: 'center',
     marginHorizontal: 4,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#ffffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   dayCardSelected: {
-    backgroundColor: '#3F51B5',
+    backgroundColor: '#77d6f9ff',
+    shadowColor: '#3F51B5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  weekendCard: {
+    backgroundColor: '#f2c570ff',
+  },
+  absentCard: {
+    backgroundColor: '#FF4444',
+    borderColor: '#FF0000',
+    borderWidth: 1,
+    shadowColor: '#FF0000',
+    shadowOpacity: 0.2,
+    elevation: 3,
+  },
+  presentCard: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    elevation: 2,
   },
   dayLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+   dateLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#333',
@@ -282,20 +479,40 @@ const styles = StyleSheet.create({
   dayLabelSelected: {
     color: '#FFF',
   },
-  dotRow: { marginTop: 4 },
+  dotRow: { 
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  statusText: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  timeText: {
+    marginLeft: 4,
+    fontSize: 10,
+    color: '#666'
+  },
   agenda: {
     flex: 1,
     padding: 12,
   },
   agendaHeader: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    color: '#1F2937',
+    paddingHorizontal: 4,
   },
   emptyAgenda: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    margin: 8,
+    borderRadius: 16,
+    padding: 32,
   },
   emptyText: {
     color: '#CCC',
@@ -304,10 +521,16 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 6,
-    elevation: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#666666',
   },
   eventRow: {
     flexDirection: 'row',
@@ -349,5 +572,25 @@ const styles = StyleSheet.create({
     color: '#3F51B5',
     fontSize: 16,
     fontWeight: '600',
+  },
+  timeDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    flexWrap: 'wrap',
+    backgroundColor: '#F8F9FA',
+    padding: 8,
+    borderRadius: 8,
+  },
+  timeLabel: {
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '600'
+  },
+  timeValue: {
+    fontSize: 13,
+    color: '#1F2937',
+    marginRight: 12,
+    fontWeight: '500'
   },
 });

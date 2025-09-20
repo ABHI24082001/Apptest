@@ -144,7 +144,7 @@ const ProfileSection = ({
     ),
     opacity: animatedHeight.value,
   }));
-  debugger;
+  // debugger;
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{rotate: `${animatedRotation.value}deg`}],
   }));
@@ -334,7 +334,7 @@ const ChangePasswordModal = ({
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
-  debugger;
+  // debugger;
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState({});
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
@@ -573,7 +573,7 @@ const ProfileScreen = () => {
 
   // Save and update profile image function
 
-  debugger;
+  // debugger;
 
   const uploadDocumentBase64 = async photo => {
     try {
@@ -621,7 +621,7 @@ const ProfileScreen = () => {
         setUploadedPhotoFileName(uploadedFileName);
 
         // Save to profile
-        debugger;
+        // debugger;
         console.log(
           'Step 3: Saving profile image with filename:',
           uploadedFileName,

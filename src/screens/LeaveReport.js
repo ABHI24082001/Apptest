@@ -20,8 +20,6 @@ import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
 import axiosinstance from '../utils/axiosInstance';
-import LinearGradient from 'react-native-linear-gradient';
-
 import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
@@ -48,18 +46,46 @@ const LeaveReportScreen = ({ navigation }) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   };
 
+
+   const formatForDotNet = date => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return `${d.getFullYear()}-${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}T00:00:00`;
+  };
+
   // Build payload for CommonParameter API
   const buildCommonParameterPayload = () => {
     // Required fields with fallback to default values
     return {
-      childCompanyId: employeeDetails?.childCompanyId ?? 0,
-      branchId: employeeDetails?.branchId ?? 0,
-      designationId: employeeDetails?.designtionId ?? 0,
-      userType: employeeDetails?.employeeType ?? 0,
-      employeeId: employeeDetails?.id ?? 0,
-      departmentId: employeeDetails?.departmentId ?? 0,
-      fromDate: formatDateForBackend(fromDate) ?? null,
-      toDate: formatDateForBackend(toDate) ?? null,
+     EmployeeId: employeeDetails?.id || 0,
+        Month: 0,
+        Year: 0,
+        YearList: null,
+        ChildCompanyId: employeeDetails?.childCompanyId || 0,
+        FromDate: fromDate ? formatForDotNet(fromDate) : null,
+        ToDate: toDate ? formatForDotNet(toDate) : null,
+        BranchName: null,
+        BranchId: 0,
+        EmployeeTypeId: 0,
+        DraftName: null,
+        Did: 0,
+        UserId: 0,
+        status: null,
+        Ids: null,
+        CoverLatter: null,
+        DepartmentId: 0,
+        DesignationId: 0,
+        UserType: 0,
+        CalculationType: 0,
+        childCompanies: null,
+        branchIds: null,
+        departmentsIds: null,
+        designationIds: null,
+        employeeTypeIds: null,
+        employeeIds: null,
+        hasAllReportAccess: false,
     };
   };
 
