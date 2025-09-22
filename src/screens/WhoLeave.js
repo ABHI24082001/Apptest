@@ -1,96 +1,104 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
-  TextInput,
   Image,
   Platform,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
-  Keyboard,
   TouchableOpacity,
+  Keyboard,
 } from "react-native";
 import AppSafeArea from "../component/AppSafeArea";
-import { Appbar, Searchbar } from "react-native-paper";
+import { Appbar } from "react-native-paper";
+import MaterialIcon from "react-native-vector-icons/MaterialCommunityIcons";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import axiosInstance from '../utils/axiosInstance';
+import {useAuth} from '../constants/AuthContext';
 
-import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-
-
-const leaveUsers = [
-  {
-    id: "1",
-    name: "Anjana Mishra",
-    role: "HR, Management",
-    image: require("../assets/image/woman.png"),
-    assignTask: "Abhi",
-    status: "On Leave",
-  },
-  {
-    id: "2",
-    name: "Jayanta Behera",
-    role: "Backend Developer, IT",
-    image: require("../assets/image/boy.png"),
-    assignTask: "Abhi",
-    status: "Working Remote",
-  },
-  {
-    id: "3",
-    name: "Abhispa Pathak",
-    role: "Android Developer, IT",
-    image: require("../assets/image/boy.png"),
-    assignTask: "Abhi",
-    status: "On Leave",
-  },
-  {
-    id: "4",
-    name: "Ansuman Samal",
-    role: ".Net Developer, IT",
-    image: require("../assets/image/boy.png"),
-    assignTask: "Abhi",
-    status: "Sick Leave",
-  },
-];
-
+import useFetchEmployeeDetails from "../components/FetchEmployeeDetails";
+import BASE_URL from '../constants/apiConfig';
 const WhoLeave = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("All Branches");
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredUsers = leaveUsers.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const employeeDetails = useFetchEmployeeDetails();
+  console.log('Fetched employee details:', employeeDetails);
+    const {user} = useAuth();
+  
+    console.log('User details:', user);
+  
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const companyId = user?.childCompanyId || 2;
+        const branchId = user?.branchId || 20;
+        const departmentId = user?.departmentId || 39;
+        const employeeId = user?.id || 29;
+        
+        const url = `${BASE_URL}/CommonDashboard/GetLeaveApprovalDetails/${companyId}/${branchId}/${departmentId}/${employeeId}`;
+        
+        const response = await axiosInstance.get(url);
+        
+        // Transform the API data to match the expected format
+        const transformedData = response.data.map(employee => ({
+          ...employee,
+          id: employee.employeeId.toString(),
+          role: `${employee.designation}, ${employee.department}`
+        }));
+        
+        setEmployees(transformedData);
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, [user]);
 
   const renderUserCard = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.userInfo}>
-          <Image source={item.image} style={styles.avatar} />
+          {item.empImage ? (
+            <Image 
+              source={{ uri: `${BASE_URL}/uploads/employee/${item.empImage}` }} 
+              style={styles.avatar} 
+              defaultSource={require('../assets/image/woman.png')}
+              onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+            />
+          ) : (
+            <Image 
+              source={{ uri: `https://avatar.iran.liara.run/public/26` }} 
+              style={styles.avatar} 
+            />
+          )}
+         
           <View>
             <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.role}>{item.role}</Text>
+            <Text style={styles.role}>
+              {item.designation}, {item.department}
+            </Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, 
-          item.status === "On Leave" && styles.leaveStatus,
-          item.status === "Working Remote" && styles.remoteStatus,
-          item.status === "Sick Leave" && styles.sickStatus
-        ]}>
-          <Text style={styles.statusText}>{item.status}</Text>
+
+        {/* Example status, you can replace with real API field later */}
+        <View style={[styles.statusBadge, styles.leaveStatus]}>
+          <Text style={styles.statusText}>On Leave</Text>
         </View>
       </View>
-      
+
       <View style={styles.divider} />
-      
+
       <View style={styles.taskWrapper}>
         <View style={styles.taskInfo}>
-        
           <Text style={styles.taskLabel}>Assigned To:</Text>
-          <Text style={styles.taskValue}>{item.assignTask}</Text>
+          <Text style={styles.taskValue}>{item.assignedTo|| 'N/A'}</Text>
         </View>
-       
       </View>
     </View>
   );
@@ -102,10 +110,9 @@ const WhoLeave = ({ navigation }) => {
           onPress={() => navigation.goBack()}
           color="#4B5563"
         />
-        <Appbar.Content 
-          title="Log Report" 
-          titleStyle={styles.headerTitle} 
-          
+        <Appbar.Content
+          title="Who is on Leave"
+          titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
 
@@ -115,27 +122,30 @@ const WhoLeave = ({ navigation }) => {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.container}>
-            
-
-         
-    
-            {/* Employee List */}
-            <FlatList
-              data={filteredUsers}
-              keyExtractor={(item) => item.id}
-              renderItem={renderUserCard}
-              contentContainerStyle={styles.list}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <MaterialIcon name="search" size={50} color="#E5E7EB" />
-                  <Text style={styles.emptyStateText}>No employees found</Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    Try adjusting your search or filter
-                  </Text>
-                </View>
-              }
-            />
+            {loading ? (
+              <Text style={{ textAlign: "center", marginTop: 20 }}>
+                Loading...
+              </Text>
+            ) : (
+              <FlatList
+                data={employees}
+                keyExtractor={(item) => item.employeeId.toString()}
+                renderItem={renderUserCard}
+                contentContainerStyle={styles.list}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <MaterialIcon name="account-off" size={50} color="#E5E7EB" />
+                    <Text style={styles.emptyStateText}>
+                      No employees found
+                    </Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      Try again later
+                    </Text>
+                  </View>
+                }
+              />
+            )}
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -144,6 +154,7 @@ const WhoLeave = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  /* (keep your same styles here) */
   header: {
     backgroundColor: "#FFFFFF",
     elevation: 0,
@@ -151,91 +162,23 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6",
     height: 50,
   },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1976D2',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#111827",
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
-  },
-  searchSection: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginRight: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: "100%",
-    fontSize: 16,
-    color: "#111827",
-  },
-  filterButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  branchFilter: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  branchLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
-    marginRight: 8,
-  },
-  branchSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  branchText: {
-    fontSize: 14,
-    color: "#4B5563",
-    marginRight: 4,
-  },
-  resultsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  resultsText: {
-    fontSize: 14,
-    color: "#6B7280",
   },
   list: {
     paddingHorizontal: 16,
@@ -295,12 +238,6 @@ const styles = StyleSheet.create({
   leaveStatus: {
     backgroundColor: "#FEF3F2",
   },
-  remoteStatus: {
-    backgroundColor: "#F0F9FF",
-  },
-  sickStatus: {
-    backgroundColor: "#FFFBEB",
-  },
   statusText: {
     fontSize: 12,
     fontWeight: "500",
@@ -329,17 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#374151",
-  },
-  detailsButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-  },
-  detailsText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#4B5563",
   },
   emptyState: {
     alignItems: "center",

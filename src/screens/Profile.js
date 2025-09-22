@@ -11,6 +11,7 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
+  BackHandler,
 } from 'react-native';
 import {
   Card,
@@ -32,6 +33,7 @@ import Animated, {
   interpolate,
   Extrapolate,
   withSpring,
+  FadeIn,
 } from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
@@ -57,10 +59,89 @@ const EditableField = ({
   onEdit,
   keyboardType = 'default',
   multiline = false,
+  isDropdown = false,
+  options = [],
+  required = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  // Close dropdown when tapping outside
+  useEffect(() => {
+    if (showDropdown) {
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          setShowDropdown(false);
+          return true;
+        },
+      );
+      return () => backHandler.remove();
+    }
+  }, [showDropdown]);
+
   const currentValue =
     editedFields[label] !== undefined ? editedFields[label] : value;
+
+  const validateField = val => {
+    if (required && (!val || val.trim() === '')) {
+      return `${label} is required`;
+    }
+
+    if (val && val.trim() !== '') {
+      // Field-specific validations
+      switch (label) {
+        case 'Bank Name':
+          const bankNameRegex = /^[A-Za-z ]{3,50}$/;
+          if (!bankNameRegex.test(val)) {
+            return 'Bank name should contain only letters and be 3-50 characters long';
+          }
+          break;
+
+        case 'AC Number':
+          const acNumberRegex = /^[0-9]{9,18}$/;
+          if (!acNumberRegex.test(val)) {
+            return 'Account number should contain 9-18 digits only';
+          }
+          break;
+
+        case 'IFSC Code':
+          const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+          if (!ifscRegex.test(val)) {
+            return 'Please enter a valid IFSC code (format: ABCD0123456)';
+          }
+          break;
+
+        case 'Email':
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+          if (!emailRegex.test(val)) {
+            return 'Please enter a valid email address';
+          }
+          break;
+
+        case 'Primary No':
+        case 'Emergency No':
+          const phoneRegex = /^[6-9][0-9]{9}$/;
+          if (!phoneRegex.test(val)) {
+            return 'Phone number should be 10 digits and start with 6-9';
+          }
+          break;
+      }
+    }
+
+    return null;
+  };
+
+  const handleValueChange = text => {
+    const error = validateField(text);
+    setValidationError(error);
+    setEditedFields(prev => ({...prev, [label]: text}));
+  };
+
+  const selectOption = option => {
+    handleValueChange(option);
+    setShowDropdown(false);
+  };
 
   return (
     <View style={styles.fieldContainer}>
@@ -69,24 +150,114 @@ const EditableField = ({
           <Icon name={icon} size={20} color="#666" />
         </View>
         <View style={styles.fieldContent}>
-          <Text style={styles.fieldLabel}>{label}</Text>
+          <Text style={styles.fieldLabel}>
+            {label} {required && <Text style={styles.requiredAsterisk}>*</Text>}
+          </Text>
           {isEditing && editable ? (
-            <TextInput
-              style={[
-                styles.fieldInput,
-                isFocused && styles.fieldInputFocused,
-                multiline && styles.fieldInputMultiline,
-              ]}
-              value={currentValue?.toString() || ''}
-              onChangeText={text =>
-                setEditedFields(prev => ({...prev, [label]: text}))
-              }
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              keyboardType={keyboardType}
-              multiline={multiline}
-              placeholder={`Enter ${label.toLowerCase()}`}
-            />
+            isDropdown ? (
+              <View>
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownField,
+                    isFocused && styles.fieldInputFocused,
+                    validationError && styles.fieldInputError,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => setShowDropdown(!showDropdown)}>
+                  <Text
+                    style={[
+                      currentValue
+                        ? styles.dropdownSelectedValue
+                        : styles.dropdownPlaceholder,
+                      validationError && styles.dropdownErrorText,
+                    ]}>
+                    {currentValue || `Select ${label.toLowerCase()}`}
+                  </Text>
+                  <Animated.View
+                    style={{
+                      transform: [{rotate: showDropdown ? '180deg' : '0deg'}],
+                    }}>
+                    <Icon
+                      name="chevron-down"
+                      size={18}
+                      color={validationError ? '#F44336' : '#666'}
+                    />
+                  </Animated.View>
+                </TouchableOpacity>
+
+                {showDropdown && (
+                  <Animated.View
+                    entering={FadeIn.duration(200)}
+                    style={styles.dropdownList}>
+                    <ScrollView
+                      style={{maxHeight: 180}}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      bounces={false}>
+                      {options.map((option, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.dropdownItem,
+                            currentValue === option &&
+                              styles.dropdownItemSelected,
+                            index === options.length - 1 &&
+                              styles.dropdownItemLast,
+                          ]}
+                          activeOpacity={0.6}
+                          onPress={() => selectOption(option)}>
+                          <Text
+                            style={[
+                              styles.dropdownItemText,
+                              currentValue === option &&
+                                styles.dropdownSelectedText,
+                            ]}>
+                            {option}
+                          </Text>
+                          {currentValue === option && (
+                            <Icon
+                              name="check"
+                              size={18}
+                              color="#3B82F6"
+                              style={{marginLeft: 'auto'}}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                )}
+                {validationError && (
+                  <Text style={styles.errorText}>{validationError}</Text>
+                )}
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  style={[
+                    styles.fieldInput,
+                    isFocused && styles.fieldInputFocused,
+                    multiline && styles.fieldInputMultiline,
+                    validationError && styles.fieldInputError,
+                  ]}
+                  value={currentValue?.toString() || ''}
+                  onChangeText={handleValueChange}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => {
+                    setIsFocused(false);
+                    // Always validate on blur for better UX
+                    setValidationError(validateField(currentValue));
+                  }}
+                  keyboardType={keyboardType}
+                  multiline={multiline}
+                  placeholder={`Enter ${label.toLowerCase()}`}
+                  autoCapitalize={label === 'IFSC Code' ? 'characters' : 'none'}
+                />
+                {validationError && (
+                  <Text style={styles.errorText}>{validationError}</Text>
+                )}
+              </>
+            )
           ) : (
             <Text style={styles.fieldValue}>
               {currentValue || 'Not specified'}
@@ -375,7 +546,7 @@ const ProfileScreen = () => {
       d.getDate(),
     )}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   };
-
+  // debugger
   // Handle password change
   const handlePasswordChange = async passwords => {
     setPasswordLoading(true);
@@ -573,83 +744,150 @@ const ProfileScreen = () => {
 
   // Save and update profile image function
 
-  // debugger;
+  debugger;
+
+  // const uploadDocumentBase64 = async photo => {
+  //   try {
+  //     setUploading(true);
+  //     const base64Data = await RNFS.readFile(photo.uri, 'base64');
+  //     const fileName = photo.name || photo.fileName || 'photo.jpg';
+  //     const extension = fileName.split('.').pop() || 'jpg';
+
+  //     const payload = {
+  //       fileName: fileName,
+  //       base64File: base64Data,
+  //       extension: extension,
+  //       category: 'img',
+  //     };
+
+  //     console.log('📤 Uploading payload:', payload);
+
+  //     // const response = await axios.post(
+  //     //   'http://192.168.29.2:90/UploadDocument/UploadDocument',
+  //     //   payload,
+
+  //     // );
+
+  //     const response = await fetch(
+  //       'https://192.168.29.2:90/UploadDocument/UploadDocument',
+  //       {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify(payload),
+  //       },
+  //     );
+
+  //     console.log('✅ Upload status:', response.status);
+  //     console.log('📥 Server response:', response.data);
+
+  //     if (
+  //       response.status >= 200 &&
+  //       response.status < 300 &&
+  //       response.data?.fileName
+  //     ) {
+  //       const uploadedFileName = response.data.fileName;
+  //       Alert.alert('Success', 'Profile photo uploaded!');
+  //       setUploadedPhotoFileName(uploadedFileName);
+
+  //       // Save to profile
+  //       // debugger;
+  //       console.log(
+  //         'Step 3: Saving profile image with filename:',
+  //         uploadedFileName,
+  //       );
+  //       await saveProfileImage(uploadedFileName);
+
+  //       // Fetch uploaded image from server
+  //       const fetchUrl = `https://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
+  //       console.log('Step 4: Fetching image from:', fetchUrl);
+
+  //       const fileResponse = await axios.get(fetchUrl, {
+  //         responseType: 'blob',
+  //       });
+
+  //       console.log('Step 4: Fetched image response:', fileResponse);
+
+  //       // Convert blob to object URL for preview
+  //       const blob = fileResponse.data;
+  //       const objectUrl = URL.createObjectURL(blob);
+  //       setUploadedPhoto({uri: objectUrl});
+
+  //       console.log('Step 5: Image preview URI:', objectUrl);
+  //     } else {
+  //       throw new Error(`Server returned status ${response.status}`);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ UploadDocument error:', error.message);
+  //     Alert.alert('Upload Failed', 'Could not upload profile photo');
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   const uploadDocumentBase64 = async photo => {
     try {
       setUploading(true);
+
+      // Convert local file to base64
       const base64Data = await RNFS.readFile(photo.uri, 'base64');
       const fileName = photo.name || photo.fileName || 'photo.jpg';
       const extension = fileName.split('.').pop() || 'jpg';
 
       const payload = {
-        fileName: fileName,
+        fileName,
         base64File: base64Data,
-        extension: extension,
+        extension,
         category: 'img',
       };
 
       console.log('📤 Uploading payload:', payload);
 
-      // const response = await axios.post(
-      //   'http://192.168.29.2:90/UploadDocument/UploadDocument',
-      //   payload,
-
-      // );
-
+      // ✅ Use http, not https
       const response = await fetch(
         'http://192.168.29.2:90/UploadDocument/UploadDocument',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(payload),
         },
       );
 
-      console.log('✅ Upload status:', response.status);
-      console.log('📥 Server response:', response.data);
+      const result = await response.json();
+      console.log('📥 Server response:', result);
 
-      if (
-        response.status >= 200 &&
-        response.status < 300 &&
-        response.data?.fileName
-      ) {
-        const uploadedFileName = response.data.fileName;
+      if (response.ok && result.fileName) {
+        const uploadedFileName = result.fileName;
         Alert.alert('Success', 'Profile photo uploaded!');
         setUploadedPhotoFileName(uploadedFileName);
 
-        // Save to profile
-        // debugger;
-        console.log(
-          'Step 3: Saving profile image with filename:',
-          uploadedFileName,
-        );
+        // Save filename to employee profile
         await saveProfileImage(uploadedFileName);
 
-        // Fetch uploaded image from server
+        // ✅ Now fetch uploaded image as base64
         const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
         console.log('Step 4: Fetching image from:', fetchUrl);
 
-        const fileResponse = await axios.get(fetchUrl, {
-          responseType: 'blob',
-        });
+        const fileResponse = await fetch(fetchUrl);
+        const fileResult = await fileResponse.json();
 
-        console.log('Step 4: Fetched image response:', fileResponse);
-
-        // Convert blob to object URL for preview
-        const blob = fileResponse.data;
-        const objectUrl = URL.createObjectURL(blob);
-        setUploadedPhoto({uri: objectUrl});
-
-        console.log('Step 5: Image preview URI:', objectUrl);
+        if (fileResponse.ok && fileResult.base64File) {
+          const imageUri = `data:image/${extension};base64,${fileResult.base64File}`;
+          setUploadedPhoto({uri: imageUri});
+          console.log('✅ Image preview URI:', imageUri);
+        } else {
+          throw new Error('Failed to fetch uploaded image');
+        }
       } else {
-        throw new Error(`Server returned status ${response.status}`);
+        throw new Error(result?.message || `Server error: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ UploadDocument error:', error.message);
-      Alert.alert('Upload Failed', 'Could not upload profile photo');
+      console.error('❌ UploadDocument error:', error);
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Could not upload profile photo',
+      );
     } finally {
       setUploading(false);
     }
@@ -748,15 +986,132 @@ const ProfileScreen = () => {
   // Handle field edit
   const handleEdit = field => {
     setIsEditing(true);
+
+    // Map fields to their corresponding property names in employeeDetails
+    const fieldToPropertyMap = {
+      'Blood Group': 'bloodGroup',
+      'Marital Status': 'maritalStatus',
+      'Bank Name': 'existingBank',
+      'AC Number': 'bankAcNo',
+      'IFSC Code': 'bankIfsc',
+      Email: 'emailAddress',
+      'Primary No': 'pcontactNo',
+      'Emergency No': 'emergencyContactNo',
+    };
+
+    const propertyName = fieldToPropertyMap[field];
+    const value = propertyName
+      ? employeeDetails[propertyName]
+      : employeeDetails[field];
+
     setEditedFields(prev => ({
       ...prev,
-      [field]: employeeDetails[field] || '',
+      [field]: value || '',
     }));
   };
 
   // Handle save profile with improved error handling
   const handleSave = async () => {
     try {
+      // Validate required fields
+      const requiredFields = [
+        'Blood Group',
+        'Marital Status',
+        'Bank Name',
+        'AC Number',
+        'IFSC Code',
+        'Email',
+        'Primary No',
+        'Emergency No',
+      ];
+      const missingFields = [];
+
+      requiredFields.forEach(field => {
+        // Check if the field is empty in both edited fields and employee details
+        const fieldToPropertyMap = {
+          'Blood Group': 'bloodGroup',
+          'Marital Status': 'maritalStatus',
+          'Bank Name': 'existingBank',
+          'AC Number': 'bankAcNo',
+          'IFSC Code': 'bankIfsc',
+          Email: 'emailAddress',
+          'Primary No': 'pcontactNo',
+          'Emergency No': 'emergencyContactNo',
+        };
+
+        const propertyName = fieldToPropertyMap[field];
+        const existingValue = propertyName
+          ? employeeDetails[propertyName]
+          : null;
+
+        if (!editedFields[field] && !existingValue) {
+          missingFields.push(field);
+        }
+      });
+
+      if (missingFields.length > 0) {
+        Alert.alert(
+          'Required Fields Missing',
+          `Please provide: ${missingFields.join(', ')}`,
+        );
+        return;
+      }
+
+      // Perform validation on all edited fields
+      const validateFieldValue = (field, value) => {
+        switch (field) {
+          case 'Bank Name':
+            const bankNameRegex = /^[A-Za-z ]{3,50}$/;
+            return bankNameRegex.test(value)
+              ? null
+              : 'Bank name should contain only letters and be 3-50 characters';
+
+          case 'AC Number':
+            const acNumberRegex = /^[0-9]{9,18}$/;
+            return acNumberRegex.test(value)
+              ? null
+              : 'Account number should contain 9-18 digits only';
+
+          case 'IFSC Code':
+            const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            return ifscRegex.test(value)
+              ? null
+              : 'Please enter a valid IFSC code (format: ABCD0123456)';
+
+          case 'Email':
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+            return emailRegex.test(value)
+              ? null
+              : 'Please enter a valid email address';
+
+          case 'Primary No':
+          case 'Emergency No':
+            const phoneRegex = /^[6-9][0-9]{9}$/;
+            return phoneRegex.test(value)
+              ? null
+              : 'Phone number should be 10 digits and start with 6-9';
+
+          default:
+            return null;
+        }
+      };
+
+      const validationErrors = [];
+
+      // Validate edited fields
+      Object.keys(editedFields).forEach(field => {
+        const value = editedFields[field];
+        const error = validateFieldValue(field, value);
+        if (error) {
+          validationErrors.push(`${field}: ${error}`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        Alert.alert('Validation Failed', validationErrors.join('\n'));
+        return;
+      }
+
       // Map UI labels to backend property names for edited fields
       const fieldMap = {
         'Blood Group': 'BloodGroup',
@@ -896,6 +1251,10 @@ const ProfileScreen = () => {
         'Sending profile update to:',
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
       );
+      console.log('Edited fields:', editedFields);
+      console.log('Blood Group value being sent:', payload.BloodGroup);
+      console.log('Marital Status value being sent:', payload.MaritalStatus);
+      console.log('Full payload:', JSON.stringify(payload, null, 2));
 
       const response = await axios
         .post(`${BASE_URL}/EmpRegistration/SaveEmpRegistration`, payload)
@@ -988,30 +1347,40 @@ const ProfileScreen = () => {
       label: 'Blood Group',
       value: employeeDetails.bloodGroup,
       editable: true,
+      isDropdown: true,
+      options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+      required: true,
     },
     {
       icon: 'account-heart',
       label: 'Marital Status',
       value: employeeDetails.maritalStatus,
       editable: true,
+      isDropdown: true,
+      options: ['Married', 'Unmarried', 'Other'],
+      required: true,
     },
     {
       icon: 'bank',
       label: 'Bank Name',
       value: employeeDetails.existingBank,
       editable: true,
+      required: true,
     },
     {
       icon: 'credit-card',
       label: 'AC Number',
       value: employeeDetails.bankAcNo,
       editable: true,
+      keyboardType: 'numeric',
+      required: true,
     },
     {
       icon: 'barcode',
       label: 'IFSC Code',
       value: employeeDetails.bankIfsc,
       editable: true,
+      required: true,
     },
   ];
 
@@ -1022,6 +1391,7 @@ const ProfileScreen = () => {
       value: employeeDetails.emailAddress,
       editable: true,
       keyboardType: 'email-address',
+      required: true,
     },
     {
       icon: 'phone',
@@ -1029,6 +1399,7 @@ const ProfileScreen = () => {
       value: employeeDetails.pcontactNo,
       editable: true,
       keyboardType: 'phone-pad',
+      required: true,
     },
     {
       icon: 'cellphone',
@@ -1036,6 +1407,7 @@ const ProfileScreen = () => {
       value: employeeDetails.emergencyContactNo,
       editable: true,
       keyboardType: 'phone-pad',
+      required: true,
     },
   ];
 
@@ -1131,10 +1503,12 @@ const ProfileScreen = () => {
                 <View style={styles.profileImageContainer}>
                   <Image
                     source={
-                      imageUrl
+                      uploadedPhoto
+                        ? {uri: uploadedPhoto.uri}
+                        : imageUrl
                         ? {uri: imageUrl}
                         : {
-                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
                           }
                     }
                     style={styles.profileImage}
@@ -1388,6 +1762,80 @@ const styles = StyleSheet.create({
   },
   fieldDivider: {
     marginTop: 8,
+  },
+  dropdownField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    paddingVertical: 10,
+    position: 'relative',
+    minHeight: 40,
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginTop: 4,
+  },
+  dropdownItem: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#f0f7ff',
+  },
+  dropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '400',
+  },
+  dropdownSelectedText: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  dropdownSelectedValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  dropdownPlaceholder: {
+    fontSize: 16,
+    color: '#999',
+  },
+  dropdownErrorText: {
+    color: '#F44336',
+  },
+  fieldInputError: {
+    borderBottomColor: '#F44336',
+  },
+  errorText: {
+    color: '#F44336',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  requiredAsterisk: {
+    color: '#F44336',
+    fontWeight: 'bold',
   },
 
   // Password modal styles

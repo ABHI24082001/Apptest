@@ -35,33 +35,7 @@ const Dashboard = () => {
 
   const employeeData = useFetchEmployeeDetails();
   const [leaveData, setLeaveData] = useState([]);
-
-  const leaveUsers = [
-    {
-      id: '1',
-      name: 'Anjana Mishra',
-      role: 'HR, Management',
-      image: require('../assets/image/woman.png'),
-    },
-    {
-      id: '2',
-      name: 'Jayanta Behera',
-      role: 'Backend Developer, IT',
-      image: require('../assets/image/withh.png'),
-    },
-    {
-      id: '3',
-      name: 'Abhispa Pathak',
-      role: 'Android Developer, IT',
-      image: require('../assets/image/withh.png'),
-    },
-    {
-      id: '4',
-      name: 'Ansuman Samal',
-      role: '.Net Developer, IT',
-      image: require('../assets/image/withh.png'),
-    },
-  ];
+  const [leaveUsers, setLeaveUsers] = useState([]);
 
   const progress = useSharedValue(0);
   const progressPercentage = Math.floor(progress.value * 100);
@@ -141,7 +115,40 @@ const Dashboard = () => {
     };
 
     fetchLeaveData();
-  }, []);
+  }, [user]);
+  
+  useEffect(() => {
+    const fetchEmployeesOnLeave = async () => {
+      try {
+        const companyId = user?.childCompanyId || 2;
+        const branchId = user?.branchId || 20;
+        const departmentId = user?.departmentId || 39;
+        const employeeId = user?.id || 29;
+        
+        const url = `${BASE_URL}/CommonDashboard/GetLeaveApprovalDetails/${companyId}/${branchId}/${departmentId}/${employeeId}`;
+        
+        const response = await axiosInstance.get(url);
+        
+        // Transform the API data to match the expected format for OnLeaveUsers
+        const transformedData = response.data.map(employee => ({
+          id: employee.employeeId.toString(),
+          name: employee.name,
+          role: `${employee.designation}, ${employee.department}`,
+          image: employee.empImage 
+            ? { uri: `${BASE_URL}/uploads/employee/${employee.empImage}` }
+            : { uri: 'https://avatar.iran.liara.run/public/26' },
+          empImage: employee.empImage // Keep the original field for conditional rendering
+        }));
+        
+        setLeaveUsers(transformedData);
+      } catch (error) {
+        console.error('Error fetching employees on leave:', error);
+        setLeaveUsers([]);
+      }
+    };
+
+    fetchEmployeesOnLeave();
+  }, [user]);
 
   return (
     <AppSafeArea>
