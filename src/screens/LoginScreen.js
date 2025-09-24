@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   StyleSheet,
@@ -15,7 +15,6 @@ import {useNavigation} from '@react-navigation/native';
 import {useForm} from 'react-hook-form';
 import HookFormInput from '../component/HookFormInput';
 
-import BASE_URL from '../constants/apiConfig';
 import {setAuthToken, setUserIdHeader} from '../utils/axiosInstance'
 import axiosInstance from '../utils/axiosInstance'; 
 // const BASE_URL = 'https://hcmapiv2.anantatek.com/api/';
@@ -39,122 +38,34 @@ const LoginScreen = () => {
 
   const {login} = useAuth();
 
+  // Check for stored credentials on component mount
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const hasLoggedIn = await AsyncStorage.getItem('hasLoggedIn');
+        const storedUser = await AsyncStorage.getItem('user');
+        const storedToken = await AsyncStorage.getItem('token');
+        const storedUserId = await AsyncStorage.getItem('userId');
 
+        if (hasLoggedIn === 'true' && storedUser && storedToken && storedUserId) {
+          // Set the authentication state
+          const userData = JSON.parse(storedUser);
+          login(userData, storedToken, storedUserId);
+          
+          // Set headers for axios
+          setAuthToken(storedToken);
+          setUserIdHeader(storedUserId);
+          
+          // Navigate to Main screen
+          navigation.replace('Main');
+        }
+      } catch (error) {
+        console.error('Error checking login status:', error);
+      }
+    };
 
-
-// const onSubmit = async (data) => {
-//   const { username, password } = data;
-//   setLoading(true);
-//   setLoginMessage({ type: '', text: '' });
-//   clearErrors();
-
-//   const token =
-//     'SoN8HIgE3rYpS22E4ngvUj7Bj5PypE0JKUvbgIo3N7bMy1bVnhAWNKyFaMmBAnZz+n1Nyry29JujM3MmZJ4fdpzC2LMf0pCoR4a44dJxDXtutvdcMLZVBNoMYNcwbnx5Na1/ujDmC2SO/mCYZ8HXuL++c+EMS3EDVHc0gEcjxyEOb8rMv3q5XOY8Ha+hV0DIn5e1lfsp18cz9Kwm0mBlo9IykXIyeQyNCp1/AxhmaRQkb37BLRLOXfX251myZJbm';
-
-//   try {
-//     // 🔍 Step 1: Fetch User ID
-//     console.log('🔄 Sending request to FetchCompanyUserId...');
-//     const fetchUserIdResponse = await axiosInstance.post(
-//       `${BASE_URL}/EmpRegistration/FetchCompanyUserId`,
-//       {
-//         UserName: username,
-//         Password: password,
-//         descriptor: null,
-//       },
-//       {
-//         headers: {
-         
-//           Authorization: `Bearer ${token}`,
-//           UserId: '0',
-//         },
-//       }
-//     );
-   
-//     console.log('✅ FetchCompanyUserId Response:', fetchUserIdResponse.data);
-//     const fetchedUserId = fetchUserIdResponse?.data;
-
-
-//     if (!fetchedUserId) {
-//       console.warn(
-//         '⚠️ User ID not found in response:',
-//         fetchUserIdResponse.data
-//       );
-//       console.warn('⚠️ User ID not found in response:', fetchUserIdResponse.data);
-//       throw new Error('User ID not found. Please check your username/password.');
-//     }
-
-//     // 🔐 Step 2: Authenticate User
-//     console.log(
-//       `🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`
-//     );
-//     console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
-
-
-//     setAuthToken(token);           // ✅ Set token globally
-//     setUserIdHeader(fetchedUserId); // ✅ Set userId globally
-//     const getAuthUserResponse = await axiosinstance.post(
-//       `${BASE_URL}/EmpRegistration/GetAuthUser`,
-//       {
-//         UserName: username,
-//         Password: password,
-//         UserType: 0,
-//       },
-//       {
-//         headers: {
-//           'Content-Type': 'application/json',
-//           Authorization: `Bearer ${token}`,
-//           UserId: String(fetchedUserId),
-//         },
-//       }
-//     );
-
-//     console.log('✅ GetAuthUser============================ Response:', getAuthUserResponse.data);
-
-//     if (getAuthUserResponse.data) {
-//       await AsyncStorage.setItem('hasLoggedIn', 'true');
-//       login(getAuthUserResponse.data, token);
-
-//       setLoginMessage({
-//         type: 'success',
-//         text: 'Login Successful. Welcome back!',
-//       });
-
-//       navigation.navigate('Main');
-//     } else {
-//       setLoginMessage({
-//         type: 'error',
-//         text: 'Invalid username or password.',
-//       });
-//     }
-//   } catch (error) {
-//     console.error('❌ Login flow error:', error?.response?.data || error.message);
-
-//     const status = error?.response?.status;
-//     const message = error?.response?.data?.message || error?.message || 'Login failed';
-
-//     const isUsernameError = message.toLowerCase().includes('username');
-//     const isPasswordError = message.toLowerCase().includes('password');
-
-//     if (status === 404 || isUsernameError || isPasswordError) {
-//       if (isUsernameError) {
-//         setError('username', { type: 'manual', message: 'Username is invalid' });
-//       }
-//       if (isPasswordError) {
-//         setError('password', { type: 'manual', message: 'Password is invalid' });
-//       }
-//       if (!isUsernameError && !isPasswordError) {
-//         setLoginMessage({ type: 'error', text: 'Username or Password is invalid' });
-//       }
-//     } else {
-//       setLoginMessage({ type: 'error', text: message });
-//     }
-//   } finally {
-//     console.log('✅ Login process completed.');
-//     setLoading(false);
-//   }
-// };
-
-
+    checkLoginStatus();
+  }, []);
 
 const onSubmit = async (data) => {
   const { username, password } = data;
@@ -209,6 +120,10 @@ const onSubmit = async (data) => {
 
     if (getAuthUserResponse.data) {
       await AsyncStorage.setItem('hasLoggedIn', 'true');
+      await AsyncStorage.setItem('user', JSON.stringify(getAuthUserResponse.data));
+      await AsyncStorage.setItem('token', token);
+      await AsyncStorage.setItem('userId', fetchedUserId);
+      
       login(getAuthUserResponse.data, token, fetchedUserId); // ✅ Include userId if needed
 
       setLoginMessage({
@@ -216,7 +131,7 @@ const onSubmit = async (data) => {
         text: 'Login Successful. Welcome back!',
       });
 
-      navigation.navigate('Main');
+      navigation.replace('Main');
     } else {
       setLoginMessage({
         type: 'error',
@@ -319,18 +234,6 @@ const onSubmit = async (data) => {
               rightIconOnPress={() => setHidePassword(!hidePassword)}
               error={errors.password}
             />
-
-            {/* {errors.username && (
-              <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
-                {errors.username.message}
-              </CoreText>
-            )}
-
-            {errors.password && (
-              <CoreText size="sm" color={ERROR_COLOR} style={{ marginBottom: 10 }}>
-                {errors.password.message}
-              </CoreText>
-            )} */}
 
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword')}

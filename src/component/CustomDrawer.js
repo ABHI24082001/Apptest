@@ -34,13 +34,22 @@ const CustomDrawer = ({navigation}) => {
   const {logout} = useAuth();
   const handleLogout = async () => {
     try {
+      console.log('Starting logout from CustomDrawer...');
       await logout(); // ✅ Clear user and AsyncStorage
+      console.log('Logout successful, navigating to Login screen');
+      
+      // Ensure we reset the navigation stack to prevent going back
       navigation.reset({
         index: 0,
         routes: [{name: 'Login'}], // ✅ Navigate to Login
       });
     } catch (error) {
-      console.error('Logout Error:', error);
+      console.error('Logout Error in CustomDrawer:', error);
+      // Even if there's an error during logout, try to navigate to Login
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Login'}],
+      });
     }
   };
 
@@ -183,7 +192,6 @@ const CustomDrawer = ({navigation}) => {
     }
   }, [user?.empImage]);
 
-  const IMG_BASE_URL = 'https://hcmapiv2.anantatek.com/api/UploadImg/';
 
   console.log('employee avatar ➜', imageUrl);
 
@@ -530,9 +538,7 @@ const CustomDrawer = ({navigation}) => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.logout}
-          // onPress={() =>
-          //   navigation.reset({index: 0, routes: [{name: 'Login'}]})
-          // }
+          activeOpacity={0.7}
           onPress={handleLogout}>
           <MaterialCommunityIcons
             name="logout-variant"

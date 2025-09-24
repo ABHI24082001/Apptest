@@ -34,7 +34,7 @@ const NotificationButton = ({navigation}) => {
   const [visible, setVisible] = useState(false);
   const {user} = useAuth();
   const [hasNotification, setHasNotification] = useState(false); // <-- new state
-
+    const {logout} = useAuth();
   useEffect(() => {
     scale.value = withRepeat(withTiming(2, {duration: 1200}), -1, false);
     opacity.value = withRepeat(withTiming(0, {duration: 1200}), -1, false);
@@ -69,6 +69,9 @@ const NotificationButton = ({navigation}) => {
     opacity: opacity.value,
   }));
 
+  
+
+
   return (
     <TouchableOpacity
       onPress={() => navigation.navigate('Notifications')}
@@ -89,7 +92,7 @@ const NotificationButton = ({navigation}) => {
 const ProfileMenu = ({navigation}) => {
   const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
   const [visible, setVisible] = useState(false);
-  const {user} = useAuth();
+  const {user, logout} = useAuth();
   const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
@@ -121,7 +124,26 @@ const ProfileMenu = ({navigation}) => {
       setImageUrl(null);
     }
   }, [user?.empImage]);
-
+const handleLogout = async () => {
+    try {
+      console.log('Starting logout process...');
+      await logout(); // ✅ Clear user and AsyncStorage
+      console.log('Logout successful, navigating to Login screen');
+      
+      // Ensure we reset the navigation stack to prevent going back
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Login'}], // ✅ Navigate to Login
+      });
+    } catch (error) {
+      console.error('Logout Error:', error);
+      // Even if there's an error during logout, try to navigate to Login
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Login'}],
+      });
+    }
+  };
   return (
     <Menu
       visible={visible}
@@ -188,10 +210,7 @@ const ProfileMenu = ({navigation}) => {
       <Menu.Item
         onPress={() => {
           setVisible(false);
-          navigation.reset({
-            index: 0,
-            routes: [{name: 'Login'}],
-          });
+          handleLogout();
         }}
         leadingIcon={() => (
           <MaterialIcons name="logout" size={20} color="#E74C3C" />

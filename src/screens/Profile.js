@@ -39,7 +39,8 @@ import {useNavigation} from '@react-navigation/native';
 import AppSafeArea from '../component/AppSafeArea';
 // import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-import axiosinstance from '../utils/axiosInstance';
+
+import axiosInstance from '../utils/axiosInstance';
 import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
@@ -516,6 +517,66 @@ const ProfileScreen = () => {
   const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
   const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
 
+const [visible, setVisible] = useState(false);
+  const [imageUrll, setImageUrl] = useState(null);
+  const [employeeData, setEmployeeData] = useState(null);
+  const {user} = useAuth();
+
+
+ useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axiosInstance.get(
+            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
+          );
+          setEmployeeData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [user]);
+
+
+    useEffect(() => {
+      // Always log the user object for debugging
+      console.log('ProfileMenu user:', user);
+  
+      if (user?.empImage) {
+        // Use the static image URL directly
+        const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+        setImageUrl(staticImageUrl);
+      } else {
+        setImageUrl(null);
+      }
+    }, [user?.empImage]);
+  
+  
+    console.log('employee avatar ➜', imageUrl);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Refresh functionality
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -657,174 +718,10 @@ const ProfileScreen = () => {
     }
   };
 
-  //   const uploadDocumentBase64 = async photo => {
-  //     try {
-  //       setUploading(true);
-  //       const base64Data = await RNFS.readFile(photo.uri, 'base64');
-  //       const fileName = photo.name || photo.fileName || 'photo.jpg';
-  //       const extension = fileName.split('.').pop() || 'jpg';
 
-  //       const payload = {
-  //         fileName: fileName,
-  //         base64File: base64Data,
-  //         extension: extension,
-  //         category: 'img',
-  //       };
 
-  //       // console.log('📤 Uploading payload:', payload);
-
-  //       const response = await axios.post(
-  //         'http://192.168.29.2:90/UploadDocument/UploadDocument',
-  //         payload,
-  //         // {
-  //         //   headers: {
-  //         //     'Content-Type': 'application/json',
-  //         //     Accept: 'application/json',
-  //         //   },
-  //         // },
-  //       );
   // debugger;
-  //       console.log('✅ Upload status:', response.status);
-  //       console.log('📥 Server response:', response.data);
 
-  //       if (
-  //         response.status >= 200 &&
-  //         response.status < 300 &&
-  //         response.data?.fileName
-  //       ) {
-  //         Alert.alert('Success', 'Profile photo uploaded!');
-  //         debugger;
-  //         setUploadedPhotoFileName(response.data.fileName); // Set uploaded filename for UI
-  //         await saveProfileImage(response.data.fileName);
-  //         console.log('First image uploaded:', response.data.fileName);
-  // debugger
-  //         // Prepare fileNameWithExtension for GET API
-  //         const fileName = response.data.fileName;
-  //         console.log()
-  //         const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
-  //         const directImageUrl = `${staticBaseUrl}${fileName}`;
-
-  //         console.log(directImageUrl)
-
-  //         try {
-  //           // debugger; // For inspection
-  //           // GET request to fetch the image
-  //           const fetchResponse = await axios.get(fetchUrl, {
-  //             responseType: 'arraybuffer',
-  //           });
-
-  //           // If backend returns a direct image URL, use it for preview
-  //           const directImageUrl = `http://192.168.29.2:90/assets/UploadImg/${fileName}`;
-
-  //           setUploadedPhoto({uri: directImageUrl});
-
-  //           // Console all relevant data
-  //           console.log('fetchUrl:', fetchUrl);
-  //           console.log('response.data.fileName:', fileName);
-  //           console.log('Direct image URL:', directImageUrl);
-  //           console.log('Fetch API response (arraybuffer):', fetchResponse);
-  //         } catch (fetchErr) {
-  //           // If backend returns validation error, log it
-  //           if (fetchErr.response && fetchErr.response.status === 400) {
-  //             console.error('Validation error:', fetchErr.response.data);
-  //           } else {
-  //             console.error('Error fetching image from GET API:', fetchErr);
-  //           }
-  //         }
-  //       } else {
-  //         throw new Error(`Server returned status ${response.status}`);
-  //       }
-  //     } catch (error) {
-  //       console.error('❌ UploadDocument error:', error.message);
-  //       Alert.alert('Upload Failed', 'Could not upload profile photo');
-  //     } finally {
-  //       setUploading(false);
-  //     }
-  //   };
-
-  // Save and update profile image function
-
-  debugger;
-
-  // const uploadDocumentBase64 = async photo => {
-  //   try {
-  //     setUploading(true);
-  //     const base64Data = await RNFS.readFile(photo.uri, 'base64');
-  //     const fileName = photo.name || photo.fileName || 'photo.jpg';
-  //     const extension = fileName.split('.').pop() || 'jpg';
-
-  //     const payload = {
-  //       fileName: fileName,
-  //       base64File: base64Data,
-  //       extension: extension,
-  //       category: 'img',
-  //     };
-
-  //     console.log('📤 Uploading payload:', payload);
-
-  //     // const response = await axios.post(
-  //     //   'http://192.168.29.2:90/UploadDocument/UploadDocument',
-  //     //   payload,
-
-  //     // );
-
-  //     const response = await fetch(
-  //       'https://192.168.29.2:90/UploadDocument/UploadDocument',
-  //       {
-  //         method: 'POST',
-  //         headers: {
-  //           'Content-Type': 'application/json',
-  //         },
-  //         body: JSON.stringify(payload),
-  //       },
-  //     );
-
-  //     console.log('✅ Upload status:', response.status);
-  //     console.log('📥 Server response:', response.data);
-
-  //     if (
-  //       response.status >= 200 &&
-  //       response.status < 300 &&
-  //       response.data?.fileName
-  //     ) {
-  //       const uploadedFileName = response.data.fileName;
-  //       Alert.alert('Success', 'Profile photo uploaded!');
-  //       setUploadedPhotoFileName(uploadedFileName);
-
-  //       // Save to profile
-  //       // debugger;
-  //       console.log(
-  //         'Step 3: Saving profile image with filename:',
-  //         uploadedFileName,
-  //       );
-  //       await saveProfileImage(uploadedFileName);
-
-  //       // Fetch uploaded image from server
-  //       const fetchUrl = `https://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
-  //       console.log('Step 4: Fetching image from:', fetchUrl);
-
-  //       const fileResponse = await axios.get(fetchUrl, {
-  //         responseType: 'blob',
-  //       });
-
-  //       console.log('Step 4: Fetched image response:', fileResponse);
-
-  //       // Convert blob to object URL for preview
-  //       const blob = fileResponse.data;
-  //       const objectUrl = URL.createObjectURL(blob);
-  //       setUploadedPhoto({uri: objectUrl});
-
-  //       console.log('Step 5: Image preview URI:', objectUrl);
-  //     } else {
-  //       throw new Error(`Server returned status ${response.status}`);
-  //     }
-  //   } catch (error) {
-  //     console.error('❌ UploadDocument error:', error.message);
-  //     Alert.alert('Upload Failed', 'Could not upload profile photo');
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // };
 
   const uploadDocumentBase64 = async photo => {
     try {
@@ -1322,8 +1219,10 @@ const ProfileScreen = () => {
     );
   }
 
+
+
   // Use uploadedPhotoFileName for immediate UI update if available
-  const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/';
+  const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/${user}';
   const imageUrl = uploadedPhotoFileName
     ? `${staticBaseUrl}${uploadedPhotoFileName}`
     : employeeDetails?.empImage
@@ -1505,8 +1404,8 @@ const ProfileScreen = () => {
                     source={
                       uploadedPhoto
                         ? {uri: uploadedPhoto.uri}
-                        : imageUrl
-                        ? {uri: imageUrl}
+                        : imageUrll
+                        ? {uri: imageUrll}
                         : {
                             uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
                           }
