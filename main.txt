@@ -10,7 +10,6 @@
 //     console.log('Add button pressed');
 //     // Handle Add action here
 //   };
-
 //   const handleSearchChange = (text) => {
 //     setSearchQuery(text);
 //   };

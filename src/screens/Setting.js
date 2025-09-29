@@ -1,331 +1,269 @@
-// // App.js
-// import {
-//   Linking,
-//   StyleSheet,
-//   Text,
-//   TouchableOpacity,
-//   View,
-//   Alert,
-// } from 'react-native';
-// import React, { useEffect, useRef, useState } from 'react';
-// import {
-//   Camera,
-//   useCameraDevice,
-// } from 'react-native-vision-camera';
-// import axiosInstance from '../utils/axiosInstance';
-// import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-// import RNFetchBlob from 'rn-fetch-blob';
-// import RNFS from 'react-native-fs';
-// import * as ort from 'onnxruntime-react-native';
-// import ImageResizer from '@bam.tech/react-native-image-resizer';
-// import { Buffer } from 'buffer';
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+} from 'react-native';
+import {Card} from 'react-native-paper';
+import Animated, {useSharedValue} from 'react-native-reanimated';
+import {format, differenceInSeconds} from 'date-fns';
+import AppSafeArea from '../component/AppSafeArea';
+import UserProfileCard from '../component/UserProfileCard';
+import AttendanceTracker from '../component/AttendanceTracker';
+import LeaveStatus from '../component/LeaveStatus';
+import ShiftCalendarSection from '../component/ShiftCalendarSection';
+import OnLeaveUsers from '../component/OnLeaveUsers';
+import BASE_URL from '../constants/apiConfig';
 
-// const App = () => {
-//   const camera = useRef(null);
-//   const employeDetails = useFetchEmployeeDetails();
-//   const [storedFaceData, setStoredFaceData] = useState(null);
-//   const [session, setSession] = useState(null);
-//   const [isProcessing, setIsProcessing] = useState(false);
-//   const [matchingResult, setMatchingResult] = useState(null);
+import {useAuth} from '../constants/AuthContext';
+import axiosInstance from '../utils/axiosInstance'; 
 
-//   const device = useCameraDevice('front');
-//   if (device == null) return <View style={styles.loadingContainer} />;
-
-//   // Permissions
-//   useEffect(() => {
-//     async function getPermission() {
-//       const cameraPermission = await Camera.requestCameraPermission();
-//       if (cameraPermission === 'denied') await Linking.openSettings();
-//     }
-//     getPermission();
-//   }, []);
-
-//   // Load ONNX model
-//   useEffect(() => {
-//     const loadModel = async () => {
-//       try {
-//         const modelPath = `${RNFS.DocumentDirectoryPath}/faceNet.onnx`;
-//         if (!(await RNFS.exists(modelPath))) {
-//           await RNFS.copyFileAssets('faceNet.onnx', modelPath);
-//         }
-//         const s = await ort.InferenceSession.create(modelPath);
-//         setSession(s);
-//         console.log('✅ Model loaded');
-//       } catch (e) {
-//         console.error('❌ Model load error:', e);
-//       }
-//     };
-//     loadModel();
-//   }, []);
-
-//   // Load face data
-//   useEffect(() => {
-//     if (employeDetails?.id && employeDetails?.childCompanyId) {
-//       loadStoredFaceData();
-//     }
-//   }, [employeDetails]);
-
-//   const base64ToByteArray = (base64) => {
-//     const buffer = Buffer.from(base64, 'base64');
-//     return new Uint8Array(buffer);
-//   };
-
-//   const normalizeVector = (vector) => {
-//     const norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-//     return vector.map((val) => val / norm);
-//   };
-
-//   const cosineSimilarity = (a, b) => {
-//     const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
-//     const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-//     const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-//     return (dot / (normA * normB)) * 100;
-//   };
-
-//   const euclideanDistance = (a, b) => {
-//     let sum = 0;
-//     for (let i = 0; i < a.length; i++) {
-//       sum += (a[i] - b[i]) ** 2;
-//     }
-//     return Math.sqrt(sum);
-//   };
-
-//   const generateEmbedding = async (base64, session) => {
-//     const resized = await ImageResizer.createResizedImage(
-//       `data:image/jpeg;base64,${base64}`,
-//       160,
-//       160,
-//       'JPEG',
-//       100
-//     );
-
-//     const croppedBase64 = await RNFetchBlob.fs.readFile(resized.uri, 'base64');
-//     const byteArray = base64ToByteArray(croppedBase64);
-//     const floatArray = Float32Array.from(byteArray, (c) => c / 255.0);
-
-//     const input = new ort.Tensor('float32', floatArray, [1, 3, 160, 160]);
-//     const inputName = session.inputNames[0];
-//     const output = await session.run({ [inputName]: input });
-//     const outputName = session.outputNames[0];
-
-//     return normalizeVector(Array.from(output[outputName].data));
-//   };
-
-//   const loadStoredFaceData = async () => {
-//     try {
-//       setIsProcessing(true);
-//       const res = await axiosInstance.get(
-//         `/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeDetails?.id}/${employeDetails?.childCompanyId}`
-//       );
-//       if (res.data?.isSuccess && res.data?.data) {
-//         setStoredFaceData(res.data.data);
-//         console.log('✅ Loaded stored face data');
-//       } else {
-//         setStoredFaceData(null);
-//       }
-//     } catch (err) {
-//       console.error('❌ Load face data error:', err.message);
-//       setStoredFaceData(null);
-//     } finally {
-//       setIsProcessing(false);
-//     }
-//   };
-
-//   const registerBiometricData = async () => {
-//     if (!camera.current || !session) return;
-//     try {
-//       setIsProcessing(true);
-//       const photo = await camera.current.takePhoto({ flash: 'off' });
-//       if (!photo?.path) throw new Error('Photo capture failed.');
-
-//       const filePath = `file://${photo.path}`;
-//       const base64Data = await RNFetchBlob.fs.readFile(filePath, 'base64');
-
-//       const registrationData = {
-//         EmployeeId: employeDetails?.id,
-//         FaceImage: base64Data,
-//         FaceEmbeding: base64Data, // Optional: Replace with actual embedding in future
-//         FingerImage: null,
-//         FingerEmbeding: null,
-//         RetinaImage: null,
-//         RetinaEmbeding: null,
-//         VoiceRecord: null,
-//         VoiceRecordEmbeding: null,
-//         CreatedDate: new Date().toISOString(),
-//         ModifiedDate: null,
-//         ModifiedBy: null,
-//         CreatedBy: employeDetails?.id,
-//         IsDelete: 0,
-//         CompanyId: employeDetails?.childCompanyId,
-//       };
-
-//       const response = await axiosInstance.post(
-//         '/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat',
-//         registrationData
-//       );
-
-//       if (response.data?.isSuccess) {
-//         Alert.alert('Registration Success ✅', 'Face registered successfully.', [
-//           {
-//             text: 'OK',
-//             onPress: () => {
-//               setTimeout(() => loadStoredFaceData(), 1000);
-//             },
-//           },
-//         ]);
-//       } else {
-//         Alert.alert('Registration Failed ❌', response.data?.message || 'Unknown error');
-//       }
-//     } catch (error) {
-//       console.error('❌ Registration Error:', error.message);
-//       Alert.alert('Registration Error', error.message);
-//     } finally {
-//       setIsProcessing(false);
-//     }
-//   };
-
-//   const matchFaceLocally = async () => {
-//     if (!camera.current || !session || !storedFaceData?.FaceEmbeding) return;
-//     try {
-//       setIsProcessing(true);
-
-//       const photo = await camera.current.takePhoto({ flash: 'off' });
-//       if (!photo?.path) throw new Error('Photo capture failed.');
-
-//       const base64 = await RNFetchBlob.fs.readFile(`file://${photo.path}`, 'base64');
-//       const embeddingCaptured = await generateEmbedding(base64, session);
-
-//       let embeddingStored = null;
-//       try {
-//         const decoded = Buffer.from(storedFaceData.FaceEmbeding, 'base64').toString('utf8');
-//         const parsed = JSON.parse(decoded);
-//         embeddingStored = Array.isArray(parsed[0]) ? parsed[0] : parsed;
-//         if (!Array.isArray(embeddingStored)) throw new Error('Parsed embedding is invalid.');
-//       } catch (err) {
-//         console.error('❌ Parsing error:', err);
-//         Alert.alert('Face Data Error', 'Stored embedding is invalid.');
-//         return;
-//       }
-
-//       const similarity = cosineSimilarity(embeddingCaptured, embeddingStored);
-//       const distance = euclideanDistance(embeddingCaptured, embeddingStored);
-//       const isMatch = similarity >= 85 && distance < 0.6;
-
-//       const result = {
-//         isMatch,
-//         matchPercentage: similarity,
-//         euclideanDistance: distance,
-//         message: isMatch
-//           ? `✅ Face Matched (Cosine: ${similarity.toFixed(1)}%, Euclidean: ${distance.toFixed(3)})`
-//           : `❌ Not Matched (Cosine: ${similarity.toFixed(1)}%, Euclidean: ${distance.toFixed(3)})`,
-//       };
-
-//       setMatchingResult(result);
-//       Alert.alert(isMatch ? 'Match ✅' : 'No Match ❌', result.message);
-//     } catch (e) {
-//       console.error('❌ Match error:', e);
-//       Alert.alert('Error', e.message);
-//     } finally {
-//       setIsProcessing(false);
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Camera
-//         ref={camera}
-//         style={StyleSheet.absoluteFill}
-//         device={device}
-//         isActive={true}
-//         photo={true}
-//       />
-
-//       <View style={styles.ui}>
-//         <TouchableOpacity
-//           style={styles.button}
-//           onPress={registerBiometricData}
-//           disabled={isProcessing}
-//         >
-//           <Text style={styles.text}>📸 Register Face</Text>
-//         </TouchableOpacity>
-
-//         <TouchableOpacity
-//           style={styles.button}
-//           onPress={matchFaceLocally}
-//           disabled={isProcessing || !storedFaceData?.FaceEmbeding}
-//         >
-//           <Text style={styles.text}>🔍 Match Face</Text>
-//         </TouchableOpacity>
-
-//         <TouchableOpacity
-//           style={styles.button}
-//           onPress={loadStoredFaceData}
-//           disabled={isProcessing}
-//         >
-//           <Text style={styles.text}>🔄 Reload Data</Text>
-//         </TouchableOpacity>
-
-//         {matchingResult && (
-//           <Text style={styles.resultText}>
-//             {matchingResult.message}
-//           </Text>
-//         )}
-//       </View>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: 'black',
-//   },
-//   ui: {
-//     position: 'absolute',
-//     bottom: 80,
-//     left: 20,
-//     right: 20,
-//     alignItems: 'center',
-//     gap: 12,
-//   },
-//   button: {
-//     padding: 14,
-//     backgroundColor: 'rgba(0,0,0,0.6)',
-//     borderRadius: 20,
-//     width: '80%',
-//     alignItems: 'center',
-//   },
-//   text: {
-//     color: 'white',
-//     fontWeight: 'bold',
-//   },
-//   resultText: {
-//     color: 'white',
-//     fontSize: 16,
-//     marginTop: 20,
-//     textAlign: 'center',
-//   },
-//   loadingContainer: {
-//     flex: 1,
-//     backgroundColor: 'black',
-//   },
-// });
-
-// export default App;
-
-
-
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 
 const Setting = () => {
+  const TOTAL_SHIFT_SECONDS = 60;
+  const SHIFT_HOURS = '10:00 AM - 10:01 AM';
+
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [shiftCompleted, setShiftCompleted] = useState(false);
+
+  const employeeData = useFetchEmployeeDetails();
+  const [leaveData, setLeaveData] = useState([]);
+  const [leaveUsers, setLeaveUsers] = useState([]);
+
+  const progress = useSharedValue(0);
+  const progressPercentage = Math.floor(progress.value * 100);
+
+  const formatTime = seconds => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(
+      2,
+      '0',
+    )}:${String(secs).padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    let interval;
+    if (checkedIn && checkInTime) {
+      interval = setInterval(() => {
+        const now = new Date();
+        const diff = differenceInSeconds(now, checkInTime);
+        const progressValue = Math.min(diff / TOTAL_SHIFT_SECONDS, 1);
+
+        progress.value = progressValue;
+        setElapsedTime(formatTime(diff));
+
+        if (diff >= TOTAL_SHIFT_SECONDS) {
+          clearInterval(interval);
+          setCheckedIn(false);
+          setShiftCompleted(true);
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [checkedIn, checkInTime]);
+
+  const handleCheckIn = () => {
+    setCheckInTime(new Date());
+    setCheckedIn(true);
+    setShiftCompleted(false);
+  };
+
+  const handleCheckOut = () => {
+    setCheckedIn(false);
+    setCheckInTime(null);
+    setElapsedTime('00:00:00');
+    progress.value = 0;
+    setShiftCompleted(false);
+  };
+
+  const {user} = useAuth();
+
+  // console.log(user, 'User============ Data');
+  // console.log(employeeData, 'Employee================== Data'); // Log employeeData
+  // console.log(employeeDetails, 'Fetch Employee Details'); // Log fetchEmployeeDetails
+  useEffect(() => {
+    const fetchLeaveData = async () => {
+      try {
+        const employeeId = user?.id;
+        const companyId = user?.childCompanyId;
+
+        if (!employeeId || !companyId) {
+          console.log('Missing user ID or company ID, using defaults');
+          // Use default values if user data is not available
+          const defaultEmployeeId = 29;
+          const defaultCompanyId = 2;
+          
+          const response = await axiosInstance.get(
+            `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${defaultCompanyId}/${defaultEmployeeId}`,
+          );
+
+          if (response.data && response.data.leaveBalances) {
+            const transformed = response.data.leaveBalances.map(item => ({
+              label: item.leavename,
+              used: item.usedLeaveNo,
+              available: item.availbleLeaveNo,
+            }));
+
+            setLeaveData(transformed);
+          }
+          return;
+        }
+
+        const response = await axiosInstance.get(
+          `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
+        );
+
+        if (response.data && response.data.leaveBalances) {
+          const transformed = response.data.leaveBalances.map(item => ({
+            label: item.leavename,
+            used: item.usedLeaveNo,
+            available: item.availbleLeaveNo,
+          }));
+
+          setLeaveData(transformed);
+        } else {
+          console.log('No leave balances in response:', response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching leave data:', error.message);
+      }
+    };
+
+    fetchLeaveData();
+  }, [user]);
+  
+  useEffect(() => {
+    const fetchEmployeesOnLeave = async () => {
+      try {
+        const companyId = user?.childCompanyId || 2;
+        const branchId = user?.branchId || 20;
+        const departmentId = user?.departmentId || 39;
+        const employeeId = user?.id || 29;
+        
+        const url = `${BASE_URL}/CommonDashboard/GetLeaveApprovalDetails/${companyId}/${branchId}/${departmentId}/${employeeId}`;
+        
+        const response = await axiosInstance.get(url);
+        
+        // Transform the API data to match the expected format for OnLeaveUsers
+        const transformedData = response.data.map(employee => ({
+          id: employee.employeeId.toString(),
+          name: employee.name,
+          role: `${employee.designation}, ${employee.department}`,
+          image: employee.empImage 
+            ? { uri: `${BASE_URL}/uploads/employee/${employee.empImage}` }
+            : { uri: 'https://avatar.iran.liara.run/public/26' },
+          empImage: employee.empImage // Keep the original field for conditional rendering
+        }));
+        
+        setLeaveUsers(transformedData);
+      } catch (error) {
+        console.error('Error fetching employees on leave:', error);
+        setLeaveUsers([]);
+      }
+    };
+
+    fetchEmployeesOnLeave();
+  }, [user]);
+
   return (
-    <View>
-      <Text>Setting</Text>
-    </View>
-  )
-}
+    <AppSafeArea>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={{flex: 1}}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          {employeeData && (
+            <UserProfileCard
+              name={employeeData.employeeName}
+              designation={employeeData.designationName}
+              department={employeeData.departmentName}
+            />
+          )}
 
-export default Setting
+          <AttendanceTracker
+            checkedIn={checkedIn}
+            elapsedTime={elapsedTime}
+            progress={progress}
+            progressPercentage={progressPercentage}
+            shiftHours={SHIFT_HOURS}
+            shiftCompleted={shiftCompleted}
+            onCheckIn={handleCheckIn}
+            onCheckOut={handleCheckOut}
+          />
 
-const styles = StyleSheet.create({})
+          {leaveData && leaveData.length > 0 ? (
+            <LeaveStatus leaveData={leaveData} />
+          ) : (
+            <Card style={styles.card}>
+              <Text style={styles.title}>Leave Status</Text>
+              <Text>Loading leave data...</Text>
+            </Card>
+          )}
+
+          {/* Uncomment if you want shift calendar */}
+          {/* <ShiftCalendarSection
+            onSelectDate={handleDateSelect}
+            selectedShiftInfo={selectedShiftInfo}
+          /> */}
+
+          <OnLeaveUsers leaveUsers={leaveUsers} />
+
+          {/* {employeeDetails && (
+            <View style={styles.card}>
+              <Text style={styles.title}>Employee Details</Text>
+              <Text>Name: {employeeDetails.employeeName}</Text>
+              <Text>Designation: {employeeDetails.designationName}</Text>
+              <Text>Department: {employeeDetails.departmentName}</Text>
+              <Text>Branch: {employeeDetails.branchName}</Text>
+              <Text>Email: {employeeDetails.emailAddress}</Text>
+              <Text>Contact: {employeeDetails.pcontactNo}</Text>
+              <Text>Address: {employeeDetails.presentAddress}</Text>
+              <Text>Date of Joining: {employeeDetails.dateofJoin}</Text>
+            </View>
+          )} */}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AppSafeArea>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 12,
+    padding: 16,
+    paddingBottom: 22,
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: 10,
+  },
+  card: {
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+});
+
+export default Setting;
+
+
+

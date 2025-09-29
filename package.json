@@ -2,6 +2,7 @@
   "name": "hrms",
   "version": "0.0.1",
   "private": true,
+  "onnxruntimeExtensionsEnabled": "true",
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
@@ -10,8 +11,10 @@
     "test": "jest"
   },
   "dependencies": {
+    "@bam.tech/react-native-image-resizer": "^3.0.11",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-community/image-editor": "^4.3.0",
     "@react-native-documents/picker": "^10.1.3",
     "@react-native-documents/viewer": "^1.0.1",
     "@react-native-ml-kit/face-detection": "^1.3.2",
@@ -24,9 +27,11 @@
     "base64-arraybuffer": "^1.0.2",
     "date-fns": "^4.1.0",
     "geolib": "^3.3.4",
+    "jpeg-js": "^0.4.4",
     "lodash": "^4.17.21",
     "lottie-react-native": "^7.2.2",
     "moment": "^2.30.1",
+    "onnxruntime-react-native": "^1.23.0",
     "react": "19.0.0",
     "react-hook-form": "^7.55.0",
     "react-native": "0.79.0",
@@ -38,8 +43,9 @@
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.25.0",
     "react-native-html-to-pdf": "^0.12.0",
+    "react-native-image-crop-picker": "^0.50.1",
+    "react-native-image-picker": "^8.2.1",
     "react-native-linear-gradient": "^2.8.3",
-    "react-native-maps": "^1.24.2",
     "react-native-paper": "^5.13.1",
     "react-native-pdf": "^6.7.7",
     "react-native-permissions": "^5.4.0",
@@ -53,7 +59,8 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-vision-camera": "^4.6.4",
     "react-native-vision-camera-face-detector": "^1.8.5",
-    "react-native-webview": "^13.13.5"
+    "react-native-webview": "^13.13.5",
+    "rn-fetch-blob": "^0.12.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
