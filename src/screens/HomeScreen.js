@@ -137,7 +137,8 @@ const HomeScreen = () => {
     };
     fetchBiometricDetails();
   }, []);
-debugger
+
+  
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {

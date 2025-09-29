@@ -557,26 +557,6 @@ const [visible, setVisible] = useState(false);
   
     console.log('employee avatar ➜', imageUrl);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // Refresh functionality
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

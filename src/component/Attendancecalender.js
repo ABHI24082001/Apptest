@@ -43,7 +43,7 @@ export default function MonthCalendarWithAgenda({
       }
 
       setLoading(true);
-debugger
+// debugger
       // Use employee details from the hook
       const empId = employeeDetails?.id || employeeId;
       const empChildCompanyId = employeeDetails?.childCompanyId || childCompanyId;
@@ -85,7 +85,7 @@ debugger
       
       const response = await axiosInstance.post(endpoint, requestData);
       
-      console.log('API Response:', response.status);
+      console.log('API Response:=====================', response.status);
       setAttendanceData(response.data);
     } catch (error) {
       console.error('Error fetching attendance data:', error);
@@ -149,66 +149,133 @@ debugger
   };
 
   // Generate events for the current month
-  const generateMonthEvents = () => {
-    const events = {};
-    const start = currentMonth.clone().startOf('month');
-    const end = currentMonth.clone().endOf('month');
+  // const generateMonthEvents = () => {
+  //   const events = {};
+  //   const start = currentMonth.clone().startOf('month');
+  //   const end = currentMonth.clone().endOf('month');
 
-    if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) {
-      return events;
+  //   if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) {
+  //     return events;
+  //   }
+
+  //   const attendance = attendanceData.calendarModels[0];
+  //   const holidays = attendanceData.holidays || [];
+
+  //   for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
+  //     const dayOfWeek = date.day();
+  //     const dateStr = date.format('YYYY-MM-DD');
+  //     const dayOfMonth = parseInt(date.format('D'));
+      
+  //     // Weekend check
+  //     if (dayOfWeek === 0 || dayOfWeek === 6) {
+  //       events[dateStr] = [{
+  //         id: `weekend-${dateStr}`,
+  //         type: 'weekend',
+  //         name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
+  //       }];
+  //       continue;
+  //     }
+
+  //     // Holiday check
+  //     const isHoliday = holidays.some(h => h.day === dayOfMonth);
+  //     if (isHoliday) {
+  //       events[dateStr] = [{
+  //         id: `holiday-${dateStr}`,
+  //         type: 'holiday',
+  //         name: 'Holiday'
+  //       }];
+  //       continue;
+  //     }
+
+  //     // Attendance check
+  //     const loginKey = `${getDayText(dayOfMonth)}LogIn`;
+  //     const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
+      
+  //     if (attendance[loginKey] && attendance[logoutKey]) {
+  //       events[dateStr] = [{
+  //         id: `present-${dateStr}`,
+  //         type: 'present',
+  //         name: 'Present',
+  //         time: `${attendance[loginKey]} - ${attendance[logoutKey]}`
+  //       }];
+  //     } else {
+  //       events[dateStr] = [{
+  //         id: `absent-${dateStr}`,
+  //         type: 'absent',
+  //         name: 'Absent'
+  //       }];
+  //     }
+  //   }
+    
+  //   return events;
+  // };
+
+
+  const generateMonthEvents = () => {
+  const events = {};
+  const start = currentMonth.clone().startOf('month');
+  const end = currentMonth.clone().endOf('month');
+
+  if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) {
+    return events;
+  }
+
+  const attendance = attendanceData.calendarModels[0];
+  const holidays = attendanceData.holidays || [];
+
+  for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
+    const dayOfWeek = date.day();
+    const dateStr = date.format('YYYY-MM-DD');
+    const dayOfMonth = parseInt(date.format('D'));
+
+    const evts = [];
+
+    // Weekend event
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      evts.push({
+        id: `weekend-${dateStr}`,
+        type: 'weekend',
+        name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
+      });
     }
 
-    const attendance = attendanceData.calendarModels[0];
-    const holidays = attendanceData.holidays || [];
+    // Holiday event
+    const isHoliday = holidays.some(h => h.day === dayOfMonth);
+    if (isHoliday) {
+      evts.push({
+        id: `holiday-${dateStr}`,
+        type: 'holiday',
+        name: 'Holiday',
+      });
+    }
 
-    for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
-      const dayOfWeek = date.day();
-      const dateStr = date.format('YYYY-MM-DD');
-      const dayOfMonth = parseInt(date.format('D'));
-      
-      // Weekend check
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        events[dateStr] = [{
-          id: `weekend-${dateStr}`,
-          type: 'weekend',
-          name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
-        }];
-        continue;
-      }
+    // Attendance check
+    const loginKey = `${getDayText(dayOfMonth)}LogIn`;
+    const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
 
-      // Holiday check
-      const isHoliday = holidays.some(h => h.day === dayOfMonth);
-      if (isHoliday) {
-        events[dateStr] = [{
-          id: `holiday-${dateStr}`,
-          type: 'holiday',
-          name: 'Holiday'
-        }];
-        continue;
-      }
-
-      // Attendance check
-      const loginKey = `${getDayText(dayOfMonth)}LogIn`;
-      const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
-      
-      if (attendance[loginKey] && attendance[logoutKey]) {
-        events[dateStr] = [{
-          id: `present-${dateStr}`,
-          type: 'present',
-          name: 'Present',
-          time: `${attendance[loginKey]} - ${attendance[logoutKey]}`
-        }];
-      } else {
-        events[dateStr] = [{
+    if (attendance[loginKey] && attendance[logoutKey]) {
+      evts.push({
+        id: `present-${dateStr}`,
+        type: 'present',
+        name: 'Present',
+        time: `${attendance[loginKey]} - ${attendance[logoutKey]}`
+      });
+    } else {
+      // Only mark absent if no present record
+      if (!evts.some(e => e.type === 'present')) {
+        evts.push({
           id: `absent-${dateStr}`,
           type: 'absent',
-          name: 'Absent'
-        }];
+          name: 'Absent',
+        });
       }
     }
-    
-    return events;
-  };
+
+    events[dateStr] = evts;
+  }
+
+  return events;
+};
 
   const getDayText = (day) => {
     const texts = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

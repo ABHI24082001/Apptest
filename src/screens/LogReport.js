@@ -23,7 +23,7 @@ const Attandance = ({navigation}) => {
         showsVerticalScrollIndicator={false}>
         <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Attandance</Text>
+            {/* <Text style={styles.sectionTitle}>Attandance</Text> */}
             <Attendancecalender />
           </Card.Content>
         </Card>
