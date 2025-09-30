@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Platform
 } from 'react-native';
 import {Card, Button} from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -25,6 +26,7 @@ import {useAuth} from '../constants/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
+
 // 🔹 Config
 const INPUT_SIZE = 112;
 const COSINE_THRESHOLD = 0.7;
@@ -93,27 +95,94 @@ const HomeScreen = () => {
   }, []);
 
   // Load ONNX model
+  // useEffect(() => {
+  //   const loadModel = async () => {
+  //     try {
+  //       const modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+  //       if (!(await RNFS.exists(modelPath))) {
+  //         console.log('📥 Copying model to DocumentDirectory...');
+  //         await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+  //       }
+  //       const s = await ort.InferenceSession.create(modelPath, {
+  //         executionProviders: ['cpu'],
+  //         graphOptimizationLevel: 'all',
+  //       });
+  //       setSession(s);
+  //       console.log('✅ Model loaded successfully');
+  //     } catch (e) {
+  //       console.error('❌ Model load error:', e);
+  //       Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
+  //     }
+  //   };
+  //   loadModel();
+  // }, []);
+
+
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        const modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+  const loadModel = async () => {
+    try {
+      let modelPath = '';
+
+      if (Platform.OS === 'android') {
+        // Android: copy assets to DocumentDirectory
+        modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
         if (!(await RNFS.exists(modelPath))) {
           console.log('📥 Copying model to DocumentDirectory...');
           await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
         }
-        const s = await ort.InferenceSession.create(modelPath, {
-          executionProviders: ['cpu'],
-          graphOptimizationLevel: 'all',
-        });
-        setSession(s);
-        console.log('✅ Model loaded successfully');
-      } catch (e) {
-        console.error('❌ Model load error:', e);
-        Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
+      } else {
+        // iOS: load directly from app bundle
+        modelPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
       }
-    };
-    loadModel();
-  }, []);
+
+      const s = await ort.InferenceSession.create(modelPath, {
+        executionProviders: ['cpu'],
+        graphOptimizationLevel: 'all',
+      });
+      setSession(s);
+      console.log('✅ Model loaded successfully');
+    } catch (e) {
+      console.error('❌ Model load error:', e);
+      Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
+    }
+  };
+
+  loadModel();
+}, []);
+
+
+//   useEffect(() => {
+//   const loadModel = async () => {
+//     try {
+//       let modelPath = '';
+
+//       if (Platform.OS === 'android') {
+//         // Android: copy assets to DocumentDirectory
+//         modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+//         if (!(await RNFS.exists(modelPath))) {
+//           console.log('📥 Copying model to DocumentDirectory...');
+//           await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+//         }
+//       } else {
+//         // iOS: load directly from app bundle
+//         modelPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+//       }
+
+//       const s = await ort.InferenceSession.create(modelPath, {
+//         executionProviders: ['cpu'],
+//         graphOptimizationLevel: 'all',
+//       });
+//       setSession(s);
+//       console.log('✅ Model loaded successfully');
+//     } catch (e) {
+//       console.error('❌ Model load error:', e);
+//       Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
+//     }
+//   };
+
+//   loadModel();
+// }, []);
+
 
   // Fetch employee biometric
   useEffect(() => {
@@ -138,7 +207,7 @@ const HomeScreen = () => {
     fetchBiometricDetails();
   }, []);
 
-  
+
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {
