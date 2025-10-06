@@ -636,6 +636,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '600',
     fontSize: 18,
+    textAlign: 'center',
   },
   container: {
     flexGrow: 1,

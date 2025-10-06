@@ -7,12 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		1934AF8149B4215659125DE1 /* libPods-hrms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 26FDA5C7CF1C2E3E611EF3EB /* libPods-hrms.a */; };
-		51A896256840B71A234F243E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		64B5E8F02E8ABE7F0078A41D /* mobilefacenet.onnx in Resources */ = {isa = PBXBuildFile; fileRef = 64B5E8EF2E8ABE7F0078A41D /* mobilefacenet.onnx */; };
+		64B5C0C02E911D120064E7BC /* tiny_model.onnx in Resources */ = {isa = PBXBuildFile; fileRef = 64B5C0BF2E911D120064E7BC /* tiny_model.onnx */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
-		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		7F9839B489B8E9912D1F0C97 /* Pods_hrms.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 404B45832921F2903C2F67A4 /* Pods_hrms.framework */; };
+		924D5BF870D570841D567925 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,9 +18,9 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = hrms/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = hrms/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = hrms/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		26FDA5C7CF1C2E3E611EF3EB /* libPods-hrms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-hrms.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		404B45832921F2903C2F67A4 /* Pods_hrms.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_hrms.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		488CC7762AE3B5C3FB4024DD /* Pods-hrms.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.release.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.release.xcconfig"; sourceTree = "<group>"; };
-		64B5E8EF2E8ABE7F0078A41D /* mobilefacenet.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = mobilefacenet.onnx; sourceTree = "<group>"; };
+		64B5C0BF2E911D120064E7BC /* tiny_model.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = tiny_model.onnx; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = hrms/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = hrms/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		EA7BB9116BA1273E829F2176 /* Pods-hrms.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.debug.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.debug.xcconfig"; sourceTree = "<group>"; };
@@ -34,7 +32,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1934AF8149B4215659125DE1 /* libPods-hrms.a in Frameworks */,
+				7F9839B489B8E9912D1F0C97 /* Pods_hrms.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,21 +42,22 @@
 		13B07FAE1A68108700A75B9A /* hrms */ = {
 			isa = PBXGroup;
 			children = (
-				64B5E8EF2E8ABE7F0078A41D /* mobilefacenet.onnx */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				64B5C0BF2E911D120064E7BC /* tiny_model.onnx */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 			);
 			name = hrms;
 			sourceTree = "<group>";
+			usesTabs = 0;
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				26FDA5C7CF1C2E3E611EF3EB /* libPods-hrms.a */,
+				404B45832921F2903C2F67A4 /* Pods_hrms.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -111,10 +110,10 @@
 				91C470A4E3664C8DCE214675 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
-				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				A6F4FBDC72996F6EC77D3B96 /* [CP] Embed Pods Frameworks */,
 				0BD61D729DBD342DF9C27EF2 /* [CP] Copy Pods Resources */,
+				C1AB99A85BA372738A46D5DC /* Resources */,
 			);
 			buildRules = (
 			);
@@ -160,14 +159,12 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		13B07F8E1A680F5B00A75B9A /* Resources */ = {
+		C1AB99A85BA372738A46D5DC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
-				64B5E8F02E8ABE7F0078A41D /* mobilefacenet.onnx in Resources */,
-				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
-				51A896256840B71A234F243E /* PrivacyInfo.xcprivacy in Resources */,
+				64B5C0C02E911D120064E7BC /* tiny_model.onnx in Resources */,
+				924D5BF870D570841D567925 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

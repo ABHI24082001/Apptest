@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  Platform
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import {Card, Button} from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -19,6 +20,7 @@ import {Buffer} from 'buffer';
 import jpeg from 'jpeg-js';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import axios from 'axios';
+import AppSafeArea from '../component/AppSafeArea';
 import LeaveStatus from '../component/LeaveStatus';
 import * as geolib from 'geolib';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
@@ -30,12 +32,12 @@ import BASE_URL from '../constants/apiConfig';
 // 🔹 Config
 const INPUT_SIZE = 112;
 const COSINE_THRESHOLD = 0.7;
-const EUCLIDEAN_THRESHOLD = 0.85;
+const EUCLIDEAN_THRESHOLD = 0.86;
 
 const BIO_URL = 'http://192.168.29.2:91/api';
 const TEST_COORDINATES = {
-  latitude: 20.304756,
-  longitude: 85.863306,
+  latitude: 20.292095,
+  longitude: 85.857709,
 };
 
 const HomeScreen = () => {
@@ -55,7 +57,11 @@ const HomeScreen = () => {
   const [leaveData, setLeaveData] = useState([]);
   const [leaveUsers, setLeaveUsers] = useState([]);
 
-  const employeeDetails = {id: 29, childCompanyId: 2};
+  // const employeeDetails = {id: 29, childCompanyId: 2};
+
+  const employeeDetails = useFetchEmployeeDetails();
+
+  console.log(employeeDetails, 'employeeDetails');
   const progressIntervalRef = useRef(null);
   const {user} = useAuth();
   // Format elapsed time
@@ -66,7 +72,6 @@ const HomeScreen = () => {
     return `${h}:${m}:${s}`;
   };
 
-  // Progress timer
   const startShiftProgress = () => {
     const totalSeconds = 60; // demo: 1 minute
     let elapsedSeconds = 0;
@@ -86,7 +91,6 @@ const HomeScreen = () => {
     }, 1000);
   };
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current)
@@ -94,107 +98,63 @@ const HomeScreen = () => {
     };
   }, []);
 
-  // Load ONNX model
-  // useEffect(() => {
-  //   const loadModel = async () => {
-  //     try {
-  //       const modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-  //       if (!(await RNFS.exists(modelPath))) {
-  //         console.log('📥 Copying model to DocumentDirectory...');
-  //         await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
-  //       }
-  //       const s = await ort.InferenceSession.create(modelPath, {
-  //         executionProviders: ['cpu'],
-  //         graphOptimizationLevel: 'all',
-  //       });
-  //       setSession(s);
-  //       console.log('✅ Model loaded successfully');
-  //     } catch (e) {
-  //       console.error('❌ Model load error:', e);
-  //       Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
-  //     }
-  //   };
-  //   loadModel();
-  // }, []);
-
-
   useEffect(() => {
-  const loadModel = async () => {
-    try {
-      let modelPath = '';
+    const loadModel = async () => {
+      try {
+        let modelPath = '';
 
-      if (Platform.OS === 'android') {
-        // Android: copy assets to DocumentDirectory
-        modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-        if (!(await RNFS.exists(modelPath))) {
-          console.log('📥 Copying model to DocumentDirectory...');
-          await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+        if (Platform.OS === 'android') {
+          // Android: copy assets to DocumentDirectory
+          modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(modelPath))) {
+            console.log('📥 Copying model to DocumentDirectory...');
+            await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+          }
+        } else {
+          // iOS: load directly from app bundle
+          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+          console.log('[DBG] iOS rawPath =', rawPath);
+
+          const exists = await RNFS.exists(rawPath);
+          console.log('[DBG] iOS exists =', exists);
+
+          if (!exists) {
+            console.error('❌ Model file not found in bundle');
+            return;
+          }
+
+          // Some iOS libs require file:// prefix
+          modelPath = `file://${rawPath}`;
         }
-      } else {
-        // iOS: load directly from app bundle
-        modelPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+
+        console.log('[DBG] Final modelPath =', modelPath);
+
+        const s = await ort.InferenceSession.create(modelPath, {
+          executionProviders: ['cpu'],
+          graphOptimizationLevel: 'all',
+        });
+        setSession(s);
+        console.log('✅ Model loaded successfully');
+      } catch (e) {
+        console.error('❌ Model load error:', e);
+        Alert.alert('Error', `Failed to load ONNX model: ${e.message}`);
       }
+    };
 
-      const s = await ort.InferenceSession.create(modelPath, {
-        executionProviders: ['cpu'],
-        graphOptimizationLevel: 'all',
-      });
-      setSession(s);
-      console.log('✅ Model loaded successfully');
-    } catch (e) {
-      console.error('❌ Model load error:', e);
-      Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
-    }
-  };
+    loadModel();
+  }, []);
 
-  loadModel();
-}, []);
-
-
-//   useEffect(() => {
-//   const loadModel = async () => {
-//     try {
-//       let modelPath = '';
-
-//       if (Platform.OS === 'android') {
-//         // Android: copy assets to DocumentDirectory
-//         modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-//         if (!(await RNFS.exists(modelPath))) {
-//           console.log('📥 Copying model to DocumentDirectory...');
-//           await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
-//         }
-//       } else {
-//         // iOS: load directly from app bundle
-//         modelPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
-//       }
-
-//       const s = await ort.InferenceSession.create(modelPath, {
-//         executionProviders: ['cpu'],
-//         graphOptimizationLevel: 'all',
-//       });
-//       setSession(s);
-//       console.log('✅ Model loaded successfully');
-//     } catch (e) {
-//       console.error('❌ Model load error:', e);
-//       Alert.alert('Error', 'Failed to load ONNX model. Check assets.');
-//     }
-//   };
-
-//   loadModel();
-// }, []);
-
-
-  // Fetch employee biometric
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       try {
         const response = await axios.get(
-          `${BIO_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
+          `${BASE_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
         );
         if (response.data?.faceImage) {
           setRegisteredFace(
             `data:image/jpeg;base64,${response.data.faceImage}`,
           );
+          setShowRegistration(false); // Ensure we hide registration when face exists
           console.log('✅ Registered face loaded from API');
         } else {
           setShowRegistration(true);
@@ -206,7 +166,6 @@ const HomeScreen = () => {
     };
     fetchBiometricDetails();
   }, []);
-
 
   useEffect(() => {
     const fetchLeaveData = async () => {
@@ -225,10 +184,6 @@ const HomeScreen = () => {
           used: item.usedLeaveNo,
           available: item.availbleLeaveNo,
         }));
-
-
-
-
         setLeaveData(transformed);
       } catch (error) {
         console.error('Error fetching leave data:', error.message);
@@ -437,8 +392,32 @@ const HomeScreen = () => {
     }
   };
 
-  // Launch camera
-  const launchCamera = callback => {
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'App needs access to your camera',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const launchCamera = async callback => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Camera permission is required');
+      return;
+    }
+
     ImagePicker.launchCamera(
       {
         mediaType: 'photo',
@@ -451,96 +430,111 @@ const HomeScreen = () => {
     );
   };
 
-  // Capture image for registration
-  const captureRegistrationImage = () => {
-    launchCamera(res => {
-      if (res.assets?.[0]?.base64) {
-        setRegisteredFace(`data:image/jpeg;base64,${res.assets[0].base64}`);
-        setShowRegistration(false);
-      }
-    });
-  };
-
-  // Capture image for check-in
-  const captureCheckInImage = () => {
-    launchCamera(res => {
-      if (res.assets?.[0]?.base64) {
-        setCapturedFace(`data:image/jpeg;base64,${res.assets[0].base64}`);
-      }
-    });
-  };
-
-  // Register face
-  const registerFace = async () => {
-    if (!registeredFace) {
-      Alert.alert('Error', 'Please capture an image first');
-      return;
-    }
+  const handleReregisterFace = async () => {
     if (!session) {
       Alert.alert('Error', 'Model not loaded yet');
       return;
     }
 
-    try {
-      setIsProcessing(true);
-      const emb = await getEmbedding(registeredFace);
-      if (!emb) throw new Error('Face embedding generation failed');
-
-      const buffer = Buffer.from(new Float32Array(emb).buffer);
-      const embeddingBase64 = buffer.toString('base64');
-      const pureBase64 = registeredFace.replace(/^data:image\/\w+;base64,/, '');
-
-      const registrationData = {
-        EmployeeId: employeeDetails?.id,
-        FaceImage: pureBase64,
-        FaceEmbeding: embeddingBase64,
-        FingerImage: null,
-        FingerEmbeding: null,
-        RetinaImage: null,
-        RetinaEmbeding: null,
-        VoiceRecord: null,
-        VoiceRecordEmbeding: null,
-        CreatedDate: new Date().toISOString(),
-        ModifiedDate: null,
-        ModifiedBy: null,
-        CreatedBy: employeeDetails?.id,
-        IsDelete: 0,
-        CompanyId: employeeDetails?.childCompanyId,
-      };
-
-      const response = await axios.post(
-        `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
-        registrationData,
-      );
-
-      if (response.data?.isSuccess) {
-        Alert.alert('✅ Registration Success', 'Face registered successfully');
-        setShowRegistration(false);
-      } else {
-        Alert.alert(
-          '❌ Registration Failed',
-          response.data?.message || 'Unknown error',
-        );
-      }
-    } catch (error) {
-      console.error('❌ Registration Error:', error);
-      Alert.alert('Registration Error', error.message);
-    } finally {
-      setIsProcessing(false);
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Camera access required');
+      return;
     }
+
+    ImagePicker.launchCamera(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+        cameraType: 'front',
+        quality: 0.7,
+      },
+      async res => {
+        if (res.didCancel) return;
+        if (!res.assets?.[0]?.base64) {
+          Alert.alert('Error', 'No image captured');
+          return;
+        }
+
+        try {
+          setIsProcessing(true);
+          const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+          const emb = await getEmbedding(base64Image);
+          if (!emb) throw new Error('Failed to get embedding');
+
+          const buffer = Buffer.from(new Float32Array(emb).buffer);
+          const embeddingBase64 = buffer.toString('base64');
+          const pureBase64 = base64Image.replace(
+            /^data:image\/\w+;base64,/,
+            '',
+          );
+
+          const payload = {
+            EmployeeId: employeeDetails.id,
+            FaceImage: pureBase64,
+            FaceEmbeding: embeddingBase64,
+            FingerImage: null,
+            FingerEmbeding: null,
+            RetinaImage: null,
+            RetinaEmbeding: null,
+            VoiceRecord: null,
+            VoiceRecordEmbeding: null,
+            CreatedDate: new Date().toISOString(),
+            ModifiedBy: employeeDetails.id,
+            IsDelete: 0,
+            CompanyId: employeeDetails.childCompanyId,
+          };
+
+          const response = await axios.post(
+            `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
+            payload,
+          );
+
+          if (response.data?.isSuccess) {
+            setRegisteredFace(base64Image);
+            Alert.alert('✅ Success', 'Face re-registered successfully');
+          } else {
+            Alert.alert(
+              'Error',
+              response.data?.message || 'Failed to save face',
+            );
+          }
+        } catch (err) {
+          console.error('Re-Register Error:', err);
+          Alert.alert('Error', err.message);
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    );
   };
 
   // Check location
   const checkLocation = async () => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/GeoFencing/GetGeoFenceDetails/4`,
-      );
-      const officeLocation = {
-        latitude: parseFloat(res.data.lattitude),
-        longitude: parseFloat(res.data.longitude),
+      // Default office location coordinates
+      const defaultOfficeLocation = {
+        latitude: 20.292095,
+        longitude: 85.857709,
       };
-      const radiusInMeters = parseInt(res.data.radius) || 50;
+
+      let officeLocation;
+      let radiusInMeters = 500; // Default radius
+
+      try {
+        // Try to fetch from API first
+        const res = await axios.get(
+          `${BIO_URL}/GeoFencing/GetGeoFenceDetails/4`,
+        );
+        officeLocation = {
+          latitude: parseFloat(res.data.lattitude),
+          longitude: parseFloat(res.data.longitude),
+        };
+        radiusInMeters = parseInt(res.data.radius) || 500;
+      } catch (apiError) {
+        console.log('Using default office location:', defaultOfficeLocation);
+        officeLocation = defaultOfficeLocation;
+      }
 
       const distanceInMeters = geolib.getDistance(
         TEST_COORDINATES,
@@ -548,7 +542,7 @@ const HomeScreen = () => {
       );
       console.log('Distance:', distanceInMeters, 'm');
 
-      return distanceInMeters <= 10;
+      return distanceInMeters <= 5000;
     } catch (err) {
       console.error('Location check error:', err);
       return false;
@@ -628,228 +622,228 @@ const HomeScreen = () => {
     }, 1500);
   };
 
-  // const employeeData = {
-  //   employeeName: 'Abhishek',
-  //   designationName: 'Software Engineer',
-  //   departmentName: 'IT Department'
-  // };
-
-  const employeeData = useFetchEmployeeDetails();
-
   return (
-    <ScrollView style={styles.container}>
-      {/* Employee Info */}
-      {employeeData && (
-        <LinearGradient
-          colors={['#eaeaeaff', '#ffffffff']}
-          style={styles.employeeCard}>
-          <View style={styles.employeeCardContent}>
-            <View style={styles.leftInfo}>
-              <Text style={styles.employeeName}>
-                {employeeData.employeeName}
-              </Text>
-              <Text style={styles.attendanceNote}>Mark your Attendance</Text>
-            </View>
-            <View style={styles.rightInfo}>
-              <Text style={styles.designation}>
-                {employeeData.designationName}
-              </Text>
-              <Text style={styles.department}>
-                {employeeData.departmentName}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-      )}
-
-      {/* Shift Card */}
-      <LinearGradient
-        colors={['#ffffff', '#f0f4ff']}
-        style={styles.gradientCard}>
-        <Card style={[styles.card, styles.shadow]}>
-          <Card.Content style={styles.cardContent}>
-            {/* Status */}
-            <View style={[styles.statusIndicator, styles.shadow]}>
-              <View style={styles.statusDotContainer}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    checkedIn ? styles.statusActive : styles.statusInactive,
-                  ]}
-                />
-                <Text style={styles.statusLabel}>
-                  {checkedIn ? 'Checked In' : 'Checked Out'}
-                </Text>
-              </View>
-              <Text style={styles.elapsedTime}>{elapsedTime}</Text>
-            </View>
-
-            {/* Registration Section */}
-            {showRegistration && (
-              <View style={styles.registrationSection}>
-                <Text style={styles.sectionTitle}>📝 Register Your Face</Text>
-                <Text style={styles.sectionSubtitle}>
-                  You need to register your face before checking in
-                </Text>
-
-                {registeredFace && (
-                  <Image
-                    source={{uri: registeredFace}}
-                    style={styles.preview}
-                  />
-                )}
-
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.captureButton}
-                    onPress={captureRegistrationImage}
-                    disabled={isProcessing}>
-                    <Text style={styles.buttonText}>📸 Capture Face</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.registerButton,
-                      !registeredFace && styles.disabledButton,
-                    ]}
-                    onPress={registerFace}
-                    disabled={isProcessing || !registeredFace}>
-                    <Text style={styles.buttonText}>
-                      {isProcessing ? '🔄 Processing...' : '✅ Register'}
-                    </Text>
-                  </TouchableOpacity>
+    <AppSafeArea>
+      <ScrollView style={styles.container}>
+        {/* Employee Info */}
+        {employeeDetails && (
+          <LinearGradient
+            colors={['#eaeaea', '#ffffff']}
+            style={styles.gradientCard}>
+            <View style={styles.employeeCard}>
+              <View style={styles.employeeCardContent}>
+                <View style={styles.leftInfo}>
+                  <Text style={styles.employeeName}>
+                    {employeeDetails.employeeName}
+                  </Text>
+                  <Text style={styles.attendanceNote}>
+                    Mark your Attendance
+                  </Text>
+                </View>
+                <View style={styles.rightInfo}>
+                  <Text style={styles.designation}>
+                    {employeeDetails.designationName}
+                  </Text>
+                  <Text style={styles.department}>
+                    {employeeDetails.departmentName}
+                  </Text>
                 </View>
               </View>
-            )}
-
-            {/* Match Result */}
-            {matchResult && (
-              <View
-                style={[
-                  styles.resultContainer,
-                  matchResult.isMatch
-                    ? styles.matchSuccess
-                    : styles.matchFailure,
-                ]}>
-                <Text style={styles.resultTitle}>
-                  {matchResult.isMatch
-                    ? '✅ FACE MATCHED'
-                    : '❌ FACE NOT MATCHED'}
-                </Text>
-                <Text>Similarity: {matchResult.similarity.toFixed(4)}</Text>
-                <Text>Distance: {matchResult.distance.toFixed(4)}</Text>
-                <Text>Confidence: {matchResult.confidence}</Text>
-              </View>
-            )}
-
-            {/* Progress */}
-            <View style={styles.progressSection}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressTitle}>Shift Progress</Text>
-                <Text style={styles.progressPercentage}>
-                  {progressPercentage}%
-                </Text>
-              </View>
-              <View style={styles.progressContainer}>
-                <LinearGradient
-                  colors={['#43e97b', '#38f9d7']}
-                  style={[
-                    styles.progressBarFill,
-                    {width: `${progressPercentage}%`},
-                  ]}
-                  start={{x: 0, y: 0}}
-                  end={{x: 1, y: 0}}
-                />
-              </View>
-              <Text style={styles.shiftTime}>Shift: {shiftHours}</Text>
             </View>
+          </LinearGradient>
+        )}
 
-            {/* Check In/Out Buttons */}
-            <View style={styles.buttonSection}>
-              {isLoading ? (
-                <ActivityIndicator size="large" color="#667eea" />
-              ) : (
-                <View style={styles.buttonRow}>
-                  <LinearGradient
-                    colors={
-                      checkedIn
-                        ? ['#bdbdbd', '#9e9e9e']
-                        : ['#43e97b', '#38f9d7']
-                    }
-                    style={styles.gradientButton}>
-                    <Button
-                      mode="contained"
-                      onPress={handleCheckIn}
-                      disabled={checkedIn || showRegistration}
-                      style={styles.transparentBtn}
-                      labelStyle={styles.buttonLabel}
-                      icon="login">
-                      Check In
-                    </Button>
-                  </LinearGradient>
+        {/* Shift Card */}
+        <LinearGradient
+          colors={['#ffffff', '#f0f4ff']}
+          style={styles.gradientCard}>
+          <Card style={[styles.card, styles.shadow]}>
+            <Card.Content style={styles.cardContent}>
+              {/* Status */}
+              <View style={[styles.statusIndicator, styles.shadow]}>
+                <View style={styles.statusDotContainer}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      checkedIn ? styles.statusActive : styles.statusInactive,
+                    ]}
+                  />
+                  <Text style={styles.statusLabel}>
+                    {checkedIn ? 'Checked In' : 'Checked Out'}
+                  </Text>
+                </View>
+                <Text style={styles.elapsedTime}>{elapsedTime}</Text>
+              </View>
 
-                  <LinearGradient
-                    colors={
-                      !checkedIn
-                        ? ['#bdbdbd', '#9e9e9e']
-                        : ['#f5576c', '#f093fb']
-                    }
-                    style={styles.gradientButton}>
-                    <Button
-                      mode="contained"
-                      onPress={handleCheckOut}
-                      disabled={!checkedIn}
-                      style={styles.transparentBtn}
-                      labelStyle={styles.buttonLabel}
-                      icon="logout">
-                      Check Out
-                    </Button>
-                  </LinearGradient>
+              {/* Registration Section */}
+              {showRegistration && !registeredFace && (
+                <View style={styles.registrationSection}>
+                  <Text style={styles.sectionTitle}>📝 Register Your Face</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    You need to register your face before checking in
+                  </Text>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                      style={[styles.captureButton, {marginRight: 5}]}
+                      onPress={handleReregisterFace}
+                      disabled={isProcessing}>
+                      <Text style={styles.buttonText}>📸 Capture Face</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
-            </View>
 
-            {/* Face Preview Section */}
-            <View style={styles.facePreviewSection}>
-              <View style={styles.facePreview}>
-                <Text style={styles.previewTitle}>Registered Face</Text>
-                {registeredFace ? (
-                  <Image
-                    source={{uri: registeredFace}}
-                    style={styles.previewImage}
+              {!showRegistration && registeredFace && (
+                <View style={styles.registrationSuccess}>
+                  <Text style={styles.successTitle}>✅ Face Registered</Text>
+                  <Text style={styles.successSubtitle}>
+                    You can now check in with face verification
+                  </Text>
+                </View>
+              )}
+
+              {/* Match Result */}
+              {matchResult && (
+                <View
+                  style={[
+                    styles.resultContainer,
+                    matchResult.isMatch
+                      ? styles.matchSuccess
+                      : styles.matchFailure,
+                  ]}>
+                  <Text style={styles.resultTitle}>
+                    {matchResult.isMatch
+                      ? '✅ FACE MATCHED'
+                      : '❌ FACE NOT MATCHED'}
+                  </Text>
+                  <Text>Similarity: {matchResult.similarity.toFixed(4)}</Text>
+                  <Text>Distance: {matchResult.distance.toFixed(4)}</Text>
+                  <Text>Confidence: {matchResult.confidence}</Text>
+                </View>
+              )}
+
+              {/* Progress */}
+              <View style={styles.progressSection}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressTitle}>Shift Progress</Text>
+                  <Text style={styles.progressPercentage}>
+                    {progressPercentage}%
+                  </Text>
+                </View>
+                <View style={styles.progressContainer}>
+                  <LinearGradient
+                    colors={['#43e97b', '#38f9d7']}
+                    style={[
+                      styles.progressBarFill,
+                      {width: `${progressPercentage}%`},
+                    ]}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
                   />
+                </View>
+                <Text style={styles.shiftTime}>Shift: {shiftHours}</Text>
+              </View>
+
+              {/* Check In/Out Buttons */}
+              <View style={styles.buttonSection}>
+                {isLoading ? (
+                  <ActivityIndicator size="large" color="#667eea" />
                 ) : (
-                  <Text style={styles.placeholderText}>No face registered</Text>
+                  <View style={styles.buttonRow}>
+                    <LinearGradient
+                      colors={
+                        checkedIn
+                          ? ['#bdbdbd', '#9e9e9e']
+                          : ['#43e97b', '#38f9d7']
+                      }
+                      style={[styles.gradientButton, {marginRight: 5}]}>
+                      <Button
+                        mode="contained"
+                        onPress={handleCheckIn}
+                        disabled={checkedIn || showRegistration}
+                        style={styles.transparentBtn}
+                        labelStyle={styles.buttonLabel}
+                        icon="login">
+                        Check In
+                      </Button>
+                    </LinearGradient>
+
+                    <LinearGradient
+                      colors={
+                        !checkedIn
+                          ? ['#bdbdbd', '#9e9e9e']
+                          : ['#f5576c', '#f093fb']
+                      }
+                      style={[styles.gradientButton, {marginLeft: 5}]}>
+                      <Button
+                        mode="contained"
+                        onPress={handleCheckOut}
+                        disabled={!checkedIn}
+                        style={styles.transparentBtn}
+                        labelStyle={styles.buttonLabel}
+                        icon="logout">
+                        Check Out
+                      </Button>
+                    </LinearGradient>
+                  </View>
                 )}
               </View>
 
-              <View style={styles.facePreview}>
-                <Text style={styles.previewTitle}>Captured Face</Text>
-                {capturedFace ? (
-                  <Image
-                    source={{uri: capturedFace}}
-                    style={styles.previewImage}
-                  />
-                ) : (
-                  <Text style={styles.placeholderText}>Not captured</Text>
-                )}
+              {/* Face Preview Section */}
+              <View style={styles.facePreviewSection}>
+                <View style={styles.facePreview}>
+                  <Text style={styles.previewTitle}>Registered Face</Text>
+                  {registeredFace ? (
+                    <Image
+                      source={{uri: registeredFace}}
+                      style={styles.previewImage}
+                    />
+                  ) : (
+                    <Text style={styles.placeholderText}>
+                      No face registered
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.facePreview}>
+                  <Text style={styles.previewTitle}>Captured Face</Text>
+                  {capturedFace ? (
+                    <Image
+                      source={{uri: capturedFace}}
+                      style={styles.previewImage}
+                    />
+                  ) : (
+                    <Text style={styles.placeholderText}>Not captured</Text>
+                  )}
+                </View>
               </View>
-            </View>
-          </Card.Content>
-        </Card>
-      </LinearGradient>
+              <TouchableOpacity onPress={handleReregisterFace}>
+                <Text
+                  style={{
+                    color: '#007AFF',
+                    fontSize: 16,
+                    marginTop: 10,
+                    textAlign: 'center',
+                  }}>
+                  🔁 Update Face
+                </Text>
+              </TouchableOpacity>
+            </Card.Content>
+          </Card>
+        </LinearGradient>
 
-      {isProcessing && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Processing face...</Text>
-        </View>
-      )}
+        {isProcessing && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Processing face...</Text>
+          </View>
+        )}
 
-      <LeaveStatus leaveData={leaveData} />
+        <LeaveStatus leaveData={leaveData} />
 
-      <OnLeaveUsers leaveUsers={leaveUsers} />
-    </ScrollView>
+        <OnLeaveUsers leaveUsers={leaveUsers} />
+      </ScrollView>
+    </AppSafeArea>
   );
 };
 
@@ -857,7 +851,7 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
-  employeeCard: {borderRadius: 16, margin: 16, padding: 16},
+  employeeCard: {borderRadius: 16, margin: 16, backgroundColor: 'transparent'},
   employeeCardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -882,13 +876,18 @@ const styles = StyleSheet.create({
 
   gradientCard: {margin: 16, borderRadius: 16},
   card: {borderRadius: 16, backgroundColor: '#fff'},
-  shadow: {
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
+  shadow:
+    Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: 2},
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        }
+      : {
+          elevation: 3,
+          shadowColor: '#000',
+        },
   cardContent: {padding: 20},
 
   statusIndicator: {
@@ -910,6 +909,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
   },
+  registrationSuccess: {
+    backgroundColor: '#d4edda',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#28a745',
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -917,6 +924,16 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   sectionSubtitle: {fontSize: 14, color: '#666', marginBottom: 15},
+  successTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#155724',
+    marginBottom: 5,
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: '#155724',
+  },
 
   progressSection: {marginVertical: 16},
   progressHeader: {
@@ -937,8 +954,8 @@ const styles = StyleSheet.create({
   shiftTime: {marginTop: 8, fontSize: 13, fontWeight: '500', color: '#000'},
 
   buttonSection: {marginTop: 20},
-  buttonRow: {flexDirection: 'row', justifyContent: 'space-between', gap: 10},
-  gradientButton: {flex: 1, borderRadius: 25},
+  buttonRow: {flexDirection: 'row', justifyContent: 'space-between'},
+  gradientButton: {flex: 1, borderRadius: 25, overflow: 'hidden'},
   transparentBtn: {backgroundColor: 'transparent'},
   buttonLabel: {color: '#fff', fontWeight: 'bold', fontSize: 16},
 
@@ -963,7 +980,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
-    gap: 10,
   },
   facePreview: {flex: 1, alignItems: 'center'},
   previewTitle: {
