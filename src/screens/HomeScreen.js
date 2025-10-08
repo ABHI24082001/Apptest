@@ -28,17 +28,15 @@ import {useAuth} from '../constants/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
+import Geolocation from '@react-native-community/geolocation';
 
 // 🔹 Config
 const INPUT_SIZE = 112;
 const COSINE_THRESHOLD = 0.7;
 const EUCLIDEAN_THRESHOLD = 0.86;
 
-const BIO_URL = 'http://192.168.29.2:91/api';
-const TEST_COORDINATES = {
-  latitude: 20.292095,
-  longitude: 85.857709,
-};
+
+
 
 const HomeScreen = () => {
   const [checkedIn, setCheckedIn] = useState(false);
@@ -97,8 +95,10 @@ const HomeScreen = () => {
 
   useEffect(() => {
     return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (imageProcessingTimeoutRef.current) clearTimeout(imageProcessingTimeoutRef.current);
+      if (progressIntervalRef.current)
+        clearInterval(progressIntervalRef.current);
+      if (imageProcessingTimeoutRef.current)
+        clearTimeout(imageProcessingTimeoutRef.current);
     };
   }, []);
 
@@ -152,7 +152,7 @@ const HomeScreen = () => {
     const fetchBiometricDetails = async () => {
       try {
         setIsFaceLoading(true);
-        
+
         // Try to load from cache first
         const cacheKey = `face_${employeeDetails.id}_${employeeDetails.childCompanyId}`;
         if (cachedFaceImage) {
@@ -164,15 +164,15 @@ const HomeScreen = () => {
         }
 
         // Set timeout to prevent hanging on API call
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timed out')), 10000)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out')), 10000),
         );
-        
+
         // Actual API call
         const fetchPromise = axios.get(
           `${BASE_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
         );
-        
+
         // Race between timeout and fetch
         const response = await Promise.race([fetchPromise, timeoutPromise]);
 
@@ -192,11 +192,11 @@ const HomeScreen = () => {
         setIsFaceLoading(false);
       }
     };
-    
+
     if (employeeDetails?.id && employeeDetails?.childCompanyId) {
       fetchBiometricDetails();
     }
-    
+
     return () => {
       // Clear any pending timeouts
       if (imageProcessingTimeoutRef.current) {
@@ -490,7 +490,7 @@ const HomeScreen = () => {
         includeBase64: true,
         cameraType: 'front',
         quality: 0.7,
-        maxWidth: 500,  // Limit image size
+        maxWidth: 500, // Limit image size
         maxHeight: 500, // Limit image size
       },
       async res => {
@@ -498,7 +498,7 @@ const HomeScreen = () => {
           setIsRegistering(false);
           return;
         }
-        
+
         if (!res.assets?.[0]?.base64) {
           Alert.alert('Error', 'No image captured');
           setIsRegistering(false);
@@ -508,20 +508,23 @@ const HomeScreen = () => {
         try {
           setIsProcessing(true);
           const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
-          
+
           // Set a timeout to prevent hanging on embedding calculation
           let embeddingComplete = false;
           imageProcessingTimeoutRef.current = setTimeout(() => {
             if (!embeddingComplete) {
               setIsProcessing(false);
               setIsRegistering(false);
-              Alert.alert('Processing Error', 'Face processing took too long. Please try again in better lighting.');
+              Alert.alert(
+                'Processing Error',
+                'Face processing took too long. Please try again in better lighting.',
+              );
             }
           }, 15000);
-          
+
           const emb = await getEmbedding(base64Image);
           embeddingComplete = true;
-          
+
           if (!emb) throw new Error('Failed to get embedding');
 
           const buffer = Buffer.from(new Float32Array(emb).buffer);
@@ -576,46 +579,107 @@ const HomeScreen = () => {
     );
   };
 
-  // Check location
-  const checkLocation = async () => {
-    try {
-      // Default office location coordinates
-      const defaultOfficeLocation = {
-        latitude: 20.292095,
-        longitude: 85.857709,
-      };
+  // request location permission
+  // ✅ Request location permission (Android)
+const requestLocationPermission = async () => {
+  if (Platform.OS === 'android') {
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+    ]);
 
-      let officeLocation;
-      let radiusInMeters = 500; // Default radius
+    return (
+      granted['android.permission.ACCESS_FINE_LOCATION'] ===
+        PermissionsAndroid.RESULTS.GRANTED ||
+      granted['android.permission.ACCESS_COARSE_LOCATION'] ===
+        PermissionsAndroid.RESULTS.GRANTED
+    );
+  }
+  return true;
+};
 
-      try {
-        // Try to fetch from API first
-        const res = await axios.get(
-          `${BIO_URL}/GeoFencing/GetGeoFenceDetails/4`,
-        );
-        officeLocation = {
-          latitude: parseFloat(res.data.lattitude),
-          longitude: parseFloat(res.data.longitude),
-        };
-        radiusInMeters = parseInt(res.data.radius) || 500;
-      } catch (apiError) {
-        console.log('Using default office location:', defaultOfficeLocation);
-        officeLocation = defaultOfficeLocation;
-      }
-
-      const distanceInMeters = geolib.getDistance(
-        TEST_COORDINATES,
-        officeLocation,
+  // ✅ Get current GPS coordinates as a Promise
+const getCurrentPositionPromise = async (
+  options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+) => {
+  try {
+    return await new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  } catch (error) {
+    console.warn('⚠️ Retrying with lower accuracy...');
+    return await new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(
+        resolve,
+        reject,
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 20000 },
       );
-      console.log('Distance:', distanceInMeters, 'm');
+    });
+  }
+};
 
-      return distanceInMeters <= 5000;
-    } catch (err) {
-      console.error('Location check error:', err);
-      return false;
+const safeParseFloat = (val, fallback = NaN) => {
+  const n = parseFloat(val);
+  return Number.isFinite(n) ? n : fallback;
+};
+debugger
+  // Check location
+ const checkLocation = async () => {
+  try {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission denied', 'Location permission is required.');
+      return { inside: false };
     }
-  };
 
+    const pos = await getCurrentPositionPromise();
+    const current = {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+    };
+    if (__DEV__) console.log('📍 Current location:', current);
+  
+    let fences = [];
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/GeoFencing/getGeoLocationDetailsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
+      );
+      fences = Array.isArray(res.data) ? res.data : [];
+      console.log(fences , 'fences===============================================')
+    } catch (err) {
+      console.error('⚠️ GeoFence API Error:', err.message);
+      Alert.alert('Error', 'Could not fetch geofence data');
+      return { inside: false };
+    }
+
+    const matches = [];
+    let nearest = null;
+
+    for (const f of fences) {
+      const lat = safeParseFloat(f.lattitude ?? f.latitude ?? f.lat, NaN);
+      const lon = safeParseFloat(f.longitude ?? f.long ?? f.lng ?? f.lon, NaN);
+      let radiusMeters = safeParseFloat(f.radius, 50);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+      const distance = geolib.getDistance(current, { latitude: lat, longitude: lon });
+      const inside = distance <= radiusMeters;
+
+      const fenceInfo = { ...f, distance, inside };
+      if (inside) matches.push(fenceInfo);
+      if (!nearest || distance < nearest.distance) nearest = fenceInfo;
+    }
+
+    if (__DEV__) console.log('✅ Nearest fence:', nearest?.geoLocationName, nearest?.distance);
+
+    return { inside: matches.length > 0, nearestFence: nearest, matches };
+  } catch (err) {
+    console.error('❌ Location check error:', err);
+    Alert.alert('Error', 'Unable to get your current location');
+    return { inside: false };
+  }
+};
+debugger
   // Main check-in flow
   const handleCheckIn = async () => {
     if (!registeredFace) {
@@ -627,16 +691,23 @@ const HomeScreen = () => {
     setIsLoading(true);
 
     // Step 1: Check location
-    const isWithinLocation = await checkLocation();
-    if (!isWithinLocation) {
+    const locationResult = await checkLocation();
+
+    if (!locationResult.inside) {
+      const nearest = locationResult.nearestFence
+        ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+            locationResult.nearestFence.distance,
+          )}m away)`
+        : 'Unknown area';
+
       Alert.alert(
         '❌ Location Failed',
-        'You are not within the required location',
+        `You are not within the required area.\nNearest: ${nearest}`,
       );
       setIsLoading(false);
       return;
     }
-
+       console.log('✅ Inside area=========================================================================================:', locationResult.nearestFence.geoLocationName);
     // Step 2: Capture face for check-in
     Alert.alert(
       'Face Verification',
@@ -743,7 +814,7 @@ const HomeScreen = () => {
               </View>
 
               {/* Registration Section */}
-              {showRegistration && !registeredFace && (
+              {showRegistration ? (
                 <View style={styles.registrationSection}>
                   <Text style={styles.sectionTitle}>📝 Register Your Face</Text>
                   <Text style={styles.sectionSubtitle}>
@@ -752,16 +823,18 @@ const HomeScreen = () => {
                   <View style={styles.buttonRow}>
                     <TouchableOpacity
                       style={[
-                        styles.captureButton, 
+                        styles.captureButton,
                         {marginRight: 5},
-                        isRegistering && styles.disabledButton
+                        isRegistering && styles.disabledButton,
                       ]}
                       onPress={handleReregisterFace}
                       disabled={isProcessing || isRegistering}>
                       {isRegistering ? (
                         <View style={styles.buttonContent}>
                           <ActivityIndicator size="small" color="#fff" />
-                          <Text style={[styles.buttonText, {marginLeft: 8}]}>Processing...</Text>
+                          <Text style={[styles.buttonText, {marginLeft: 8}]}>
+                            Processing...
+                          </Text>
                         </View>
                       ) : (
                         <Text style={styles.buttonText}>📸 Capture Face</Text>
@@ -769,22 +842,28 @@ const HomeScreen = () => {
                     </TouchableOpacity>
                   </View>
                 </View>
-              )}
-
-              {!showRegistration && (
+              ) : (
                 <View style={styles.registrationSuccess}>
                   {isFaceLoading ? (
                     <View style={styles.loadingContainer}>
                       <ActivityIndicator size="small" color="#007AFF" />
-                      <Text style={styles.loadingText}>Loading face data...</Text>
+                      <Text style={styles.loadingText}>
+                        Loading face data...
+                      </Text>
                     </View>
-                  ) : (
+                  ) : registeredFace ? (
                     <>
-                      <Text style={styles.successTitle}>✅ Face Registered</Text>
+                      <Text style={styles.successTitle}>Face Register</Text>
                       <Text style={styles.successSubtitle}>
                         You can now check in with face verification
                       </Text>
                     </>
+                  ) : (
+                    <View style={styles.loadingContainer}>
+                      <Text style={[styles.loadingText, {color: '#007AFF'}]}>
+                        No face data found
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -906,8 +985,8 @@ const HomeScreen = () => {
                   )}
                 </View>
               </View>
-              <TouchableOpacity 
-                onPress={handleReregisterFace} 
+              <TouchableOpacity
+                onPress={handleReregisterFace}
                 disabled={isRegistering || isProcessing}>
                 <Text
                   style={{
@@ -916,7 +995,7 @@ const HomeScreen = () => {
                     marginTop: 10,
                     textAlign: 'center',
                   }}>
-                  {isRegistering ? '⏳ Processing...' : '🔁 Update Face'}
+                  {isRegistering ? '⏳ Processing...' : '📸 Register Face'}
                 </Text>
               </TouchableOpacity>
             </Card.Content>
@@ -934,7 +1013,7 @@ const HomeScreen = () => {
 
         <OnLeaveUsers leaveUsers={leaveUsers} />
       </ScrollView>
-      
+
       {/* Processing overlay */}
       {(isProcessing || isRegistering) && (
         <View style={styles.loadingOverlay}>
@@ -952,7 +1031,7 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
-  employeeCard: {borderRadius: 10, margin: 10, backgroundColor: '#fff',},
+  employeeCard: {borderRadius: 10, margin: 10, backgroundColor: '#fff'},
   employeeCardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -990,25 +1069,23 @@ const styles = StyleSheet.create({
   },
   department: {fontSize: 13, color: 'rgba(0, 0, 0, 0.9)'},
 
-  gradientCard: {margin: 16, borderRadius: 16 , backgroundColor: '#ffffffff'},
+  gradientCard: {margin: 16, borderRadius: 16, backgroundColor: '#ffffffff'},
 
-
-card: {
-  borderRadius: 16,
-  backgroundColor: '#fff',
-  borderWidth: 1,
-  borderTopColor: '#e0dfdfff',
-  borderLeftColor: '#a8a8a8ff',
-  borderRightColor: '#a8a8a8ff',
-  borderBottomColor: '#636363ff',
-  borderBottomWidth: 4,
-  shadowColor: '#e0dbdbff',
-  // shadowOffset: { width: 3, height: 3 },
-  shadowOpacity: 0.5,
-  shadowRadius: 4,
-  elevation: 8,
-},
-
+  card: {
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderTopColor: '#e0dfdfff',
+    borderLeftColor: '#a8a8a8ff',
+    borderRightColor: '#a8a8a8ff',
+    borderBottomColor: '#636363ff',
+    borderBottomWidth: 4,
+    shadowColor: '#e0dbdbff',
+    // shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 8,
+  },
 
   shadow:
     Platform.OS === 'ios'
@@ -1154,7 +1231,7 @@ card: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   loadingOverlay: {
     position: 'absolute',
     top: 0,
