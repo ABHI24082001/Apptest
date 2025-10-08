@@ -56,6 +56,9 @@ const HomeScreen = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [leaveData, setLeaveData] = useState([]);
   const [leaveUsers, setLeaveUsers] = useState([]);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isFaceLoading, setIsFaceLoading] = useState(false);
+  const [cachedFaceImage, setCachedFaceImage] = useState(null);
 
   // const employeeDetails = {id: 29, childCompanyId: 2};
 
@@ -63,6 +66,7 @@ const HomeScreen = () => {
 
   console.log(employeeDetails, 'employeeDetails');
   const progressIntervalRef = useRef(null);
+  const imageProcessingTimeoutRef = useRef(null); // Add the missing ref
   const {user} = useAuth();
   // Format elapsed time
   const formatTime = seconds => {
@@ -93,8 +97,8 @@ const HomeScreen = () => {
 
   useEffect(() => {
     return () => {
-      if (progressIntervalRef.current)
-        clearInterval(progressIntervalRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (imageProcessingTimeoutRef.current) clearTimeout(imageProcessingTimeoutRef.current);
     };
   }, []);
 
@@ -147,14 +151,36 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       try {
-        const response = await axios.get(
+        setIsFaceLoading(true);
+        
+        // Try to load from cache first
+        const cacheKey = `face_${employeeDetails.id}_${employeeDetails.childCompanyId}`;
+        if (cachedFaceImage) {
+          setRegisteredFace(cachedFaceImage);
+          setShowRegistration(false);
+          setIsFaceLoading(false);
+          console.log('✅ Loaded face from cache');
+          return;
+        }
+
+        // Set timeout to prevent hanging on API call
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timed out')), 10000)
+        );
+        
+        // Actual API call
+        const fetchPromise = axios.get(
           `${BASE_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
         );
+        
+        // Race between timeout and fetch
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+
         if (response.data?.faceImage) {
-          setRegisteredFace(
-            `data:image/jpeg;base64,${response.data.faceImage}`,
-          );
-          setShowRegistration(false); // Ensure we hide registration when face exists
+          const imageData = `data:image/jpeg;base64,${response.data.faceImage}`;
+          setRegisteredFace(imageData);
+          setCachedFaceImage(imageData); // Cache the image
+          setShowRegistration(false);
           console.log('✅ Registered face loaded from API');
         } else {
           setShowRegistration(true);
@@ -162,10 +188,22 @@ const HomeScreen = () => {
       } catch (err) {
         console.error('❌ API Error:', err?.response?.data || err.message);
         setShowRegistration(true);
+      } finally {
+        setIsFaceLoading(false);
       }
     };
-    fetchBiometricDetails();
-  }, []);
+    
+    if (employeeDetails?.id && employeeDetails?.childCompanyId) {
+      fetchBiometricDetails();
+    }
+    
+    return () => {
+      // Clear any pending timeouts
+      if (imageProcessingTimeoutRef.current) {
+        clearTimeout(imageProcessingTimeoutRef.current);
+      }
+    };
+  }, [employeeDetails]);
 
   useEffect(() => {
     const fetchLeaveData = async () => {
@@ -244,12 +282,13 @@ const HomeScreen = () => {
       const filePath = `${RNFS.CachesDirectoryPath}/temp_${Date.now()}.jpg`;
       await RNFS.writeFile(filePath, pureBase64, 'base64');
 
+      // Lower quality for faster processing
       const resized = await ImageResizer.createResizedImage(
         filePath,
         INPUT_SIZE,
         INPUT_SIZE,
         'JPEG',
-        100,
+        80, // Reduced quality from 100 to 80
         0,
         null,
         false,
@@ -259,8 +298,9 @@ const HomeScreen = () => {
       const resizedPath = resized.uri.replace('file://', '');
       const resizedBase64 = await RNFS.readFile(resizedPath, 'base64');
 
-      await RNFS.unlink(filePath);
-      await RNFS.unlink(resizedPath);
+      // Clean up temp files immediately
+      RNFS.unlink(filePath).catch(err => console.log('Cleanup error:', err));
+      RNFS.unlink(resizedPath).catch(err => console.log('Cleanup error:', err));
 
       return resizedBase64;
     } catch (err) {
@@ -442,24 +482,46 @@ const HomeScreen = () => {
       return;
     }
 
+    setIsRegistering(true);
+
     ImagePicker.launchCamera(
       {
         mediaType: 'photo',
         includeBase64: true,
         cameraType: 'front',
         quality: 0.7,
+        maxWidth: 500,  // Limit image size
+        maxHeight: 500, // Limit image size
       },
       async res => {
-        if (res.didCancel) return;
+        if (res.didCancel) {
+          setIsRegistering(false);
+          return;
+        }
+        
         if (!res.assets?.[0]?.base64) {
           Alert.alert('Error', 'No image captured');
+          setIsRegistering(false);
           return;
         }
 
         try {
           setIsProcessing(true);
           const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+          
+          // Set a timeout to prevent hanging on embedding calculation
+          let embeddingComplete = false;
+          imageProcessingTimeoutRef.current = setTimeout(() => {
+            if (!embeddingComplete) {
+              setIsProcessing(false);
+              setIsRegistering(false);
+              Alert.alert('Processing Error', 'Face processing took too long. Please try again in better lighting.');
+            }
+          }, 15000);
+          
           const emb = await getEmbedding(base64Image);
+          embeddingComplete = true;
+          
           if (!emb) throw new Error('Failed to get embedding');
 
           const buffer = Buffer.from(new Float32Array(emb).buffer);
@@ -492,6 +554,7 @@ const HomeScreen = () => {
 
           if (response.data?.isSuccess) {
             setRegisteredFace(base64Image);
+            setCachedFaceImage(base64Image); // Cache the new image
             Alert.alert('✅ Success', 'Face re-registered successfully');
           } else {
             Alert.alert(
@@ -503,7 +566,11 @@ const HomeScreen = () => {
           console.error('Re-Register Error:', err);
           Alert.alert('Error', err.message);
         } finally {
+          if (imageProcessingTimeoutRef.current) {
+            clearTimeout(imageProcessingTimeoutRef.current);
+          }
           setIsProcessing(false);
+          setIsRegistering(false);
         }
       },
     );
@@ -628,7 +695,7 @@ const HomeScreen = () => {
         {/* Employee Info */}
         {employeeDetails && (
           <LinearGradient
-            colors={['#eaeaea', '#ffffff']}
+            colors={['#eaeaea', '#a5a5a5ff']}
             style={styles.gradientCard}>
             <View style={styles.employeeCard}>
               <View style={styles.employeeCardContent}>
@@ -684,21 +751,41 @@ const HomeScreen = () => {
                   </Text>
                   <View style={styles.buttonRow}>
                     <TouchableOpacity
-                      style={[styles.captureButton, {marginRight: 5}]}
+                      style={[
+                        styles.captureButton, 
+                        {marginRight: 5},
+                        isRegistering && styles.disabledButton
+                      ]}
                       onPress={handleReregisterFace}
-                      disabled={isProcessing}>
-                      <Text style={styles.buttonText}>📸 Capture Face</Text>
+                      disabled={isProcessing || isRegistering}>
+                      {isRegistering ? (
+                        <View style={styles.buttonContent}>
+                          <ActivityIndicator size="small" color="#fff" />
+                          <Text style={[styles.buttonText, {marginLeft: 8}]}>Processing...</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.buttonText}>📸 Capture Face</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
 
-              {!showRegistration && registeredFace && (
+              {!showRegistration && (
                 <View style={styles.registrationSuccess}>
-                  <Text style={styles.successTitle}>✅ Face Registered</Text>
-                  <Text style={styles.successSubtitle}>
-                    You can now check in with face verification
-                  </Text>
+                  {isFaceLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#007AFF" />
+                      <Text style={styles.loadingText}>Loading face data...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.successTitle}>✅ Face Registered</Text>
+                      <Text style={styles.successSubtitle}>
+                        You can now check in with face verification
+                      </Text>
+                    </>
+                  )}
                 </View>
               )}
 
@@ -793,7 +880,9 @@ const HomeScreen = () => {
               <View style={styles.facePreviewSection}>
                 <View style={styles.facePreview}>
                   <Text style={styles.previewTitle}>Registered Face</Text>
-                  {registeredFace ? (
+                  {isFaceLoading ? (
+                    <ActivityIndicator size="small" color="#007AFF" />
+                  ) : registeredFace ? (
                     <Image
                       source={{uri: registeredFace}}
                       style={styles.previewImage}
@@ -817,15 +906,17 @@ const HomeScreen = () => {
                   )}
                 </View>
               </View>
-              <TouchableOpacity onPress={handleReregisterFace}>
+              <TouchableOpacity 
+                onPress={handleReregisterFace} 
+                disabled={isRegistering || isProcessing}>
                 <Text
                   style={{
-                    color: '#007AFF',
+                    color: isRegistering || isProcessing ? '#999' : '#007AFF',
                     fontSize: 16,
                     marginTop: 10,
                     textAlign: 'center',
                   }}>
-                  🔁 Update Face
+                  {isRegistering ? '⏳ Processing...' : '🔁 Update Face'}
                 </Text>
               </TouchableOpacity>
             </Card.Content>
@@ -843,6 +934,16 @@ const HomeScreen = () => {
 
         <OnLeaveUsers leaveUsers={leaveUsers} />
       </ScrollView>
+      
+      {/* Processing overlay */}
+      {(isProcessing || isRegistering) && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>
+            {isRegistering ? 'Registering face...' : 'Processing face...'}
+          </Text>
+        </View>
+      )}
     </AppSafeArea>
   );
 };
@@ -851,11 +952,26 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
-  employeeCard: {borderRadius: 16, margin: 16, backgroundColor: 'transparent'},
+  employeeCard: {borderRadius: 10, margin: 10, backgroundColor: '#fff',},
   employeeCardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderTopColor: '#e0dfdfff',
+    borderLeftColor: '#a8a8a8ff',
+    borderRightColor: '#a8a8a8ff',
+    borderBottomColor: '#636363ff',
+    borderBottomWidth: 1,
+    shadowColor: '#e0dbdbff',
+    // shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 8,
   },
   leftInfo: {flex: 1},
   rightInfo: {alignItems: 'flex-end'},
@@ -874,8 +990,26 @@ const styles = StyleSheet.create({
   },
   department: {fontSize: 13, color: 'rgba(0, 0, 0, 0.9)'},
 
-  gradientCard: {margin: 16, borderRadius: 16},
-  card: {borderRadius: 16, backgroundColor: '#fff'},
+  gradientCard: {margin: 16, borderRadius: 16 , backgroundColor: '#ffffffff'},
+
+
+card: {
+  borderRadius: 16,
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderTopColor: '#e0dfdfff',
+  borderLeftColor: '#a8a8a8ff',
+  borderRightColor: '#a8a8a8ff',
+  borderBottomColor: '#636363ff',
+  borderBottomWidth: 4,
+  shadowColor: '#e0dbdbff',
+  // shadowOffset: { width: 3, height: 3 },
+  shadowOpacity: 0.5,
+  shadowRadius: 4,
+  elevation: 8,
+},
+
+
   shadow:
     Platform.OS === 'ios'
       ? {
@@ -1014,4 +1148,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {color: '#fff', marginTop: 10, fontSize: 16},
+
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
 });

@@ -116,7 +116,7 @@ export default function MonthCalendarWithAgenda({
     'present': { color: '#666666', icon: 'check', status: 'P' },
     'absent': { color: '#FF0000', icon: 'close', status: 'A' },
     'weekend': { color: '#FFFFFF', icon: 'weekend' },
-    'holiday': { color: '#FF0000', icon: 'celebration' },
+    'holiday': { color: '#a08500ff', icon: 'celebration' },
   };
 
   useEffect(() => {
@@ -148,67 +148,7 @@ export default function MonthCalendarWithAgenda({
     setShowPicker(false);
   };
 
-  // Generate events for the current month
-  // const generateMonthEvents = () => {
-  //   const events = {};
-  //   const start = currentMonth.clone().startOf('month');
-  //   const end = currentMonth.clone().endOf('month');
-
-  //   if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) {
-  //     return events;
-  //   }
-
-  //   const attendance = attendanceData.calendarModels[0];
-  //   const holidays = attendanceData.holidays || [];
-
-  //   for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
-  //     const dayOfWeek = date.day();
-  //     const dateStr = date.format('YYYY-MM-DD');
-  //     const dayOfMonth = parseInt(date.format('D'));
-      
-  //     // Weekend check
-  //     if (dayOfWeek === 0 || dayOfWeek === 6) {
-  //       events[dateStr] = [{
-  //         id: `weekend-${dateStr}`,
-  //         type: 'weekend',
-  //         name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
-  //       }];
-  //       continue;
-  //     }
-
-  //     // Holiday check
-  //     const isHoliday = holidays.some(h => h.day === dayOfMonth);
-  //     if (isHoliday) {
-  //       events[dateStr] = [{
-  //         id: `holiday-${dateStr}`,
-  //         type: 'holiday',
-  //         name: 'Holiday'
-  //       }];
-  //       continue;
-  //     }
-
-  //     // Attendance check
-  //     const loginKey = `${getDayText(dayOfMonth)}LogIn`;
-  //     const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
-      
-  //     if (attendance[loginKey] && attendance[logoutKey]) {
-  //       events[dateStr] = [{
-  //         id: `present-${dateStr}`,
-  //         type: 'present',
-  //         name: 'Present',
-  //         time: `${attendance[loginKey]} - ${attendance[logoutKey]}`
-  //       }];
-  //     } else {
-  //       events[dateStr] = [{
-  //         id: `absent-${dateStr}`,
-  //         type: 'absent',
-  //         name: 'Absent'
-  //       }];
-  //     }
-  //   }
-    
-  //   return events;
-  // };
+  
 
 
   const generateMonthEvents = () => {
@@ -231,13 +171,13 @@ export default function MonthCalendarWithAgenda({
     const evts = [];
 
     // Weekend event
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      evts.push({
-        id: `weekend-${dateStr}`,
-        type: 'weekend',
-        name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
-      });
-    }
+    // if (dayOfWeek === 0 || dayOfWeek === 6) {
+    //   evts.push({
+    //     id: `weekend-${dateStr}`,
+    //     type: 'weekend',
+    //     name: dayOfWeek === 0 ? 'Sunday' : 'Saturday',
+    //   });
+    // }
 
     // Holiday event
     const isHoliday = holidays.some(h => h.day === dayOfMonth);
@@ -245,7 +185,7 @@ export default function MonthCalendarWithAgenda({
       evts.push({
         id: `holiday-${dateStr}`,
         type: 'holiday',
-        name: 'Holiday',
+        name: 'Week-off',
       });
     }
 
@@ -409,7 +349,7 @@ export default function MonthCalendarWithAgenda({
               styles.eventCard,
               evt.type === 'absent' && { backgroundColor: '#FFEBEE', borderLeftColor: '#FF0000' },
               evt.type === 'weekend' && { backgroundColor: '#FFF8E1', borderLeftColor: '#FFA500' },
-              evt.type === 'holiday' && { backgroundColor: '#FFEBEE', borderLeftColor: '#FF0000' },
+              evt.type === 'holiday' && { backgroundColor: '#fdcf74ff', borderLeftColor: '#f6b900ff' },
               evt.type === 'present' && { borderLeftColor: '#666666' }
             ]}>
               <View style={styles.eventRow}>

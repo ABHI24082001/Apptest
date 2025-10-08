@@ -3,9 +3,15 @@ import {View, Text, FlatList, StyleSheet, Image, TouchableOpacity} from 'react-n
 import {Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-const OnLeaveUsers = ({leaveUsers}) => {
 
+const OnLeaveUsers = ({leaveUsers}) => {
   const navigation = useNavigation();
+
+  // If there's no data or empty array, don't render anything
+  if (!leaveUsers || leaveUsers.length === 0) {
+    return null;
+  }
+
   const renderUserItem = ({item}) => (
     <View style={styles.userCard}>
       <Image source={item.image} style={styles.userImage} />
@@ -109,3 +115,7 @@ const styles = StyleSheet.create({
 });
 
 export default OnLeaveUsers;
+
+
+
+
