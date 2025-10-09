@@ -2,83 +2,103 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleDisplayName</key>
-    <string>hrms</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$(MARKETING_VERSION)</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <false/>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
+	<!-- Basic App Info -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>hrms</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 
-    <!-- ✅ Camera & Face ID -->
-    <key>NSCameraUsageDescription</key>
-    <string>This app uses the camera to verify your identity during check-in.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>This app uses Face ID for secure check-in.</string>
+	<!-- Security and Networking -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 
-    <!-- ✅ Location -->
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>We need your location to show your position on the map.</string>
+	<!-- 👇 Permissions (for react-native-permissions) -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to verify your identity during check-in.</string>
 
-    <!-- ✅ Photo Library -->
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>This app needs access to your photo library to select or upload profile photos.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app uses Face ID for secure check-in.</string>
 
-    <!-- ✅ Fonts -->
-    <key>UIAppFonts</key>
-    <array>
-        <string>AntDesign.ttf</string>
-        <string>Entypo.ttf</string>
-        <string>EvilIcons.ttf</string>
-        <string>Feather.ttf</string>
-        <string>FontAwesome.ttf</string>
-        <string>FontAwesome5_Brands.ttf</string>
-        <string>FontAwesome5_Regular.ttf</string>
-        <string>FontAwesome5_Solid.ttf</string>
-        <string>Foundation.ttf</string>
-        <string>Ionicons.ttf</string>
-        <string>MaterialIcons.ttf</string>
-        <string>MaterialCommunityIcons.ttf</string>
-        <string>Octicons.ttf</string>
-        <string>SimpleLineIcons.ttf</string>
-        <string>Zocial.ttf</string>
-    </array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show your position on the map.</string>
 
-    <key>UILaunchStoryboardName</key>
-    <string>LaunchScreen</string>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>arm64</string>
-    </array>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>UIViewControllerBasedStatusBarAppearance</key>
-    <false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to select images for face matching.</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save processed photos to your library.</string>
+
+	<!-- Optional but recommended (for future permissions) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone for audio input features.</string>
+
+	<key>NSUserTrackingUsageDescription</key>
+	<string>We use your device ID to provide personalized app experience and analytics.</string>
+
+	<!-- UI Fonts -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>AntDesign.ttf</string>
+		<string>Entypo.ttf</string>
+		<string>EvilIcons.ttf</string>
+		<string>Feather.ttf</string>
+		<string>FontAwesome.ttf</string>
+		<string>FontAwesome5_Brands.ttf</string>
+		<string>FontAwesome5_Regular.ttf</string>
+		<string>FontAwesome5_Solid.ttf</string>
+		<string>Foundation.ttf</string>
+		<string>Ionicons.ttf</string>
+		<string>MaterialIcons.ttf</string>
+		<string>MaterialCommunityIcons.ttf</string>
+		<string>Octicons.ttf</string>
+		<string>SimpleLineIcons.ttf</string>
+		<string>Zocial.ttf</string>
+	</array>
+
+	<!-- Launch and Orientation -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+
+	<!-- iOS 17+ setting -->
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<false/>
 </dict>
 </plist>

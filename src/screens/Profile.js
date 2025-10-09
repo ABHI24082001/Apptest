@@ -723,7 +723,7 @@ const [visible, setVisible] = useState(false);
 
       // ✅ Use http, not https
       const response = await fetch(
-        'http://192.168.29.2:90/UploadDocument/UploadDocument',
+        'http://192.168.29.2:90/api/UploadDocument/UploadDocument',
         {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -743,7 +743,7 @@ const [visible, setVisible] = useState(false);
         await saveProfileImage(uploadedFileName);
 
         // ✅ Now fetch uploaded image as base64
-        const fetchUrl = `http://192.168.29.2:90/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
+        const fetchUrl = `http://192.168.29.2:90/api/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
         console.log('Step 4: Fetching image from:', fetchUrl);
 
         const fileResponse = await fetch(fetchUrl);
