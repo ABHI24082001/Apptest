@@ -97,6 +97,19 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 
+	<key>NSCameraUsageDescription</key>
+<string>This app uses the camera to take photos for face matching.</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>We need access to your photo library to select images for face matching.</string>
+
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>We need permission to save processed photos to your library (if saving).</string>
+
+<key>NSMicrophoneUsageDescription</key>
+<string>This app uses the microphone for video capture (if any).</string>
+
+
 	<!-- iOS 17+ setting -->
 	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
 	<false/>

@@ -9,7 +9,6 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Avatar, Chip, Divider, Button} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
