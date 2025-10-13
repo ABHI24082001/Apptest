@@ -7,25 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		64A42F3A2E97E1990059CA8D /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 64A42F392E97E1990059CA8D /* Info.plist */; };
 		64B5C0C02E911D120064E7BC /* tiny_model.onnx in Resources */ = {isa = PBXBuildFile; fileRef = 64B5C0BF2E911D120064E7BC /* tiny_model.onnx */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		924D5BF870D570841D567925 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		B5C4545D3C31ACCB1EC85534 /* Pods_hrms.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A87BB865293F86D113622A50 /* Pods_hrms.framework */; };
+		F2E41D99FAFC5D97510CDDC5 /* libPods-hrms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B8E2A1F3E05D09AF153E01A0 /* libPods-hrms.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* hrms.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hrms.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = hrms/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = hrms/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		64A42F382E97E1990059CA8D /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Base; path = Base.lproj/Info.plist; sourceTree = "<group>"; };
 		64B5C0BF2E911D120064E7BC /* tiny_model.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = tiny_model.onnx; sourceTree = "<group>"; };
+		64F35B7F2E97E5B50056F823 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = hrms/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = hrms/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		875241C235D6498EAF50C5A8 /* Pods-hrms.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.debug.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.debug.xcconfig"; sourceTree = "<group>"; };
-		A7A4873F0157407EEFADBB89 /* Pods-hrms.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.release.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.release.xcconfig"; sourceTree = "<group>"; };
-		A87BB865293F86D113622A50 /* Pods_hrms.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_hrms.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B8E2A1F3E05D09AF153E01A0 /* libPods-hrms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-hrms.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA3E6C03B905079040CB6DFB /* Pods-hrms.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.debug.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F442987F6666C4E76FD1303E /* Pods-hrms.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hrms.release.xcconfig"; path = "Target Support Files/Pods-hrms/Pods-hrms.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,7 +32,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B5C4545D3C31ACCB1EC85534 /* Pods_hrms.framework in Frameworks */,
+				F2E41D99FAFC5D97510CDDC5 /* libPods-hrms.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,7 +45,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				64B5C0BF2E911D120064E7BC /* tiny_model.onnx */,
-				64A42F392E97E1990059CA8D /* Info.plist */,
+				64F35B7F2E97E5B50056F823 /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 			);
@@ -58,7 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				A87BB865293F86D113622A50 /* Pods_hrms.framework */,
+				B8E2A1F3E05D09AF153E01A0 /* libPods-hrms.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -95,8 +94,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				875241C235D6498EAF50C5A8 /* Pods-hrms.debug.xcconfig */,
-				A7A4873F0157407EEFADBB89 /* Pods-hrms.release.xcconfig */,
+				DA3E6C03B905079040CB6DFB /* Pods-hrms.debug.xcconfig */,
+				F442987F6666C4E76FD1303E /* Pods-hrms.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -108,13 +107,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "hrms" */;
 			buildPhases = (
-				4C38E3E4E32856A035BADD71 /* [CP] Check Pods Manifest.lock */,
+				D8694888157D67E1459F30B0 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				C1AB99A85BA372738A46D5DC /* Resources */,
-				432B0B3BED1546F29B698FAC /* [CP] Embed Pods Frameworks */,
-				C3643FAEF02A0565F52081B6 /* [CP] Copy Pods Resources */,
+				036601BB0272EB495E12B69B /* [CP] Embed Pods Frameworks */,
+				69EDD226AFD9DD936C0317DD /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -166,7 +165,6 @@
 			files = (
 				64B5C0C02E911D120064E7BC /* tiny_model.onnx in Resources */,
 				924D5BF870D570841D567925 /* PrivacyInfo.xcprivacy in Resources */,
-				64A42F3A2E97E1990059CA8D /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,7 +187,7 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		432B0B3BED1546F29B698FAC /* [CP] Embed Pods Frameworks */ = {
+		036601BB0272EB495E12B69B /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -210,7 +208,28 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		4C38E3E4E32856A035BADD71 /* [CP] Check Pods Manifest.lock */ = {
+		69EDD226AFD9DD936C0317DD /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		D8694888157D67E1459F30B0 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -232,27 +251,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C3643FAEF02A0565F52081B6 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-hrms/Pods-hrms-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -266,22 +264,10 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXVariantGroup section */
-		64A42F392E97E1990059CA8D /* Info.plist */ = {
-			isa = PBXVariantGroup;
-			children = (
-				64A42F382E97E1990059CA8D /* Base */,
-			);
-			name = Info.plist;
-			path = hrms;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
-
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 875241C235D6498EAF50C5A8 /* Pods-hrms.debug.xcconfig */;
+			baseConfigurationReference = DA3E6C03B905079040CB6DFB /* Pods-hrms.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -310,7 +296,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A7A4873F0157407EEFADBB89 /* Pods-hrms.release.xcconfig */;
+			baseConfigurationReference = F442987F6666C4E76FD1303E /* Pods-hrms.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

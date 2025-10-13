@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   PermissionsAndroid,
+  AppState,
 } from 'react-native';
 import {Card, Button} from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -29,14 +30,16 @@ import axiosInstance from '../utils/axiosInstance';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
 import Geolocation from '@react-native-community/geolocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import BackgroundService from "react-native-background-actions";
 
 // 🔹 Config
 const INPUT_SIZE = 112;
 const COSINE_THRESHOLD = 0.7;
 const EUCLIDEAN_THRESHOLD = 0.86;
-
-
-
+const CHECK_IN_STORAGE_KEY = 'user_check_in_data';
+const CAPTURED_FACE_STORAGE_KEY = 'captured_face_data';
+const BG_LAST_ELAPSED_KEY = 'bg_last_elapsed_seconds'; 
 
 const HomeScreen = () => {
   const [checkedIn, setCheckedIn] = useState(false);
@@ -57,15 +60,138 @@ const HomeScreen = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isFaceLoading, setIsFaceLoading] = useState(false);
   const [cachedFaceImage, setCachedFaceImage] = useState(null);
-
-  // const employeeDetails = {id: 29, childCompanyId: 2};
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
 
   const employeeDetails = useFetchEmployeeDetails();
-
-  console.log(employeeDetails, 'employeeDetails');
   const progressIntervalRef = useRef(null);
-  const imageProcessingTimeoutRef = useRef(null); // Add the missing ref
+  const imageProcessingTimeoutRef = useRef(null);
+  const appStateSubscriptionRef = useRef(null);
   const {user} = useAuth();
+
+
+  // background task runs in a separate JS context managed by the package
+const bgOptions = {
+  taskName: 'Shift Progress',
+  taskTitle: 'Shift in progress',
+  taskDesc: 'Working...',
+  taskIcon: {
+    name: 'ic_launcher',
+    type: 'mipmap',
+  },
+  // color etc.
+  color: '#43e97b',
+  parameters: {
+    delay: 1000, // 1 second tick
+  },
+};
+
+// backgroundTask: reads checkInTime from AsyncStorage and updates elapsed & notification.
+// NOTE: Do NOT touch UI here. Only AsyncStorage, logs, and updateNotification are allowed.
+const backgroundTask = async (taskData) => {
+  const delay = taskData?.delay ?? 1000;
+  console.log('[BackgroundTask] started with delay', delay);
+
+  try {
+    while (BackgroundService.isRunning()) {
+      try {
+        // Load stored check-in info
+        const raw = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+        let checkInTime = null;
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            checkInTime = parsed?.checkInTime || null;
+          } catch (e) {
+            console.warn('[BackgroundTask] parse error', e);
+          }
+        }
+
+        if (!checkInTime) {
+          // Nothing to track; write zero and wait
+          await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, JSON.stringify({
+            elapsedSeconds: 0,
+            progressPercentage: 0,
+            timestamp: Date.now()
+          }));
+          console.log('[BackgroundTask] no checkInTime found, sleeping...');
+        } else {
+          // compute elapsed seconds based on checkInTime
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
+
+          // total shift seconds (demo uses 60), adapt to your real shift length
+          const totalSeconds = 60; // <-- adjust to actual shift duration (e.g., 8*3600)
+          const clamped = Math.min(totalSeconds, Math.max(0, elapsedSeconds));
+          const progressPercentage = Math.floor((clamped / totalSeconds) * 100);
+
+          // persist last elapsed so the UI can read it when app foregrounds
+          await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, JSON.stringify({
+            elapsedSeconds: clamped,
+            progressPercentage,
+            timestamp: now
+          }));
+
+          // update notification (Android) so user sees progress in notification bar
+          try {
+            await BackgroundService.updateNotification({
+              taskDesc: `Elapsed: ${new Date(clamped * 1000).toISOString().substr(11, 8)} — ${progressPercentage}%`,
+            });
+          } catch (e) {
+            // updateNotification can throw on iOS (ignored) — log
+            console.warn('[BackgroundTask] updateNotification failed', e);
+          }
+
+          console.log(`[BackgroundTask] tick elapsed=${clamped}s progress=${progressPercentage}%`);
+        }
+      } catch (innerErr) {
+        console.error('[BackgroundTask] tick error', innerErr);
+      }
+
+      // wait delay
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  } catch (err) {
+    console.error('[BackgroundTask] outer error', err);
+  }
+
+  console.log('[BackgroundTask] stopped');
+};
+
+  
+
+// call to start background service
+const startBackgroundService = async () => {
+  try {
+    if (await BackgroundService.isRunning()) {
+      console.log('[BGHelper] service already running');
+      return;
+    }
+    await BackgroundService.start(backgroundTask, bgOptions);
+    console.log('[BGHelper] service started');
+  } catch (e) {
+    console.error('[BGHelper] failed to start', e);
+  }
+};
+
+// call to stop background service
+const stopBackgroundService = async () => {
+  try {
+    if (await BackgroundService.isRunning()) {
+      await BackgroundService.stop();
+      console.log('[BGHelper] service stopped');
+      // optionally clear stored last elapsed
+      await AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY);
+    } else {
+      console.log('[BGHelper] service not running');
+    }
+  } catch (e) {
+    console.error('[BGHelper] failed to stop', e);
+  }
+};
+
+  
   // Format elapsed time
   const formatTime = seconds => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -73,16 +199,91 @@ const HomeScreen = () => {
     const s = String(seconds % 60).padStart(2, '0');
     return `${h}:${m}:${s}`;
   };
+// debugger
 
-  const startShiftProgress = () => {
+
+
+
+  // Save check-in state and captured face to AsyncStorage
+  const saveCheckInState = async (isCheckedIn, startTime = null, faceData = null) => {
+    try {
+      const data = {
+        checkedIn: isCheckedIn,
+        checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
+      };
+      await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
+      
+      // Save captured face separately
+      if (faceData) {
+        await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, faceData);
+      } else if (!isCheckedIn) {
+        // Clear captured face on check-out
+        await AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY);
+      }
+      
+      console.log('✅ Saved check-in state:', data);
+    } catch (error) {
+      console.error('❌ Error saving check-in state:', error);
+    }
+  };
+
+  // Load check-in state and captured face from AsyncStorage
+  const loadCheckInState = async () => {
+    try {
+      const [checkInData, faceData] = await Promise.all([
+        AsyncStorage.getItem(CHECK_IN_STORAGE_KEY),
+        AsyncStorage.getItem(CAPTURED_FACE_STORAGE_KEY)
+      ]);
+      
+      // Load captured face if available
+      if (faceData) {
+        setCapturedFace(faceData);
+      }
+      
+      if (checkInData) {
+        const parsedData = JSON.parse(checkInData);
+        console.log('✅ Loaded check-in state:', parsedData);
+        
+        if (parsedData.checkedIn && parsedData.checkInTime) {
+          setCheckedIn(true);
+          setCheckInTime(parsedData.checkInTime);
+          // Calculate elapsed time and start progress
+          const now = new Date().getTime();
+          const elapsedSeconds = Math.floor((now - parsedData.checkInTime) / 1000);
+          setElapsedTime(formatTime(elapsedSeconds));
+          
+          // Resume the progress tracking
+          startShiftProgress(elapsedSeconds);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading check-in state:', error);
+    }
+  };
+
+  const startShiftProgress = (startSeconds = 0) => {
     const totalSeconds = 60; // demo: 1 minute
-    let elapsedSeconds = 0;
+    let elapsedSeconds = startSeconds;
+    
+    // Clear any existing interval
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+    // Set initial values based on elapsed time
+    setElapsedTime(formatTime(elapsedSeconds));
+    setProgressPercentage(Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)));
+    
+    // Already completed?
+    if (elapsedSeconds >= totalSeconds) {
+      setElapsedTime(formatTime(totalSeconds));
+      setProgressPercentage(100);
+      setShiftCompleted(true);
+      return;
+    }
 
     progressIntervalRef.current = setInterval(() => {
       elapsedSeconds++;
       if (elapsedSeconds >= totalSeconds) {
-        setElapsedTime('01:00');
+        setElapsedTime(formatTime(totalSeconds));
         setProgressPercentage(100);
         setShiftCompleted(true);
         clearInterval(progressIntervalRef.current);
@@ -90,10 +291,72 @@ const HomeScreen = () => {
       }
       setElapsedTime(formatTime(elapsedSeconds));
       setProgressPercentage(Math.floor((elapsedSeconds / totalSeconds) * 100));
+      
+      // Update last update time to sync when app comes back from background
+      setLastUpdateTime(Date.now());
     }, 1000);
   };
 
+  // Handle app state changes to keep shift progress accurate when app goes to background
   useEffect(() => {
+    appStateSubscriptionRef.current = AppState.addEventListener('change', nextAppState => {
+      if (appState === 'background' && nextAppState === 'active' && checkedIn && checkInTime) {
+        // App has come back to foreground - sync with background service data
+        const syncBackgroundProgress = async () => {
+          try {
+            const bgDataStr = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
+            if (bgDataStr) {
+              const bgData = JSON.parse(bgDataStr);
+              if (bgData && bgData.elapsedSeconds !== undefined) {
+                console.log('[BGSync] Syncing with background data:', bgData);
+                setElapsedTime(formatTime(bgData.elapsedSeconds));
+                setProgressPercentage(bgData.progressPercentage);
+                
+                // Restart progress with synced data
+                startShiftProgress(bgData.elapsedSeconds);
+              }
+            }
+          } catch (e) {
+            console.error('[BGSync] Failed to sync with background data:', e);
+          }
+        };
+        
+        syncBackgroundProgress();
+      }
+      
+      setAppState(nextAppState);
+      setLastUpdateTime(Date.now());
+    });
+
+    return () => {
+      if (appStateSubscriptionRef.current) {
+        appStateSubscriptionRef.current.remove();
+      }
+    };
+  }, [appState, checkedIn, checkInTime, lastUpdateTime]);
+
+  // Initialize app state
+  useEffect(() => {
+    const initializeApp = async () => {
+      await loadCheckInState();
+      
+      // Check if we need to restart background service (in case of app restart)
+      try {
+        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+        if (checkInData) {
+          const parsedData = JSON.parse(checkInData);
+          if (parsedData.checkedIn && parsedData.checkInTime) {
+            // We're still checked in, so restart background service
+            await startBackgroundService();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check background service status:', e);
+      }
+    };
+    
+    initializeApp();
+    
     return () => {
       if (progressIntervalRef.current)
         clearInterval(progressIntervalRef.current);
@@ -102,6 +365,7 @@ const HomeScreen = () => {
     };
   }, []);
 
+  // Load the ONNX model
   useEffect(() => {
     const loadModel = async () => {
       try {
@@ -148,6 +412,7 @@ const HomeScreen = () => {
     loadModel();
   }, []);
 
+  // Load employee's biometric details
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       try {
@@ -198,23 +463,20 @@ const HomeScreen = () => {
     }
 
     return () => {
-      // Clear any pending timeouts
       if (imageProcessingTimeoutRef.current) {
         clearTimeout(imageProcessingTimeoutRef.current);
       }
     };
-  }, [employeeDetails]);
+  }, [employeeDetails, cachedFaceImage]);
 
+  // Fetch leave data
   useEffect(() => {
     const fetchLeaveData = async () => {
+      if (!user?.id || !user?.childCompanyId) return;
+      
       try {
-        const employeeId = user?.id;
-        const companyId = user?.childCompanyId;
-
-        if (!employeeId || !companyId) return;
-
         const response = await axiosInstance.get(
-          `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
+          `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${user.childCompanyId}/${user.id}`,
         );
 
         const transformed = response.data.leaveBalances.map(item => ({
@@ -231,8 +493,11 @@ const HomeScreen = () => {
     fetchLeaveData();
   }, [user]);
 
+  // Fetch employees on leave
   useEffect(() => {
     const fetchEmployeesOnLeave = async () => {
+      if (!user) return;
+      
       try {
         const companyId = user?.childCompanyId || 2;
         const branchId = user?.branchId || 20;
@@ -243,7 +508,7 @@ const HomeScreen = () => {
 
         const response = await axiosInstance.get(url);
 
-        // Transform the API data to match the expected format for OnLeaveUsers
+        // Transform the API data
         const transformedData = response.data.map(employee => ({
           id: employee.employeeId.toString(),
           name: employee.name,
@@ -251,7 +516,7 @@ const HomeScreen = () => {
           image: employee.empImage
             ? {uri: `${BASE_URL}/uploads/employee/${employee.empImage}`}
             : {uri: 'https://avatar.iran.liara.run/public/26'},
-          empImage: employee.empImage, // Keep the original field for conditional rendering
+          empImage: employee.empImage,
         }));
 
         setLeaveUsers(transformedData);
@@ -265,7 +530,7 @@ const HomeScreen = () => {
   }, [user]);
 
   // Normalize embeddings
-  const normalize = vec => {
+  const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
     if (norm === 0) return vec;
     const normalized = new Float32Array(vec.length);
@@ -273,10 +538,10 @@ const HomeScreen = () => {
       normalized[i] = vec[i] / norm;
     }
     return normalized;
-  };
+  }, []);
 
-  // Preprocess image
-  const preprocessImage = async base64Image => {
+  // Preprocess image with optimized caching
+  const preprocessImage = useCallback(async base64Image => {
     try {
       const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
       const filePath = `${RNFS.CachesDirectoryPath}/temp_${Date.now()}.jpg`;
@@ -307,10 +572,10 @@ const HomeScreen = () => {
       console.error('❌ Preprocessing error:', err);
       return null;
     }
-  };
+  }, []);
 
-  // Get embedding
-  const getEmbedding = async base64Image => {
+  // Get embedding with timeout protection
+  const getEmbedding = useCallback(async base64Image => {
     try {
       if (!session) throw new Error('ONNX session not initialized');
 
@@ -356,33 +621,7 @@ const HomeScreen = () => {
       console.error('❌ Embedding error:', err);
       return null;
     }
-  };
-
-  // Cosine similarity
-  const cosineSimilarity = (a, b) => {
-    let dot = 0,
-      normA = 0,
-      normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-    if (normA === 0 || normB === 0) return 0;
-    return Math.max(-1, Math.min(1, dot / (normA * normB)));
-  };
-
-  // Euclidean distance
-  const euclideanDistance = (a, b) => {
-    let sum = 0;
-    for (let i = 0; i < a.length; i++) {
-      const diff = a[i] - b[i];
-      sum += diff * diff;
-    }
-    return Math.sqrt(sum);
-  };
+  }, [session, preprocessImage, normalize]);
 
   // Compare faces
   const matchFaces = async (face1, face2) => {
@@ -432,25 +671,58 @@ const HomeScreen = () => {
     }
   };
 
+  // Cosine similarity calculation
+  const cosineSimilarity = useCallback((a, b) => {
+    let dot = 0,
+      normA = 0,
+      normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+    if (normA === 0 || normB === 0) return 0;
+    return Math.max(-1, Math.min(1, dot / (normA * normB)));
+  }, []);
+
+  // Euclidean distance calculation
+  const euclideanDistance = useCallback((a, b) => {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) {
+      const diff = a[i] - b[i];
+      sum += diff * diff;
+    }
+    return Math.sqrt(sum);
+  }, []);
+
+  // Improved camera permission handling
   const requestCameraPermission = async () => {
     try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'App needs access to your camera',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App needs access to your camera',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } else {
+        // iOS doesn't need explicit permission for camera through ImagePicker
+        return true;
+      }
     } catch (err) {
       console.warn(err);
       return false;
     }
   };
 
+  // Launch camera with permission check
   const launchCamera = async callback => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
@@ -462,6 +734,7 @@ const HomeScreen = () => {
       {
         mediaType: 'photo',
         includeBase64: true,
+        cameraType: 'front',
         maxWidth: 500,
         maxHeight: 500,
         quality: 0.8,
@@ -470,6 +743,7 @@ const HomeScreen = () => {
     );
   };
 
+  // Handle face registration
   const handleReregisterFace = async () => {
     if (!session) {
       Alert.alert('Error', 'Model not loaded yet');
@@ -490,8 +764,8 @@ const HomeScreen = () => {
         includeBase64: true,
         cameraType: 'front',
         quality: 0.7,
-        maxWidth: 500, // Limit image size
-        maxHeight: 500, // Limit image size
+        maxWidth: 500,
+        maxHeight: 500,
       },
       async res => {
         if (res.didCancel) {
@@ -558,7 +832,8 @@ const HomeScreen = () => {
           if (response.data?.isSuccess) {
             setRegisteredFace(base64Image);
             setCachedFaceImage(base64Image); // Cache the new image
-            Alert.alert('✅ Success', 'Face re-registered successfully');
+            setShowRegistration(false); // Hide registration section
+            Alert.alert('✅ Success', 'Face registered successfully');
           } else {
             Alert.alert(
               'Error',
@@ -579,107 +854,133 @@ const HomeScreen = () => {
     );
   };
 
-  // request location permission
-  // ✅ Request location permission (Android)
-const requestLocationPermission = async () => {
-  if (Platform.OS === 'android') {
-    const granted = await PermissionsAndroid.requestMultiple([
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-    ]);
-
-    return (
-      granted['android.permission.ACCESS_FINE_LOCATION'] ===
-        PermissionsAndroid.RESULTS.GRANTED ||
-      granted['android.permission.ACCESS_COARSE_LOCATION'] ===
-        PermissionsAndroid.RESULTS.GRANTED
-    );
-  }
-  return true;
-};
-
-  // ✅ Get current GPS coordinates as a Promise
-const getCurrentPositionPromise = async (
-  options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-) => {
-  try {
-    return await new Promise((resolve, reject) => {
-      Geolocation.getCurrentPosition(resolve, reject, options);
-    });
-  } catch (error) {
-    console.warn('⚠️ Retrying with lower accuracy...');
-    return await new Promise((resolve, reject) => {
-      Geolocation.getCurrentPosition(
-        resolve,
-        reject,
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 20000 },
-      );
-    });
-  }
-};
-
-const safeParseFloat = (val, fallback = NaN) => {
-  const n = parseFloat(val);
-  return Number.isFinite(n) ? n : fallback;
-};
-debugger
-  // Check location
- const checkLocation = async () => {
-  try {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission denied', 'Location permission is required.');
-      return { inside: false };
-    }
-
-    const pos = await getCurrentPositionPromise();
-    const current = {
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-    };
-    if (__DEV__) console.log('📍 Current location:', current);
-  
-    let fences = [];
+  // Improved location permission handling
+  const requestLocationPermission = async () => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/GeoFencing/getGeoLocationDetailsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
-      );
-      fences = Array.isArray(res.data) ? res.data : [];
-      console.log(fences , 'fences===============================================')
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+
+        return (
+          granted['android.permission.ACCESS_FINE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED ||
+          granted['android.permission.ACCESS_COARSE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED
+        );
+      } else {
+        return new Promise((resolve) => {
+          Geolocation.requestAuthorization(
+            () => resolve(true),
+            () => resolve(false)
+          );
+        });
+      }
+    } catch (error) {
+      console.error('Location permission error:', error);
+      return false;
+    }
+  };
+
+  // Get current GPS coordinates with retry
+  const getCurrentPositionPromise = async (
+    options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+  ) => {
+    try {
+      return await new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    } catch (error) {
+      console.warn('⚠️ Retrying with lower accuracy...');
+      return await new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 20000 },
+        );
+      });
+    }
+  };
+
+  const safeParseFloat = (val, fallback = NaN) => {
+    const n = parseFloat(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  // Check if user is within geofence
+  const checkLocation = async () => {
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        Alert.alert('Permission denied', 'Location permission is required.');
+        return { inside: false };
+      }
+
+      const pos = await getCurrentPositionPromise();
+      const current = {
+        latitude: parseFloat(pos.coords.latitude.toFixed(8)),
+        longitude: parseFloat(pos.coords.longitude.toFixed(8)),
+      };
+
+      console.log('📍 Current location:', current);
+
+      let fences = [];
+      try {
+        const res = await axios.get(
+          `${BASE_URL}/GeoFencing/getGeoLocationDetailsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
+        );
+        fences = Array.isArray(res.data) ? res.data : [];
+        console.log('📍 Geofence data============================================:', fences);
+      } catch (err) {
+        console.error('⚠️ GeoFence API Error:', err.message);
+        Alert.alert('Error', 'Could not fetch geofence data');
+        return { inside: false };
+      }
+
+      // Use geolib for more accurate distance calculation
+      const matches = [];
+      let nearest = null;
+      let shortestDistance = Infinity;
+
+      for (const f of fences) {
+        const lat = safeParseFloat(f.lattitude ?? f.latitude);
+        const lon = safeParseFloat(f.longitude ?? f.long);
+        const radiusMeters = safeParseFloat(f.radius, 60);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const distance = geolib.getDistance(
+          { latitude: current.latitude, longitude: current.longitude },
+          { latitude: lat, longitude: lon }
+        );
+        
+        const inside = distance <= radiusMeters;
+        const fenceInfo = { ...f, distance, inside };
+
+        if (inside) matches.push(fenceInfo);
+        if (distance < shortestDistance) {
+          shortestDistance = distance;
+          nearest = fenceInfo;
+        }
+      }
+
+      if (nearest) {
+        console.log(
+          '✅ Nearest fence:',
+          nearest.geoLocationName,
+          `${nearest.distance.toFixed(2)}m away`,
+        );
+      }
+
+      return { inside: matches.length > 0, nearestFence: nearest, matches };
     } catch (err) {
-      console.error('⚠️ GeoFence API Error:', err.message);
-      Alert.alert('Error', 'Could not fetch geofence data');
+      console.error('❌ Location check error:', err);
+      Alert.alert('Error', 'Unable to get your current location');
       return { inside: false };
     }
+  };
 
-    const matches = [];
-    let nearest = null;
-
-    for (const f of fences) {
-      const lat = safeParseFloat(f.lattitude ?? f.latitude ?? f.lat, NaN);
-      const lon = safeParseFloat(f.longitude ?? f.long ?? f.lng ?? f.lon, NaN);
-      let radiusMeters = safeParseFloat(f.radius, 50);
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-
-      const distance = geolib.getDistance(current, { latitude: lat, longitude: lon });
-      const inside = distance <= radiusMeters;
-
-      const fenceInfo = { ...f, distance, inside };
-      if (inside) matches.push(fenceInfo);
-      if (!nearest || distance < nearest.distance) nearest = fenceInfo;
-    }
-
-    if (__DEV__) console.log('✅ Nearest fence:', nearest?.geoLocationName, nearest?.distance);
-
-    return { inside: matches.length > 0, nearestFence: nearest, matches };
-  } catch (err) {
-    console.error('❌ Location check error:', err);
-    Alert.alert('Error', 'Unable to get your current location');
-    return { inside: false };
-  }
-};
-debugger
   // Main check-in flow
   const handleCheckIn = async () => {
     if (!registeredFace) {
@@ -707,13 +1008,13 @@ debugger
       setIsLoading(false);
       return;
     }
-       console.log('✅ Inside area=========================================================================================:', locationResult.nearestFence.geoLocationName);
+    
     // Step 2: Capture face for check-in
     Alert.alert(
       'Face Verification',
       'Please capture your face for verification',
       [
-        {text: 'Cancel', style: 'cancel'},
+        {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
         {
           text: 'Capture',
           onPress: () => {
@@ -725,13 +1026,23 @@ debugger
                 // Step 3: Match faces
                 const result = await matchFaces(registeredFace, capturedImage);
                 if (result && result.isMatch) {
+                  const now = new Date().getTime();
                   setCheckedIn(true);
+                  setCheckInTime(now);
                   setCheckInStatus('success');
+                  setProgressPercentage(0); // Reset progress to 0%
+                  
+                  // Save state including the captured face
+                  await saveCheckInState(true, now, capturedImage); 
+                  
+                  // Start background service to continue tracking when app is minimized
+                  await startBackgroundService();
+                  
                   Alert.alert(
                     '✅ Success',
                     'Location + Face matched, you are checked in!',
                   );
-                  startShiftProgress();
+                  startShiftProgress(0); // Start from 0
                 } else {
                   Alert.alert(
                     '❌ Face Not Match',
@@ -747,17 +1058,33 @@ debugger
     );
   };
 
-  const handleCheckOut = () => {
+  // Handle check-out
+  const handleCheckOut = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // Here you would typically call your check-out API
+      await saveCheckInState(false); // Clear check-in state
+      
+      // Stop background service when checking out
+      await stopBackgroundService();
+      
       setCheckedIn(false);
-      setIsLoading(false);
+      setCheckInTime(null);
       setShiftCompleted(true);
       setCheckInStatus('success');
-      setCapturedFace(null);
-      if (progressIntervalRef.current)
+      // Don't clear capturedFace so it shows during check-out
+      
+      if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
-    }, 1500);
+      }
+      
+      Alert.alert('✅ Success', 'You have successfully checked out!');
+    } catch (error) {
+      console.error('❌ Check-out error:', error);
+      Alert.alert('Error', 'Failed to check out. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -813,7 +1140,7 @@ debugger
                 <Text style={styles.elapsedTime}>{elapsedTime}</Text>
               </View>
 
-              {/* Registration Section */}
+              {/* Registration Section or Success Message */}
               {showRegistration ? (
                 <View style={styles.registrationSection}>
                   <Text style={styles.sectionTitle}>📝 Register Your Face</Text>
@@ -853,7 +1180,7 @@ debugger
                     </View>
                   ) : registeredFace ? (
                     <>
-                      <Text style={styles.successTitle}>Face Register</Text>
+                      <Text style={styles.successTitle}>Face Registered</Text>
                       <Text style={styles.successSubtitle}>
                         You can now check in with face verification
                       </Text>
@@ -974,7 +1301,9 @@ debugger
                 </View>
 
                 <View style={styles.facePreview}>
-                  <Text style={styles.previewTitle}>Captured Face</Text>
+                  <Text style={styles.previewTitle}>
+                    {checkedIn ? 'Check-In Face' : 'Last Captured Face'}
+                  </Text>
                   {capturedFace ? (
                     <Image
                       source={{uri: capturedFace}}
@@ -985,29 +1314,25 @@ debugger
                   )}
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={handleReregisterFace}
-                disabled={isRegistering || isProcessing}>
-                <Text
-                  style={{
-                    color: isRegistering || isProcessing ? '#999' : '#007AFF',
-                    fontSize: 16,
-                    marginTop: 10,
-                    textAlign: 'center',
-                  }}>
-                  {isRegistering ? '⏳ Processing...' : '📸 Register Face'}
-                </Text>
-              </TouchableOpacity>
+
+              {!showRegistration && (
+                <TouchableOpacity
+                  onPress={handleReregisterFace}
+                  disabled={isRegistering || isProcessing}>
+                  <Text
+                    style={{
+                      color: isRegistering || isProcessing ? '#999' : '#007AFF',
+                      fontSize: 16,
+                      marginTop: 10,
+                      textAlign: 'center',
+                    }}>
+                    {isRegistering ? '⏳ Processing...' : '📸 Re-register Face'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </Card.Content>
           </Card>
         </LinearGradient>
-
-        {isProcessing && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Processing face...</Text>
-          </View>
-        )}
 
         <LeaveStatus leaveData={leaveData} />
 
@@ -1047,7 +1372,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#636363ff',
     borderBottomWidth: 1,
     shadowColor: '#e0dbdbff',
-    // shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 8,
@@ -1081,7 +1405,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#636363ff',
     borderBottomWidth: 4,
     shadowColor: '#e0dbdbff',
-    // shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 8,
@@ -1244,3 +1567,4 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 });
+

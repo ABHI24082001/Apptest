@@ -1,19 +1,28 @@
-platform :ios, '15.1'
-
+# Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
     "react-native/scripts/react_native_pods.rb",
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
+platform :ios, min_ios_version_supported
 prepare_react_native_project!
+
+# Setup permissions for react-native-permissions
+require_relative '../node_modules/react-native-permissions/scripts/setup'
+setup_permissions([
+  'Camera',
+  'FaceID',
+  'LocationWhenInUse', 
+  'Microphone',
+  'PhotoLibrary',
+  'PhotoLibraryAddOnly'
+])
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
   use_frameworks! :linkage => linkage.to_sym
-else
-  use_frameworks! :linkage => :static  # ✅ avoids static binary conflicts
 end
 
 target 'hrms' do
@@ -21,12 +30,8 @@ target 'hrms' do
 
   use_react_native!(
     :path => config[:reactNativePath],
-    :app_path => "#{Pod::Config.instance.installation_root}/..",
-    :new_arch_enabled => true
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
-
-  # ONNX (optional)
-  # pod 'onnxruntime-react-native', :path => '../node_modules/onnxruntime-react-native'
 
   post_install do |installer|
     react_native_post_install(
@@ -35,7 +40,7 @@ target 'hrms' do
       :mac_catalyst_enabled => false
     )
 
-    # Fix Apple Silicon build
+    # ✅ Fix simulator builds on Apple Silicon
     installer.pods_project.build_configurations.each do |config|
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
