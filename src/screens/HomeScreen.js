@@ -31,15 +31,15 @@ import OnLeaveUsers from '../component/OnLeaveUsers';
 import BASE_URL from '../constants/apiConfig';
 import Geolocation from '@react-native-community/geolocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import BackgroundService from "react-native-background-actions";
+import BackgroundService from 'react-native-background-actions';
 
 // 🔹 Config
 const INPUT_SIZE = 112;
 const COSINE_THRESHOLD = 0.7;
-const EUCLIDEAN_THRESHOLD = 0.86;
+const EUCLIDEAN_THRESHOLD = 0.85;
 const CHECK_IN_STORAGE_KEY = 'user_check_in_data';
 const CAPTURED_FACE_STORAGE_KEY = 'captured_face_data';
-const BG_LAST_ELAPSED_KEY = 'bg_last_elapsed_seconds'; 
+const BG_LAST_ELAPSED_KEY = 'bg_last_elapsed_seconds';
 
 const HomeScreen = () => {
   const [checkedIn, setCheckedIn] = useState(false);
@@ -70,128 +70,136 @@ const HomeScreen = () => {
   const appStateSubscriptionRef = useRef(null);
   const {user} = useAuth();
 
-
   // background task runs in a separate JS context managed by the package
-const bgOptions = {
-  taskName: 'Shift Progress',
-  taskTitle: 'Shift in progress',
-  taskDesc: 'Working...',
-  taskIcon: {
-    name: 'ic_launcher',
-    type: 'mipmap',
-  },
-  // color etc.
-  color: '#43e97b',
-  parameters: {
-    delay: 1000, // 1 second tick
-  },
-};
+  const bgOptions = {
+    taskName: 'Shift Progress',
+    taskTitle: 'Shift in progress',
+    taskDesc: 'Working...',
+    taskIcon: {
+      name: 'ic_launcher',
+      type: 'mipmap',
+    },
+    // color etc.
+    color: '#43e97b',
+    parameters: {
+      delay: 1000, // 1 second tick
+    },
+  };
 
-// backgroundTask: reads checkInTime from AsyncStorage and updates elapsed & notification.
-// NOTE: Do NOT touch UI here. Only AsyncStorage, logs, and updateNotification are allowed.
-const backgroundTask = async (taskData) => {
-  const delay = taskData?.delay ?? 1000;
-  console.log('[BackgroundTask] started with delay', delay);
+  // backgroundTask: reads checkInTime from AsyncStorage and updates elapsed & notification.
+  // NOTE: Do NOT touch UI here. Only AsyncStorage, logs, and updateNotification are allowed.
+  const backgroundTask = async taskData => {
+    const delay = taskData?.delay ?? 1000;
+    console.log('[BackgroundTask] started with delay', delay);
 
-  try {
-    while (BackgroundService.isRunning()) {
-      try {
-        // Load stored check-in info
-        const raw = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-        let checkInTime = null;
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw);
-            checkInTime = parsed?.checkInTime || null;
-          } catch (e) {
-            console.warn('[BackgroundTask] parse error', e);
-          }
-        }
-
-        if (!checkInTime) {
-          // Nothing to track; write zero and wait
-          await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, JSON.stringify({
-            elapsedSeconds: 0,
-            progressPercentage: 0,
-            timestamp: Date.now()
-          }));
-          console.log('[BackgroundTask] no checkInTime found, sleeping...');
-        } else {
-          // compute elapsed seconds based on checkInTime
-          const now = Date.now();
-          const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
-
-          // total shift seconds (demo uses 60), adapt to your real shift length
-          const totalSeconds = 60; // <-- adjust to actual shift duration (e.g., 8*3600)
-          const clamped = Math.min(totalSeconds, Math.max(0, elapsedSeconds));
-          const progressPercentage = Math.floor((clamped / totalSeconds) * 100);
-
-          // persist last elapsed so the UI can read it when app foregrounds
-          await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, JSON.stringify({
-            elapsedSeconds: clamped,
-            progressPercentage,
-            timestamp: now
-          }));
-
-          // update notification (Android) so user sees progress in notification bar
-          try {
-            await BackgroundService.updateNotification({
-              taskDesc: `Elapsed: ${new Date(clamped * 1000).toISOString().substr(11, 8)} — ${progressPercentage}%`,
-            });
-          } catch (e) {
-            // updateNotification can throw on iOS (ignored) — log
-            console.warn('[BackgroundTask] updateNotification failed', e);
+    try {
+      while (BackgroundService.isRunning()) {
+        try {
+          // Load stored check-in info
+          const raw = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+          let checkInTime = null;
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              checkInTime = parsed?.checkInTime || null;
+            } catch (e) {
+              console.warn('[BackgroundTask] parse error', e);
+            }
           }
 
-          console.log(`[BackgroundTask] tick elapsed=${clamped}s progress=${progressPercentage}%`);
+          if (!checkInTime) {
+            // Nothing to track; write zero and wait
+            await AsyncStorage.setItem(
+              BG_LAST_ELAPSED_KEY,
+              JSON.stringify({
+                elapsedSeconds: 0,
+                progressPercentage: 0,
+                timestamp: Date.now(),
+              }),
+            );
+            console.log('[BackgroundTask] no checkInTime found, sleeping...');
+          } else {
+            // compute elapsed seconds based on checkInTime
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
+
+            // total shift seconds (demo uses 60), adapt to your real shift length
+            const totalSeconds = 60; // <-- adjust to actual shift duration (e.g., 8*3600)
+            const clamped = Math.min(totalSeconds, Math.max(0, elapsedSeconds));
+            const progressPercentage = Math.floor(
+              (clamped / totalSeconds) * 100,
+            );
+
+            // persist last elapsed so the UI can read it when app foregrounds
+            await AsyncStorage.setItem(
+              BG_LAST_ELAPSED_KEY,
+              JSON.stringify({
+                elapsedSeconds: clamped,
+                progressPercentage,
+                timestamp: now,
+              }),
+            );
+
+            // update notification (Android) so user sees progress in notification bar
+            try {
+              await BackgroundService.updateNotification({
+                taskDesc: `Elapsed: ${new Date(clamped * 1000)
+                  .toISOString()
+                  .substr(11, 8)} — ${progressPercentage}%`,
+              });
+            } catch (e) {
+              // updateNotification can throw on iOS (ignored) — log
+              console.warn('[BackgroundTask] updateNotification failed', e);
+            }
+
+            console.log(
+              `[BackgroundTask] tick elapsed=${clamped}s progress=${progressPercentage}%`,
+            );
+          }
+        } catch (innerErr) {
+          console.error('[BackgroundTask] tick error', innerErr);
         }
-      } catch (innerErr) {
-        console.error('[BackgroundTask] tick error', innerErr);
+
+        // wait delay
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      // wait delay
-      await new Promise(resolve => setTimeout(resolve, delay));
+    } catch (err) {
+      console.error('[BackgroundTask] outer error', err);
     }
-  } catch (err) {
-    console.error('[BackgroundTask] outer error', err);
-  }
 
-  console.log('[BackgroundTask] stopped');
-};
+    console.log('[BackgroundTask] stopped');
+  };
 
-  
-
-// call to start background service
-const startBackgroundService = async () => {
-  try {
-    if (await BackgroundService.isRunning()) {
-      console.log('[BGHelper] service already running');
-      return;
+  // call to start background service
+  const startBackgroundService = async () => {
+    try {
+      if (await BackgroundService.isRunning()) {
+        console.log('[BGHelper] service already running');
+        return;
+      }
+      await BackgroundService.start(backgroundTask, bgOptions);
+      console.log('[BGHelper] service started');
+    } catch (e) {
+      console.error('[BGHelper] failed to start', e);
     }
-    await BackgroundService.start(backgroundTask, bgOptions);
-    console.log('[BGHelper] service started');
-  } catch (e) {
-    console.error('[BGHelper] failed to start', e);
-  }
-};
+  };
 
-// call to stop background service
-const stopBackgroundService = async () => {
-  try {
-    if (await BackgroundService.isRunning()) {
-      await BackgroundService.stop();
-      console.log('[BGHelper] service stopped');
-      // optionally clear stored last elapsed
-      await AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY);
-    } else {
-      console.log('[BGHelper] service not running');
+  // call to stop background service
+  const stopBackgroundService = async () => {
+    try {
+      if (await BackgroundService.isRunning()) {
+        await BackgroundService.stop();
+        console.log('[BGHelper] service stopped');
+        // optionally clear stored last elapsed
+        await AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY);
+      } else {
+        console.log('[BGHelper] service not running');
+      }
+    } catch (e) {
+      console.error('[BGHelper] failed to stop', e);
     }
-  } catch (e) {
-    console.error('[BGHelper] failed to stop', e);
-  }
-};
+  };
 
-  
   // Format elapsed time
   const formatTime = seconds => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -199,20 +207,21 @@ const stopBackgroundService = async () => {
     const s = String(seconds % 60).padStart(2, '0');
     return `${h}:${m}:${s}`;
   };
-// debugger
-
-
-
+  // debugger
 
   // Save check-in state and captured face to AsyncStorage
-  const saveCheckInState = async (isCheckedIn, startTime = null, faceData = null) => {
+  const saveCheckInState = async (
+    isCheckedIn,
+    startTime = null,
+    faceData = null,
+  ) => {
     try {
       const data = {
         checkedIn: isCheckedIn,
         checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
       };
       await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
-      
+
       // Save captured face separately
       if (faceData) {
         await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, faceData);
@@ -220,7 +229,7 @@ const stopBackgroundService = async () => {
         // Clear captured face on check-out
         await AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY);
       }
-      
+
       console.log('✅ Saved check-in state:', data);
     } catch (error) {
       console.error('❌ Error saving check-in state:', error);
@@ -232,26 +241,28 @@ const stopBackgroundService = async () => {
     try {
       const [checkInData, faceData] = await Promise.all([
         AsyncStorage.getItem(CHECK_IN_STORAGE_KEY),
-        AsyncStorage.getItem(CAPTURED_FACE_STORAGE_KEY)
+        AsyncStorage.getItem(CAPTURED_FACE_STORAGE_KEY),
       ]);
-      
+
       // Load captured face if available
       if (faceData) {
         setCapturedFace(faceData);
       }
-      
+
       if (checkInData) {
         const parsedData = JSON.parse(checkInData);
         console.log('✅ Loaded check-in state:', parsedData);
-        
+
         if (parsedData.checkedIn && parsedData.checkInTime) {
           setCheckedIn(true);
           setCheckInTime(parsedData.checkInTime);
           // Calculate elapsed time and start progress
           const now = new Date().getTime();
-          const elapsedSeconds = Math.floor((now - parsedData.checkInTime) / 1000);
+          const elapsedSeconds = Math.floor(
+            (now - parsedData.checkInTime) / 1000,
+          );
           setElapsedTime(formatTime(elapsedSeconds));
-          
+
           // Resume the progress tracking
           startShiftProgress(elapsedSeconds);
         }
@@ -264,14 +275,16 @@ const stopBackgroundService = async () => {
   const startShiftProgress = (startSeconds = 0) => {
     const totalSeconds = 60; // demo: 1 minute
     let elapsedSeconds = startSeconds;
-    
+
     // Clear any existing interval
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
     // Set initial values based on elapsed time
     setElapsedTime(formatTime(elapsedSeconds));
-    setProgressPercentage(Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)));
-    
+    setProgressPercentage(
+      Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)),
+    );
+
     // Already completed?
     if (elapsedSeconds >= totalSeconds) {
       setElapsedTime(formatTime(totalSeconds));
@@ -291,7 +304,7 @@ const stopBackgroundService = async () => {
       }
       setElapsedTime(formatTime(elapsedSeconds));
       setProgressPercentage(Math.floor((elapsedSeconds / totalSeconds) * 100));
-      
+
       // Update last update time to sync when app comes back from background
       setLastUpdateTime(Date.now());
     }, 1000);
@@ -299,34 +312,42 @@ const stopBackgroundService = async () => {
 
   // Handle app state changes to keep shift progress accurate when app goes to background
   useEffect(() => {
-    appStateSubscriptionRef.current = AppState.addEventListener('change', nextAppState => {
-      if (appState === 'background' && nextAppState === 'active' && checkedIn && checkInTime) {
-        // App has come back to foreground - sync with background service data
-        const syncBackgroundProgress = async () => {
-          try {
-            const bgDataStr = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
-            if (bgDataStr) {
-              const bgData = JSON.parse(bgDataStr);
-              if (bgData && bgData.elapsedSeconds !== undefined) {
-                console.log('[BGSync] Syncing with background data:', bgData);
-                setElapsedTime(formatTime(bgData.elapsedSeconds));
-                setProgressPercentage(bgData.progressPercentage);
-                
-                // Restart progress with synced data
-                startShiftProgress(bgData.elapsedSeconds);
+    appStateSubscriptionRef.current = AppState.addEventListener(
+      'change',
+      nextAppState => {
+        if (
+          appState === 'background' &&
+          nextAppState === 'active' &&
+          checkedIn &&
+          checkInTime
+        ) {
+          // App has come back to foreground - sync with background service data
+          const syncBackgroundProgress = async () => {
+            try {
+              const bgDataStr = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
+              if (bgDataStr) {
+                const bgData = JSON.parse(bgDataStr);
+                if (bgData && bgData.elapsedSeconds !== undefined) {
+                  console.log('[BGSync] Syncing with background data:', bgData);
+                  setElapsedTime(formatTime(bgData.elapsedSeconds));
+                  setProgressPercentage(bgData.progressPercentage);
+
+                  // Restart progress with synced data
+                  startShiftProgress(bgData.elapsedSeconds);
+                }
               }
+            } catch (e) {
+              console.error('[BGSync] Failed to sync with background data:', e);
             }
-          } catch (e) {
-            console.error('[BGSync] Failed to sync with background data:', e);
-          }
-        };
-        
-        syncBackgroundProgress();
-      }
-      
-      setAppState(nextAppState);
-      setLastUpdateTime(Date.now());
-    });
+          };
+
+          syncBackgroundProgress();
+        }
+
+        setAppState(nextAppState);
+        setLastUpdateTime(Date.now());
+      },
+    );
 
     return () => {
       if (appStateSubscriptionRef.current) {
@@ -339,7 +360,7 @@ const stopBackgroundService = async () => {
   useEffect(() => {
     const initializeApp = async () => {
       await loadCheckInState();
-      
+
       // Check if we need to restart background service (in case of app restart)
       try {
         const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
@@ -354,9 +375,9 @@ const stopBackgroundService = async () => {
         console.error('Failed to check background service status:', e);
       }
     };
-    
+
     initializeApp();
-    
+
     return () => {
       if (progressIntervalRef.current)
         clearInterval(progressIntervalRef.current);
@@ -448,10 +469,13 @@ const stopBackgroundService = async () => {
           setShowRegistration(false);
           console.log('✅ Registered face loaded from API');
         } else {
+          setRegisteredFace(null); // Explicitly set to null for new users
           setShowRegistration(true);
+          console.log('⚠️ No face registration found');
         }
       } catch (err) {
         console.error('❌ API Error:', err?.response?.data || err.message);
+        setRegisteredFace(null); // Explicitly set to null on error
         setShowRegistration(true);
       } finally {
         setIsFaceLoading(false);
@@ -473,7 +497,7 @@ const stopBackgroundService = async () => {
   useEffect(() => {
     const fetchLeaveData = async () => {
       if (!user?.id || !user?.childCompanyId) return;
-      
+
       try {
         const response = await axiosInstance.get(
           `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${user.childCompanyId}/${user.id}`,
@@ -497,7 +521,7 @@ const stopBackgroundService = async () => {
   useEffect(() => {
     const fetchEmployeesOnLeave = async () => {
       if (!user) return;
-      
+
       try {
         const companyId = user?.childCompanyId || 2;
         const branchId = user?.branchId || 20;
@@ -553,7 +577,7 @@ const stopBackgroundService = async () => {
         INPUT_SIZE,
         INPUT_SIZE,
         'JPEG',
-        80, // Reduced quality from 100 to 80
+        100, // Reduced quality from 100 to 80
         0,
         null,
         false,
@@ -575,53 +599,56 @@ const stopBackgroundService = async () => {
   }, []);
 
   // Get embedding with timeout protection
-  const getEmbedding = useCallback(async base64Image => {
-    try {
-      if (!session) throw new Error('ONNX session not initialized');
+  const getEmbedding = useCallback(
+    async base64Image => {
+      try {
+        if (!session) throw new Error('ONNX session not initialized');
 
-      const processedBase64 = await preprocessImage(base64Image);
-      if (!processedBase64) throw new Error('Image preprocessing failed');
+        const processedBase64 = await preprocessImage(base64Image);
+        if (!processedBase64) throw new Error('Image preprocessing failed');
 
-      const raw = jpeg.decode(Buffer.from(processedBase64, 'base64'), {
-        useTArray: true,
-        formatAsRGBA: false,
-      });
+        const raw = jpeg.decode(Buffer.from(processedBase64, 'base64'), {
+          useTArray: true,
+          formatAsRGBA: false,
+        });
 
-      if (!raw || !raw.data) throw new Error('JPEG decode failed');
+        if (!raw || !raw.data) throw new Error('JPEG decode failed');
 
-      const mean = [0.5, 0.5, 0.5];
-      const std = [0.5, 0.5, 0.5];
-      const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
+        const mean = [0.5, 0.5, 0.5];
+        const std = [0.5, 0.5, 0.5];
+        const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
 
-      for (let y = 0; y < INPUT_SIZE; y++) {
-        for (let x = 0; x < INPUT_SIZE; x++) {
-          const idx = (y * INPUT_SIZE + x) * 3;
-          const r = (raw.data[idx] / 255.0 - mean[0]) / std[0];
-          const g = (raw.data[idx + 1] / 255.0 - mean[1]) / std[1];
-          const b = (raw.data[idx + 2] / 255.0 - mean[2]) / std[2];
+        for (let y = 0; y < INPUT_SIZE; y++) {
+          for (let x = 0; x < INPUT_SIZE; x++) {
+            const idx = (y * INPUT_SIZE + x) * 3;
+            const r = (raw.data[idx] / 255.0 - mean[0]) / std[0];
+            const g = (raw.data[idx + 1] / 255.0 - mean[1]) / std[1];
+            const b = (raw.data[idx + 2] / 255.0 - mean[2]) / std[2];
 
-          floatData[y * INPUT_SIZE + x] = r;
-          floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = g;
-          floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = b;
+            floatData[y * INPUT_SIZE + x] = r;
+            floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = g;
+            floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = b;
+          }
         }
+
+        const tensor = new ort.Tensor('float32', floatData, [
+          1,
+          3,
+          INPUT_SIZE,
+          INPUT_SIZE,
+        ]);
+        const feeds = {[session.inputNames[0]]: tensor};
+        const results = await session.run(feeds);
+
+        const embedding = results[session.outputNames[0]].data;
+        return normalize(embedding);
+      } catch (err) {
+        console.error('❌ Embedding error:', err);
+        return null;
       }
-
-      const tensor = new ort.Tensor('float32', floatData, [
-        1,
-        3,
-        INPUT_SIZE,
-        INPUT_SIZE,
-      ]);
-      const feeds = {[session.inputNames[0]]: tensor};
-      const results = await session.run(feeds);
-
-      const embedding = results[session.outputNames[0]].data;
-      return normalize(embedding);
-    } catch (err) {
-      console.error('❌ Embedding error:', err);
-      return null;
-    }
-  }, [session, preprocessImage, normalize]);
+    },
+    [session, preprocessImage, normalize],
+  );
 
   // Compare faces
   const matchFaces = async (face1, face2) => {
@@ -833,6 +860,8 @@ const stopBackgroundService = async () => {
             setRegisteredFace(base64Image);
             setCachedFaceImage(base64Image); // Cache the new image
             setShowRegistration(false); // Hide registration section
+
+            // Instead of just alerting, set a state to hide the bottom section
             Alert.alert('✅ Success', 'Face registered successfully');
           } else {
             Alert.alert(
@@ -870,10 +899,10 @@ const stopBackgroundService = async () => {
             PermissionsAndroid.RESULTS.GRANTED
         );
       } else {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           Geolocation.requestAuthorization(
             () => resolve(true),
-            () => resolve(false)
+            () => resolve(false),
           );
         });
       }
@@ -885,7 +914,7 @@ const stopBackgroundService = async () => {
 
   // Get current GPS coordinates with retry
   const getCurrentPositionPromise = async (
-    options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    options = {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
   ) => {
     try {
       return await new Promise((resolve, reject) => {
@@ -894,11 +923,11 @@ const stopBackgroundService = async () => {
     } catch (error) {
       console.warn('⚠️ Retrying with lower accuracy...');
       return await new Promise((resolve, reject) => {
-        Geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 20000 },
-        );
+        Geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 20000,
+        });
       });
     }
   };
@@ -914,7 +943,7 @@ const stopBackgroundService = async () => {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         Alert.alert('Permission denied', 'Location permission is required.');
-        return { inside: false };
+        return {inside: false};
       }
 
       const pos = await getCurrentPositionPromise();
@@ -931,11 +960,14 @@ const stopBackgroundService = async () => {
           `${BASE_URL}/GeoFencing/getGeoLocationDetailsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
         );
         fences = Array.isArray(res.data) ? res.data : [];
-        console.log('📍 Geofence data============================================:', fences);
+        console.log(
+          '📍 Geofence data============================================:',
+          fences,
+        );
       } catch (err) {
         console.error('⚠️ GeoFence API Error:', err.message);
         Alert.alert('Error', 'Could not fetch geofence data');
-        return { inside: false };
+        return {inside: false};
       }
 
       // Use geolib for more accurate distance calculation
@@ -951,12 +983,12 @@ const stopBackgroundService = async () => {
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
         const distance = geolib.getDistance(
-          { latitude: current.latitude, longitude: current.longitude },
-          { latitude: lat, longitude: lon }
+          {latitude: current.latitude, longitude: current.longitude},
+          {latitude: lat, longitude: lon},
         );
-        
+
         const inside = distance <= radiusMeters;
-        const fenceInfo = { ...f, distance, inside };
+        const fenceInfo = {...f, distance, inside};
 
         if (inside) matches.push(fenceInfo);
         if (distance < shortestDistance) {
@@ -973,11 +1005,11 @@ const stopBackgroundService = async () => {
         );
       }
 
-      return { inside: matches.length > 0, nearestFence: nearest, matches };
+      return {inside: matches.length > 0, nearestFence: nearest, matches};
     } catch (err) {
       console.error('❌ Location check error:', err);
       Alert.alert('Error', 'Unable to get your current location');
-      return { inside: false };
+      return {inside: false};
     }
   };
 
@@ -1008,7 +1040,7 @@ const stopBackgroundService = async () => {
       setIsLoading(false);
       return;
     }
-    
+
     // Step 2: Capture face for check-in
     Alert.alert(
       'Face Verification',
@@ -1031,13 +1063,13 @@ const stopBackgroundService = async () => {
                   setCheckInTime(now);
                   setCheckInStatus('success');
                   setProgressPercentage(0); // Reset progress to 0%
-                  
+
                   // Save state including the captured face
-                  await saveCheckInState(true, now, capturedImage); 
-                  
+                  await saveCheckInState(true, now, capturedImage);
+
                   // Start background service to continue tracking when app is minimized
                   await startBackgroundService();
-                  
+
                   Alert.alert(
                     '✅ Success',
                     'Location + Face matched, you are checked in!',
@@ -1064,20 +1096,20 @@ const stopBackgroundService = async () => {
     try {
       // Here you would typically call your check-out API
       await saveCheckInState(false); // Clear check-in state
-      
+
       // Stop background service when checking out
       await stopBackgroundService();
-      
+
       setCheckedIn(false);
       setCheckInTime(null);
       setShiftCompleted(true);
       setCheckInStatus('success');
       // Don't clear capturedFace so it shows during check-out
-      
+
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
-      
+
       Alert.alert('✅ Success', 'You have successfully checked out!');
     } catch (error) {
       console.error('❌ Check-out error:', error);
@@ -1143,56 +1175,54 @@ const stopBackgroundService = async () => {
               {/* Registration Section or Success Message */}
               {showRegistration ? (
                 <View style={styles.registrationSection}>
-                  <Text style={styles.sectionTitle}>📝 Register Your Face</Text>
-                  <Text style={styles.sectionSubtitle}>
-                    You need to register your face before checking in
-                  </Text>
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.captureButton,
-                        {marginRight: 5},
-                        isRegistering && styles.disabledButton,
-                      ]}
-                      onPress={handleReregisterFace}
-                      disabled={isProcessing || isRegistering}>
-                      {isRegistering ? (
-                        <View style={styles.buttonContent}>
-                          <ActivityIndicator size="small" color="#fff" />
-                          <Text style={[styles.buttonText, {marginLeft: 8}]}>
-                            Processing...
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.buttonText}>📸 Capture Face</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
+                  <LinearGradient
+                    colors={['#f5f7fa', '#e4e8f0']}
+                    style={styles.registrationGradient}>
+                    <View style={styles.registrationIconContainer}>
+                      <Text style={styles.registrationIcon}>📝</Text>
+                    </View>
+                    <Text style={styles.registrationTitle}>
+                      Face Registration Required
+                    </Text>
+                    <Text style={styles.registrationNote}>
+                      Please register your face to enable check-in
+                      functionality.
+                    </Text>
+                    <LinearGradient
+                      colors={['#43e97b', '#38f9d7']}
+                      style={styles.registerButtonGradient}>
+                      <TouchableOpacity
+                        style={styles.registerButton}
+                        onPress={handleReregisterFace}
+                        disabled={isRegistering || isProcessing}>
+                        <Text style={styles.registerButtonText}>
+                          {isRegistering
+                            ? '⏳ Processing...'
+                            : '📸 Register Face'}
+                        </Text>
+                      </TouchableOpacity>
+                    </LinearGradient>
+                  </LinearGradient>
                 </View>
               ) : (
-                <View style={styles.registrationSuccess}>
-                  {isFaceLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color="#007AFF" />
-                      <Text style={styles.loadingText}>
-                        Loading face data...
+                checkedIn &&
+                employeeDetails && (
+                  <LinearGradient
+                    colors={['#f6f9ff', '#eef2f9']}
+                    style={styles.welcomeGradient}>
+                    <View style={styles.welcomeSection}>
+                      {/* <View style={styles.welcomeIconContainer}>
+                        <Text style={styles.welcomeIcon}>👋</Text>
+                      </View> */}
+                      <Text style={styles.welcomeText}>
+                        Welcome back, {employeeDetails.employeeName}
+                      </Text>
+                      <Text style={styles.welcomeSubtext}>
+                        Ready to start your shift?
                       </Text>
                     </View>
-                  ) : registeredFace ? (
-                    <>
-                      <Text style={styles.successTitle}>Face Registered</Text>
-                      <Text style={styles.successSubtitle}>
-                        You can now check in with face verification
-                      </Text>
-                    </>
-                  ) : (
-                    <View style={styles.loadingContainer}>
-                      <Text style={[styles.loadingText, {color: '#007AFF'}]}>
-                        No face data found
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                  </LinearGradient>
+                )
               )}
 
               {/* Match Result */}
@@ -1315,21 +1345,49 @@ const stopBackgroundService = async () => {
                 </View>
               </View>
 
-              {!showRegistration && (
-                <TouchableOpacity
-                  onPress={handleReregisterFace}
-                  disabled={isRegistering || isProcessing}>
-                  <Text
-                    style={{
-                      color: isRegistering || isProcessing ? '#999' : '#007AFF',
-                      fontSize: 16,
-                      marginTop: 10,
-                      textAlign: 'center',
-                    }}>
-                    {isRegistering ? '⏳ Processing...' : '📸 Re-register Face'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {/* Only show this bottom registration section if face is not registered 
+                and not showing the main registration section */}
+              {/* ✅ Show either Re-register or Register section depending on face status */}
+              {!isFaceLoading &&
+                (registeredFace ? (
+                  // ✅ Face already registered
+                  <View style={styles.registeredFaceContainer}>
+                    <Text style={styles.registeredFaceText}>
+                      ⚠️ No face registered yet
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleReregisterFace}
+                      disabled={isProcessing}
+                      style={[
+                        styles.reRegisterButton,
+                        styles.reRegisterExistingButton,
+                      ]}>
+                      <Text style={styles.reRegisterButtonText}>
+                        {isProcessing
+                          ? '⏳ Processing...'
+                          : '📸 Register Face'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  // ❌ Face not registered yet
+                  <View style={styles.notRegisteredContainer}>
+                    <Text style={styles.notRegisteredText}>
+                      ⚠️ No face registered yet
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleReregisterFace}
+                      disabled={isProcessing}
+                      style={[
+                        styles.reRegisterButton,
+                        styles.registerNewButton,
+                      ]}>
+                      <Text style={styles.reRegisterButtonText}>
+                        {isProcessing ? '⏳ Processing...' : '📸 Register Face'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
             </Card.Content>
           </Card>
         </LinearGradient>
@@ -1337,17 +1395,17 @@ const stopBackgroundService = async () => {
         <LeaveStatus leaveData={leaveData} />
 
         <OnLeaveUsers leaveUsers={leaveUsers} />
-      </ScrollView>
 
-      {/* Processing overlay */}
-      {(isProcessing || isRegistering) && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>
-            {isRegistering ? 'Registering face...' : 'Processing face...'}
-          </Text>
-        </View>
-      )}
+        {/* Processing overlay */}
+        {(isProcessing || isRegistering) && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>
+              {isRegistering ? 'Registering face...' : 'Processing face...'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </AppSafeArea>
   );
 };
@@ -1438,35 +1496,100 @@ const styles = StyleSheet.create({
   elapsedTime: {fontSize: 16, fontWeight: '600', color: '#000'},
 
   registrationSection: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
+    marginVertical: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  registrationSuccess: {
-    backgroundColor: '#d4edda',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#28a745',
+  registrationGradient: {
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 16,
+  registrationIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  registrationIcon: {
+    fontSize: 30,
+  },
+  registrationTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 5,
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  sectionSubtitle: {fontSize: 14, color: '#666', marginBottom: 15},
-  successTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#155724',
-    marginBottom: 5,
-  },
-  successSubtitle: {
+  registrationNote: {
     fontSize: 14,
-    color: '#155724',
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  registerButtonGradient: {
+    width: '100%',
+    borderRadius: 25,
+    overflow: 'hidden',
+    marginTop: 5,
+  },
+  registerButton: {
+    padding: 14,
+    alignItems: 'center',
+    width: '100%',
+  },
+  registerButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+
+  // Welcome Section Styles
+  welcomeGradient: {
+    marginVertical: 15,
+    borderRadius: 12,
+  },
+  welcomeSection: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  welcomeIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  welcomeIcon: {
+    fontSize: 30,
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  welcomeSubtext: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 
   progressSection: {marginVertical: 16},
@@ -1566,5 +1689,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
+  reRegisterButton: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  reRegisterExistingButton: {
+    backgroundColor: '#de9629ff',
+    marginTop: 8,
+  },
+  registerNewButton: {
+    backgroundColor: '#007AFF',
+  },
+  reRegisterButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  registeredFaceContainer: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    color: '#ef6612ff',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+  },
+  registeredFaceText: {
+    color: '#ff4d00ff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginBottom: 10,
+  },
 });
-
