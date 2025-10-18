@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Image,
   ScrollView,
-  SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -19,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from '../constants/AuthContext';
+import AppSafeArea from '../component/AppSafeArea';
 
 import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
@@ -196,348 +196,348 @@ const CustomDrawer = ({navigation}) => {
   console.log('employee avatar ➜', imageUrl);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        visible={visible}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.profile, avatarStyle]}>
-          <TouchableOpacity  onPress={() => setVisible(true)} activeOpacity={0.9}>
-            <Image
-              source={
-                imageUrl ? {uri: imageUrl} : require('../assets/image/boy.png')
+    <AppSafeArea style={styles.container}>
+      <View style={styles.contentContainer}>
+        <ScrollView
+          visible={visible}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          <Animated.View style={[styles.profile, avatarStyle]}>
+            <TouchableOpacity  onPress={() => setVisible(true)} activeOpacity={0.9}>
+              <Image
+                source={
+                  imageUrl ? {uri: imageUrl} : require('../assets/image/boy.png')
+                }
+                style={styles.avatar}
+              />
+            </TouchableOpacity>
+
+            {employeeData && (
+              <>
+                <Text style={styles.name}>{employeeData?.employeeName}</Text>
+                <Text style={styles.subText}>{employeeData.designationName}</Text>
+              </>
+            )}
+          </Animated.View>
+
+          <View style={styles.menuList}>
+            {menuItems.map((item, index) => (
+              <DrawerItem key={index} {...item} />
+            ))}
+
+            {/* Collapsible Log Report Section */}
+            {/* Collapsible Report Section */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsLogExpanded(!isLogExpanded)}
+              style={[styles.menuItem, {justifyContent: 'space-between'}]}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <MaterialCommunityIcons
+                  name="file-document-outline"
+                  size={26}
+                  color="#5D6D7E"
+                  style={styles.menuIcon}
+                />
+                <Text style={styles.menuLabel}> My Reports</Text>
+              </View>
+              <MaterialCommunityIcons
+                name={isLogExpanded ? 'chevron-down' : 'chevron-right'}
+                size={24}
+                color="#5D6D7E"
+              />
+            </TouchableOpacity>
+
+            {isLogExpanded && (
+              <>
+                {/* Log Report */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('LogReport');
+                    navigation.navigate('LogReport');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="file-document"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Log Report
+                  </Text>
+                </TouchableOpacity>
+
+                {/* My Expenses */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('MyExpenses');
+                    navigation.navigate('MyExpenses');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="cash"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    My Expenses
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Leave Report */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('LeaveReport');
+                    navigation.navigate('LeaveReport');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="calendar"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Leave Report
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Collapsible Requests Section */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsRequestExpanded(!isRequestExpanded)}
+              style={[styles.menuItem, {justifyContent: 'space-between'}]}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <MaterialCommunityIcons
+                  name="file-multiple-outline"
+                  size={26}
+                  color="#5D6D7E"
+                  style={styles.menuIcon}
+                />
+                <Text style={styles.menuLabel}>My Requests </Text>
+              </View>
+              <MaterialCommunityIcons
+                name={isRequestExpanded ? 'chevron-down' : 'chevron-right'}
+                size={24}
+                color="#5D6D7E"
+              />
+            </TouchableOpacity>
+
+            {isRequestExpanded && (
+              <>
+                {/* Leave Request */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('LeaveRequstStatus');
+                    navigation.navigate('LeaveRequstStatus');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="calendar"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Leave Request
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Expense Request */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('ExpenseRequestStatus');
+                    navigation.navigate('ExpenseRequestStatus');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="cash"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Expense Request
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Exit Request */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('ExitRequestStatus');
+                    navigation.navigate('ExitRequestStatus');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="exit-to-app"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Exit Request
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Collapsible Requests  Details Section */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() =>
+                setIsRequestExpandedDetails(!isRequestExpandedDetails)
               }
-              style={styles.avatar}
-            />
-          </TouchableOpacity>
-
-          {employeeData && (
-            <>
-              <Text style={styles.name}>{employeeData?.employeeName}</Text>
-              <Text style={styles.subText}>{employeeData.designationName}</Text>
-            </>
-          )}
-        </Animated.View>
-
-        <View style={styles.menuList}>
-          {menuItems.map((item, index) => (
-            <DrawerItem key={index} {...item} />
-          ))}
-
-          {/* Collapsible Log Report Section */}
-          {/* Collapsible Report Section */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsLogExpanded(!isLogExpanded)}
-            style={[styles.menuItem, {justifyContent: 'space-between'}]}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              style={[styles.menuItem, {justifyContent: 'space-between'}]}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <MaterialCommunityIcons
+                  name="file-eye-outline"
+                  size={26}
+                  color="#5D6D7E"
+                  style={styles.menuIcon}
+                />
+                <Text style={styles.menuLabel}>Employees' Requests</Text>
+              </View>
               <MaterialCommunityIcons
-                name="file-document-outline"
-                size={26}
+                name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
+                size={24}
                 color="#5D6D7E"
-                style={styles.menuIcon}
               />
-              <Text style={styles.menuLabel}> My Reports</Text>
-            </View>
-            <MaterialCommunityIcons
-              name={isLogExpanded ? 'chevron-down' : 'chevron-right'}
-              size={24}
-              color="#5D6D7E"
-            />
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {isLogExpanded && (
-            <>
-              {/* Log Report */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('LogReport');
-                  navigation.navigate('LogReport');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="file-document"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Log Report
-                </Text>
-              </TouchableOpacity>
+            {isRequestExpandedDetails && (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('LeaveRequestDetails');
+                    navigation.navigate('LeaveRequestDetails');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="calendar"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Leave Request
+                  </Text>
+                </TouchableOpacity>
 
-              {/* My Expenses */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('MyExpenses');
-                  navigation.navigate('MyExpenses');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="cash"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  My Expenses
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('ExpenseRequestDetails');
+                    navigation.navigate('ExpenseRequestDetails');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="cash"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Expense Request
+                  </Text>
+                </TouchableOpacity>
 
-              {/* Leave Report */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('LeaveReport');
-                  navigation.navigate('LeaveReport');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="calendar"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Leave Report
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedScreen('ExitRequestDetails');
+                    navigation.navigate('ExitRequestDetails');
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      marginLeft: 40,
+                      backgroundColor: '#E3EBF6',
+                      borderRadius: 10,
+                    },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name="exit-to-app"
+                    size={24}
+                    color="#3A5BA0"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                    Exit Request
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
 
-          {/* Collapsible Requests Section */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsRequestExpanded(!isRequestExpanded)}
-            style={[styles.menuItem, {justifyContent: 'space-between'}]}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <MaterialCommunityIcons
-                name="file-multiple-outline"
-                size={26}
-                color="#5D6D7E"
-                style={styles.menuIcon}
-              />
-              <Text style={styles.menuLabel}>My Requests </Text>
-            </View>
-            <MaterialCommunityIcons
-              name={isRequestExpanded ? 'chevron-down' : 'chevron-right'}
-              size={24}
-              color="#5D6D7E"
-            />
-          </TouchableOpacity>
-
-          {isRequestExpanded && (
-            <>
-              {/* Leave Request */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('LeaveRequstStatus');
-                  navigation.navigate('LeaveRequstStatus');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="calendar"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Leave Request
-                </Text>
-              </TouchableOpacity>
-
-              {/* Expense Request */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('ExpenseRequestStatus');
-                  navigation.navigate('ExpenseRequestStatus');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="cash"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Expense Request
-                </Text>
-              </TouchableOpacity>
-
-              {/* Exit Request */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('ExitRequestStatus');
-                  navigation.navigate('ExitRequestStatus');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="exit-to-app"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Exit Request
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* Collapsible Requests  Details Section */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() =>
-              setIsRequestExpandedDetails(!isRequestExpandedDetails)
-            }
-            style={[styles.menuItem, {justifyContent: 'space-between'}]}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <MaterialCommunityIcons
-                name="file-eye-outline"
-                size={26}
-                color="#5D6D7E"
-                style={styles.menuIcon}
-              />
-              <Text style={styles.menuLabel}>Employees' Requests</Text>
-            </View>
-            <MaterialCommunityIcons
-              name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
-              size={24}
-              color="#5D6D7E"
-            />
-          </TouchableOpacity>
-
-          {isRequestExpandedDetails && (
-            <>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('LeaveRequestDetails');
-                  navigation.navigate('LeaveRequestDetails');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="calendar"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Leave Request
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('ExpenseRequestDetails');
-                  navigation.navigate('ExpenseRequestDetails');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="cash"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Expense Request
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedScreen('ExitRequestDetails');
-                  navigation.navigate('ExitRequestDetails');
-                }}
-                style={[
-                  styles.menuItem,
-                  {
-                    marginLeft: 40,
-                    backgroundColor: '#E3EBF6',
-                    borderRadius: 10,
-                  },
-                ]}>
-                <MaterialCommunityIcons
-                  name="exit-to-app"
-                  size={24}
-                  color="#3A5BA0"
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
-                  Exit Request
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.logout}
+          style={styles.logoutButton}
           activeOpacity={0.7}
           onPress={handleLogout}>
           <MaterialCommunityIcons
@@ -549,15 +549,20 @@ const CustomDrawer = ({navigation}) => {
           <Text style={[styles.menuLabel, {color: '#E74C3C'}]}>Logout</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </AppSafeArea>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#F9FAFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  contentContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
   scrollContent: {
     paddingBottom: 20,
@@ -620,15 +625,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#34495E',
   },
-  footer: {
-    padding: 25,
-    borderTopWidth: 1,
-    borderColor: '#D6DBDF',
-    backgroundColor: '#fff',
-  },
-  logout: {
+  logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderColor: '#D6DBDF',
+    marginTop: 10,
+    marginBottom: Platform.OS === 'ios' ? 20 : 10,
   },
 });
 

@@ -10,7 +10,6 @@ import {
   TextInput,
   Alert,
   RefreshControl,
-  Dimensions,
   BackHandler,
 } from 'react-native';
 import {
@@ -25,6 +24,7 @@ import {
   Surface,
   Provider as PaperProvider,
 } from 'react-native-paper';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, {
   useSharedValue,
@@ -36,19 +36,15 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppSafeArea from '../component/AppSafeArea';
-// import BASE_URL from '../constants/apiConfig';
+import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
-
 import axiosInstance from '../utils/axiosInstance';
 import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
-const {width: screenWidth} = Dimensions.get('window');
 import {useAuth} from '../constants/AuthContext';
-
-const BASE_URL = 'http://192.168.29.2:91/api';
-// Enhanced EditableField Component
 const EditableField = ({
   icon,
   label,
@@ -357,6 +353,9 @@ const ProfileSection = ({
 };
 
 // Enhanced ChangePasswordModal Component
+
+
+
 const ChangePasswordModal = ({
   visible,
   onDismiss,
@@ -506,6 +505,7 @@ const ChangePasswordModal = ({
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
+  const insets = useSafeAreaInsets(); // Get safe area insets
   // debugger;
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState({});
@@ -1372,46 +1372,55 @@ const [visible, setVisible] = useState(false);
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }>
-          {/* Profile Header Card */}
-          <Card style={styles.profileCard}>
-            <View style={styles.profileContent}>
-              <TouchableOpacity
-                onPress={handleProfilePhotoUpdate}
-                style={styles.profilePhotoContainer}
-                activeOpacity={0.8}>
-                <View style={styles.profileImageContainer}>
-                  <Image
-                    source={
-                      uploadedPhoto
-                        ? {uri: uploadedPhoto.uri}
-                        : imageUrll
-                        ? {uri: imageUrll}
-                        : {
-                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
-                          }
-                    }
-                    style={styles.profileImage}
-                  />
+          {/* Enhanced Profile Header Card with LinearGradient */}
+          <Card style={styles.profileCard} elevation={3}>
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.profileGradient}>
+              <View style={styles.profileContent}>
+                <TouchableOpacity
+                  onPress={handleProfilePhotoUpdate}
+                  style={styles.profilePhotoContainer}
+                  activeOpacity={0.8}>
+                  <View style={styles.profileImageContainer}>
+                    <Image
+                      source={
+                        uploadedPhoto
+                          ? {uri: uploadedPhoto.uri}
+                          : imageUrll
+                          ? {uri: imageUrll}
+                          : {
+                              uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
+                            }
+                      }
+                      style={styles.profileImage}
+                    />
 
-                  <View style={styles.profilePhotoOverlay}>
-                    {uploading ? (
-                      <ActivityIndicator size={20} color="#fff" />
-                    ) : (
-                      <Icon name="camera" size={20} color="#fff" />
-                    )}
+                    <View style={styles.profilePhotoOverlay}>
+                      {uploading ? (
+                        <ActivityIndicator size={20} color="#fff" />
+                      ) : (
+                        <Icon name="camera" size={20} color="#fff" />
+                      )}
+                    </View>
                   </View>
+                </TouchableOpacity>
+                <Text style={styles.profileName}>
+                  {employeeDetails.employeeName}
+                </Text>
+                <Text style={styles.profileRole}>
+                  {employeeDetails.designationName}
+                </Text>
+                <View style={styles.profileBadge}>
+                  <Icon name="office-building" size={14} color="#fff" style={styles.profileBadgeIcon} />
+                  <Text style={styles.profileDepartment}>
+                    {employeeDetails.departmentName}
+                  </Text>
                 </View>
-              </TouchableOpacity>
-              <Text style={styles.profileName}>
-                {employeeDetails.employeeName}
-              </Text>
-              <Text style={styles.profileRole}>
-                {employeeDetails.designationName}
-              </Text>
-              <Text style={styles.profileDepartment}>
-                {employeeDetails.departmentName}
-              </Text>
-            </View>
+              </View>
+            </LinearGradient>
           </Card>
 
           {/* Profile Sections */}
@@ -1424,7 +1433,7 @@ const [visible, setVisible] = useState(false);
             setEditedFields={setEditedFields}
             onEdit={handleEdit}
           />
-
+          
           <ProfileSection
             title="Contact Information"
             icon="phone-outline"
@@ -1463,15 +1472,8 @@ const [visible, setVisible] = useState(false);
           onSubmit={handlePasswordChange}
           loading={passwordLoading}
         />
-
-        {/* Floating Action Button */}
-        {!isEditing && (
-          <FAB
-            style={styles.fab}
-            icon="pencil"
-            onPress={() => setIsEditing(true)}
-          />
-        )}
+        
+        {/* Removed FAB button */}
       </AppSafeArea>
     </PaperProvider>
   );
@@ -1510,56 +1512,79 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
-  // Profile card styles
+  // Enhanced Profile card styles with gradient
   profileCard: {
     borderRadius: 12,
     marginBottom: 16,
-    paddingVertical: 20,
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    overflow: 'hidden', // Important to contain the gradient
+    elevation: 4,
+  },
+  profileGradient: {
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   profileContent: {
     alignItems: 'center',
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#222',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2,
   },
   profileRole: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#e6efff',
+    marginBottom: 8,
+  },
+  profileBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  profileBadgeIcon: {
+    marginRight: 5,
   },
   profileDepartment: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
+    fontWeight: '500',
   },
 
-  // Profile photo styles
+  // Profile photo styles - enhanced
   profilePhotoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   profileImageContainer: {
     position: 'relative',
+    borderRadius: 60,
+    padding: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 1,
-    borderColor: '#2196F3',
+    borderWidth: 3,
+    borderColor: '#fff',
     backgroundColor: '#f0f0f0',
   },
   profilePhotoOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 15,
-    padding: 6,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1783,15 +1808,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   modalSubmitButton: {
-    backgroundColor: '#3B82F6',
-  },
-
-  // FAB styles
-  fab: {
-    position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
     backgroundColor: '#3B82F6',
   },
 });

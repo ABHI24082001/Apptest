@@ -331,10 +331,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} color="#4B5563" />
-        <Appbar.Content title="Apply Leave" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+    
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

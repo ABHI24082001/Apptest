@@ -1,88 +1,152 @@
 // components/LeaveStatus.js
 import React from 'react';
-import {View, Text, ScrollView, StyleSheet} from 'react-native';
-import {Card} from 'react-native-paper';
+import {View, Text, ScrollView, StyleSheet, Dimensions} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
-const LeaveStatus = ({leaveData}) => {
+const {width} = Dimensions.get('window');
+
+const LeaveStatus = ({leaveData = []}) => {
+  const hasData = leaveData && leaveData.length > 0;
+
   return (
-    <Card style={styles.card}>
-      <Card.Content>
+    <View style={styles.card}>
+      <View style={styles.cardContent}>
         <View style={styles.leaveHeaderRow}>
           <Text style={styles.sectionTitle}>Leave Status</Text>
+          <Text style={styles.sectionSub}>Summary of available leaves</Text>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.leaveScrollContainer}>
-          {leaveData.map(item => (
-            <View key={item.label} style={styles.leaveCard}>
-              <Text style={styles.leaveType}>{item.label}</Text>
-              <Text style={styles.leaveInfo}>
-                Used: <Text style={styles.leaveBold}>{item.used}</Text>
-              </Text>
-              <Text style={styles.leaveInfo}>
-                Available: <Text style={styles.leaveBold}>{item.available}</Text>
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </Card.Content>
-    </Card>
+
+        {hasData ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.leaveScrollContainer}>
+            {leaveData.map((item, index) => (
+              <LinearGradient
+                key={index}
+                colors={['#e0f7fa', '#ffffff']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+                style={styles.leaveCard}>
+                <Text style={styles.leaveType}>{item.label}</Text>
+
+                <View style={styles.leaveRow}>
+                  <Text style={styles.leaveInfo}>Used</Text>
+                  <Text style={styles.leaveValue}>{item.used}</Text>
+                </View>
+
+                <View style={styles.leaveRow}>
+                  <Text style={styles.leaveInfo}>Available</Text>
+                  <Text style={[styles.leaveValue, {color: '#059669'}]}>
+                    {item.available}
+                  </Text>
+                </View>
+              </LinearGradient>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.noDataContainer}>
+            <LinearGradient
+              colors={['#f0f9ff', '#ffffff']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.noDataCard}>
+              <Text style={styles.noDataText}>No Leave Data Available</Text>
+            </LinearGradient>
+          </View>
+        )}
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // Custom Card wrapper (instead of react-native-paper Card)
   card: {
-    margin: 12,
-    borderRadius: 12,
-    backgroundColor: '#fff',
+    margin: 5,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 2},
     borderWidth: 1,
-    borderColor: '#d0e8f2', // Soft border
-    elevation: 2,
+    borderColor: '#f1f5f9',
+    marginTop: 20,
+  },
+  cardContent: {
+    padding: 14,
   },
   leaveHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b', // Dark slate
-    marginBottom: 4,
+    color: '#0f172a',
+  },
+  sectionSub: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
   },
   leaveScrollContainer: {
-    paddingVertical: 8,
-    paddingLeft: 4,
+    paddingVertical: 10,
+    paddingRight: 6,
   },
   leaveCard: {
-    backgroundColor: '#f8fbfd', // Light blueish card
-    padding: 14,
-    borderRadius: 10,
-    marginRight: 10,
-    minWidth: 120,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    width: width * 0.35,
+    borderRadius: 14,
+    marginRight: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#e0f2fe',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: {width: 0, height: 1},
   },
   leaveType: {
     fontSize: 15,
     fontWeight: '700',
     color: '#0f172a',
-    marginBottom: 6,
+    marginBottom: 10,
+  },
+  leaveRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   leaveInfo: {
     fontSize: 13,
     color: '#475569',
-    marginBottom: 2,
   },
-  leaveBold: {
+  leaveValue: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#0c4a6e',
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  noDataCard: {
+    width: width * 0.6,
+    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e0f2fe',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
 

@@ -1,0 +1,1654 @@
+import React, {useState, useEffect, useRef, useCallback} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  Platform,
+  PermissionsAndroid,
+  AppState,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import * as ort from 'onnxruntime-react-native';
+import RNFS from 'react-native-fs';
+import * as ImagePicker from 'react-native-image-picker';
+import {Buffer} from 'buffer';
+import jpeg from 'jpeg-js';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
+import axios from 'axios';
+import AppSafeArea from '../component/AppSafeArea';
+import * as geolib from 'geolib';
+import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import {useAuth} from '../constants/AuthContext';
+import BASE_URL from '../constants/apiConfig';
+import Geolocation from '@react-native-community/geolocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import BackgroundService from 'react-native-background-actions';
+
+const {width} = Dimensions.get('window');
+
+// Config
+const INPUT_SIZE = 112;
+const COSINE_THRESHOLD = 0.7;
+const EUCLIDEAN_THRESHOLD = 0.85;
+const CHECK_IN_STORAGE_KEY = 'user_check_in_data';
+const CAPTURED_FACE_STORAGE_KEY = 'captured_face_data';
+const BG_LAST_ELAPSED_KEY = 'bg_last_elapsed_seconds';
+
+const HomeScreen = () => {
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [shiftHours] = useState('09:00 AM - 05:00 PM');
+  const [currentTime, setCurrentTime] = useState('');
+  const [currentDate, setCurrentDate] = useState('');
+  const [matchResult, setMatchResult] = useState(null);
+  const [session, setSession] = useState(null);
+  const [registeredFace, setRegisteredFace] = useState(null);
+  const [capturedFace, setCapturedFace] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(true);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isFaceLoading, setIsFaceLoading] = useState(false);
+  const [cachedFaceImage, setCachedFaceImage] = useState(null);
+  const [checkInTime, setCheckInTime] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  const employeeDetails = useFetchEmployeeDetails();
+  const progressIntervalRef = useRef(null);
+  const imageProcessingTimeoutRef = useRef(null);
+  const appStateSubscriptionRef = useRef(null);
+  const {user} = useAuth();
+
+  // Background service configuration
+  const bgOptions = {
+    taskName: 'Shift Progress',
+    taskTitle: 'Shift in progress',
+    taskDesc: 'Working...',
+    taskIcon: {name: 'ic_launcher', type: 'mipmap'},
+    color: '#6366F1',
+    parameters: {delay: 1000},
+  };
+
+  const backgroundTask = async taskData => {
+    const delay = taskData?.delay ?? 1000;
+    try {
+      while (BackgroundService.isRunning()) {
+        try {
+          const raw = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+          let checkInTime = null;
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            checkInTime = parsed?.checkInTime || null;
+          }
+
+          if (!checkInTime) {
+            await AsyncStorage.setItem(
+              BG_LAST_ELAPSED_KEY,
+              JSON.stringify({elapsedSeconds: 0, progressPercentage: 0, timestamp: Date.now()}),
+            );
+          } else {
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
+            const totalSeconds = 28800;
+            const clamped = Math.min(totalSeconds, Math.max(0, elapsedSeconds));
+            const progressPercentage = Math.floor((clamped / totalSeconds) * 100);
+
+            await AsyncStorage.setItem(
+              BG_LAST_ELAPSED_KEY,
+              JSON.stringify({elapsedSeconds: clamped, progressPercentage, timestamp: now}),
+            );
+
+            await BackgroundService.updateNotification({
+              taskDesc: `${new Date(clamped * 1000).toISOString().substr(11, 8)} — ${progressPercentage}%`,
+            });
+          }
+        } catch (innerErr) {
+          console.error('[BackgroundTask] error', innerErr);
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (err) {
+      console.error('[BackgroundTask] error', err);
+    }
+  };
+
+  const startBackgroundService = async () => {
+    try {
+      if (await BackgroundService.isRunning()) return;
+      await BackgroundService.start(backgroundTask, bgOptions);
+    } catch (e) {
+      console.error('Failed to start background service', e);
+    }
+  };
+
+  const stopBackgroundService = async () => {
+    try {
+      if (await BackgroundService.isRunning()) {
+        await BackgroundService.stop();
+        await AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY);
+      }
+    } catch (e) {
+      console.error('Failed to stop background service', e);
+    }
+  };
+
+  const formatIndianTime = (date = new Date()) => {
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const formatIndianDate = (date = new Date()) => {
+    const options = {day: 'numeric', month: 'short', year: 'numeric'};
+    return date.toLocaleDateString('en-IN', options);
+  };
+
+  const formatTime = seconds => {
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      setCurrentTime(formatIndianTime());
+      setCurrentDate(formatIndianDate());
+    };
+    
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const saveCheckInState = async (isCheckedIn, startTime = null, faceData = null) => {
+    try {
+      const data = {
+        checkedIn: isCheckedIn,
+        checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
+      };
+      await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
+      if (faceData) {
+        await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, faceData);
+      } else if (!isCheckedIn) {
+        await AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error('Error saving check-in state:', error);
+    }
+  };
+
+  const loadCheckInState = async () => {
+    try {
+      const [checkInData, faceData] = await Promise.all([
+        AsyncStorage.getItem(CHECK_IN_STORAGE_KEY),
+        AsyncStorage.getItem(CAPTURED_FACE_STORAGE_KEY),
+      ]);
+
+      if (faceData) setCapturedFace(faceData);
+
+      if (checkInData) {
+        const parsedData = JSON.parse(checkInData);
+        if (parsedData.checkedIn && parsedData.checkInTime) {
+          setCheckedIn(true);
+          setCheckInTime(parsedData.checkInTime);
+          const now = new Date().getTime();
+          const elapsedSeconds = Math.floor((now - parsedData.checkInTime) / 1000);
+          setElapsedTime(formatTime(elapsedSeconds));
+          startShiftProgress(elapsedSeconds);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading check-in state:', error);
+    }
+  };
+
+  const startShiftProgress = (startSeconds = 0) => {
+    const totalSeconds = 28800;
+    let elapsedSeconds = startSeconds;
+
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+    setElapsedTime(formatTime(elapsedSeconds));
+    setProgressPercentage(Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)));
+
+    if (elapsedSeconds >= totalSeconds) {
+      setElapsedTime(formatTime(totalSeconds));
+      setProgressPercentage(100);
+      return;
+    }
+
+    progressIntervalRef.current = setInterval(() => {
+      elapsedSeconds++;
+      if (elapsedSeconds >= totalSeconds) {
+        setElapsedTime(formatTime(totalSeconds));
+        setProgressPercentage(100);
+        clearInterval(progressIntervalRef.current);
+        return;
+      }
+      setElapsedTime(formatTime(elapsedSeconds));
+      setProgressPercentage(Math.floor((elapsedSeconds / totalSeconds) * 100));
+    }, 1000);
+  };
+
+  useEffect(() => {
+    appStateSubscriptionRef.current = AppState.addEventListener('change', async nextAppState => {
+      if (appState === 'background' && nextAppState === 'active' && checkedIn && checkInTime) {
+        try {
+          const bgDataStr = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
+          if (bgDataStr) {
+            const bgData = JSON.parse(bgDataStr);
+            if (bgData && bgData.elapsedSeconds !== undefined) {
+              setElapsedTime(formatTime(bgData.elapsedSeconds));
+              setProgressPercentage(bgData.progressPercentage);
+              startShiftProgress(bgData.elapsedSeconds);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to sync:', e);
+        }
+      }
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      if (appStateSubscriptionRef.current) {
+        appStateSubscriptionRef.current.remove();
+      }
+    };
+  }, [appState, checkedIn, checkInTime]);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      await loadCheckInState();
+      try {
+        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+        if (checkInData) {
+          const parsedData = JSON.parse(checkInData);
+          if (parsedData.checkedIn && parsedData.checkInTime) {
+            await startBackgroundService();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check background service:', e);
+      }
+    };
+
+    initializeApp();
+
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (imageProcessingTimeoutRef.current) clearTimeout(imageProcessingTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        let modelPath = '';
+        if (Platform.OS === 'android') {
+          modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(modelPath))) {
+            await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+          }
+        } else {
+          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(rawPath))) {
+            console.error('Model not found');
+            return;
+          }
+          modelPath = `file://${rawPath}`;
+        }
+
+        const s = await ort.InferenceSession.create(modelPath, {
+          executionProviders: ['cpu'],
+          graphOptimizationLevel: 'all',
+        });
+        setSession(s);
+      } catch (e) {
+        console.error('Model load error:', e);
+        Alert.alert('Error', `Failed to load model: ${e.message}`);
+      }
+    };
+
+    loadModel();
+  }, []);
+
+  useEffect(() => {
+    const fetchBiometricDetails = async () => {
+      try {
+        setIsFaceLoading(true);
+
+        if (cachedFaceImage) {
+          setRegisteredFace(cachedFaceImage);
+          setShowRegistration(false);
+          setIsFaceLoading(false);
+          return;
+        }
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out')), 10000),
+        );
+
+        const fetchPromise = axios.get(
+          `${BASE_URL}/EmployeeBiomatricRegister/getEmployeeBiomatricDetailsByString/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
+        );
+
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (response.data?.faceImage) {
+          const imageData = `data:image/jpeg;base64,${response.data.faceImage}`;
+          setRegisteredFace(imageData);
+          setCachedFaceImage(imageData);
+          setShowRegistration(false);
+        } else {
+          setRegisteredFace(null);
+          setShowRegistration(true);
+        }
+      } catch (err) {
+        console.error('API Error:', err);
+        setRegisteredFace(null);
+        setShowRegistration(true);
+      } finally {
+        setIsFaceLoading(false);
+      }
+    };
+
+    if (employeeDetails?.id && employeeDetails?.childCompanyId) {
+      fetchBiometricDetails();
+    }
+  }, [employeeDetails, cachedFaceImage]);
+
+  const normalize = useCallback(vec => {
+    const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+    if (norm === 0) return vec;
+    const normalized = new Float32Array(vec.length);
+    for (let i = 0; i < vec.length; i++) {
+      normalized[i] = vec[i] / norm;
+    }
+    return normalized;
+  }, []);
+
+  const preprocessImage = useCallback(async base64Image => {
+    try {
+      const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+      const filePath = `${RNFS.CachesDirectoryPath}/temp_${Date.now()}.jpg`;
+      await RNFS.writeFile(filePath, pureBase64, 'base64');
+
+      const resized = await ImageResizer.createResizedImage(
+        filePath,
+        INPUT_SIZE,
+        INPUT_SIZE,
+        'JPEG',
+        100,
+        0,
+        null,
+        false,
+        {mode: 'cover', onlyScaleDown: false},
+      );
+
+      const resizedPath = resized.uri.replace('file://', '');
+      const resizedBase64 = await RNFS.readFile(resizedPath, 'base64');
+
+      RNFS.unlink(filePath).catch(() => {});
+      RNFS.unlink(resizedPath).catch(() => {});
+
+      return resizedBase64;
+    } catch (err) {
+      console.error('Preprocessing error:', err);
+      return null;
+    }
+  }, []);
+
+  const getEmbedding = useCallback(
+    async base64Image => {
+      try {
+        if (!session) throw new Error('ONNX session not initialized');
+
+        const processedBase64 = await preprocessImage(base64Image);
+        if (!processedBase64) throw new Error('Image preprocessing failed');
+
+        const raw = jpeg.decode(Buffer.from(processedBase64, 'base64'), {
+          useTArray: true,
+          formatAsRGBA: false,
+        });
+
+        if (!raw || !raw.data) throw new Error('JPEG decode failed');
+
+        const mean = [0.5, 0.5, 0.5];
+        const std = [0.5, 0.5, 0.5];
+        const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
+
+        for (let y = 0; y < INPUT_SIZE; y++) {
+          for (let x = 0; x < INPUT_SIZE; x++) {
+            const idx = (y * INPUT_SIZE + x) * 3;
+            const r = (raw.data[idx] / 255.0 - mean[0]) / std[0];
+            const g = (raw.data[idx + 1] / 255.0 - mean[1]) / std[1];
+            const b = (raw.data[idx + 2] / 255.0 - mean[2]) / std[2];
+
+            floatData[y * INPUT_SIZE + x] = r;
+            floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = g;
+            floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = b;
+          }
+        }
+
+        const tensor = new ort.Tensor('float32', floatData, [1, 3, INPUT_SIZE, INPUT_SIZE]);
+        const feeds = {[session.inputNames[0]]: tensor};
+        const results = await session.run(feeds);
+
+        const embedding = results[session.outputNames[0]].data;
+        return normalize(embedding);
+      } catch (err) {
+        console.error('Embedding error:', err);
+        return null;
+      }
+    },
+    [session, preprocessImage, normalize],
+  );
+
+  const cosineSimilarity = useCallback((a, b) => {
+    let dot = 0, normA = 0, normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+    if (normA === 0 || normB === 0) return 0;
+    return Math.max(-1, Math.min(1, dot / (normA * normB)));
+  }, []);
+
+  const euclideanDistance = useCallback((a, b) => {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) {
+      const diff = a[i] - b[i];
+      sum += diff * diff;
+    }
+    return Math.sqrt(sum);
+  }, []);
+
+  const matchFaces = async (face1, face2) => {
+    if (!session || !face1 || !face2) {
+      Alert.alert('Error', 'Unable to verify faces');
+      return null;
+    }
+
+    setIsProcessing(true);
+    setMatchResult(null);
+
+    try {
+      const [emb1, emb2] = await Promise.all([getEmbedding(face1), getEmbedding(face2)]);
+
+      if (!emb1 || !emb2) {
+        Alert.alert('Error', 'Failed to generate face embeddings');
+        return null;
+      }
+
+      const similarity = cosineSimilarity(emb1, emb2);
+      const distance = euclideanDistance(emb1, emb2);
+
+      const isMatch = similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
+
+      let confidence = 'LOW';
+      if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
+      else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
+
+      const result = {isMatch, similarity, distance, confidence};
+      setMatchResult(result);
+
+      return result;
+    } catch (error) {
+      console.error('Matching error:', error);
+      Alert.alert('Error', 'Face matching failed');
+      return null;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const launchCamera = async callback => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Camera permission required');
+      return;
+    }
+
+    ImagePicker.launchCamera(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+        cameraType: 'front',
+        maxWidth: 500,
+        maxHeight: 500,
+        quality: 0.8,
+      },
+      callback,
+    );
+  };
+
+  const handleReregisterFace = async () => {
+    if (!session) {
+      Alert.alert('Error', 'Model not loaded yet');
+      return;
+    }
+
+    setIsRegistering(true);
+
+    ImagePicker.launchCamera(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+        cameraType: 'front',
+        quality: 0.7,
+        maxWidth: 500,
+        maxHeight: 500,
+      },
+      async res => {
+        if (res.didCancel) {
+          setIsRegistering(false);
+          return;
+        }
+
+        if (!res.assets?.[0]?.base64) {
+          Alert.alert('Error', 'No image captured');
+          setIsRegistering(false);
+          return;
+        }
+
+        try {
+          setIsProcessing(true);
+          const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+
+          let embeddingComplete = false;
+          imageProcessingTimeoutRef.current = setTimeout(() => {
+            if (!embeddingComplete) {
+              setIsProcessing(false);
+              setIsRegistering(false);
+              Alert.alert('Processing Error', 'Processing took too long. Try again.');
+            }
+          }, 15000);
+
+          const emb = await getEmbedding(base64Image);
+          embeddingComplete = true;
+
+          if (!emb) throw new Error('Failed to get embedding');
+
+          const buffer = Buffer.from(new Float32Array(emb).buffer);
+          const embeddingBase64 = buffer.toString('base64');
+          const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+
+          const payload = {
+            EmployeeId: employeeDetails.id,
+            FaceImage: pureBase64,
+            FaceEmbeding: embeddingBase64,
+            FingerImage: null,
+            FingerEmbeding: null,
+            RetinaImage: null,
+            RetinaEmbeding: null,
+            VoiceRecord: null,
+            VoiceRecordEmbeding: null,
+            CreatedDate: new Date().toISOString(),
+            ModifiedBy: employeeDetails.id,
+            IsDelete: 0,
+            CompanyId: employeeDetails.childCompanyId,
+          };
+
+          const response = await axios.post(
+            `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
+            payload,
+          );
+
+          if (response.data?.isSuccess) {
+            setRegisteredFace(base64Image);
+            setCachedFaceImage(base64Image);
+            setShowRegistration(false);
+            Alert.alert('Success', 'Face registered! You can now check in.');
+          } else {
+            Alert.alert('Error', response.data?.message || 'Failed to save');
+          }
+        } catch (err) {
+          console.error('Registration error:', err);
+          Alert.alert('Error', err.message);
+        } finally {
+          if (imageProcessingTimeoutRef.current) {
+            clearTimeout(imageProcessingTimeoutRef.current);
+          }
+          setIsProcessing(false);
+          setIsRegistering(false);
+        }
+      },
+    );
+  };
+
+  const requestLocationPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+        return (
+          granted['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED ||
+          granted['android.permission.ACCESS_COARSE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
+        );
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const getCurrentPositionPromise = async (
+    options = {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+  ) => {
+    try {
+      return await new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    } catch (error) {
+      return await new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 20000,
+        });
+      });
+    }
+  };
+
+  const safeParseFloat = (val, fallback = NaN) => {
+    const n = parseFloat(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const checkLocation = async () => {
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        Alert.alert('Permission denied', 'Location permission required');
+        return {inside: false};
+      }
+
+      const pos = await getCurrentPositionPromise();
+      const current = {
+        latitude: parseFloat(pos.coords.latitude.toFixed(8)),
+        longitude: parseFloat(pos.coords.longitude.toFixed(8)),
+      };
+
+      let fences = [];
+      try {
+        const res = await axios.get(
+          `${BASE_URL}/GeoFencing/getGeoLocationDetailsByEmployeeId/${employeeDetails.id}/${employeeDetails.childCompanyId}`,
+        );
+        fences = Array.isArray(res.data) ? res.data : [];
+      } catch (err) {
+        Alert.alert('Error', 'Could not fetch geofence data');
+        return {inside: false};
+      }
+
+      const matches = [];
+      let nearest = null;
+      let shortestDistance = Infinity;
+
+      for (const f of fences) {
+        const lat = safeParseFloat(f.lattitude ?? f.latitude);
+        const lon = safeParseFloat(f.longitude ?? f.long);
+        const radiusMeters = safeParseFloat(f.radius, 60);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const distance = geolib.getDistance(
+          {latitude: current.latitude, longitude: current.longitude},
+          {latitude: lat, longitude: lon},
+        );
+
+        const inside = distance <= radiusMeters;
+        const fenceInfo = {...f, distance, inside};
+
+        if (inside) matches.push(fenceInfo);
+        if (distance < shortestDistance) {
+          shortestDistance = distance;
+          nearest = fenceInfo;
+        }
+      }
+
+      return {inside: matches.length > 0, nearestFence: nearest, matches};
+    } catch (err) {
+      Alert.alert('Error', 'Unable to get location');
+      return {inside: false};
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!registeredFace) {
+      Alert.alert('Registration Required', 'Please register your face first');
+      return;
+    }
+
+    setIsLoading(true);
+
+    const locationResult = await checkLocation();
+
+    if (!locationResult.inside) {
+      const nearest = locationResult.nearestFence
+        ? `${locationResult.nearestFence.geoLocationName} (${Math.round(locationResult.nearestFence.distance)}m away)`
+        : 'Unknown';
+
+      Alert.alert('Location Check Failed', `Not in required area.\nNearest: ${nearest}`);
+      setIsLoading(false);
+      return;
+    }
+
+    Alert.alert('Face Verification', 'Capture your face to verify', [
+      {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
+      {
+        text: 'Capture',
+        onPress: () => {
+          launchCamera(async res => {
+            if (res.assets?.[0]?.base64) {
+              const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+              setCapturedFace(capturedImage);
+
+              const result = await matchFaces(registeredFace, capturedImage);
+              if (result && result.isMatch) {
+                const now = new Date().getTime();
+                setCheckedIn(true);
+                setCheckInTime(now);
+                setProgressPercentage(0);
+
+                await saveCheckInState(true, now, capturedImage);
+                await startBackgroundService();
+
+                Alert.alert('Check-In Successful', 'Your shift has started!');
+                startShiftProgress(0);
+              } else {
+                Alert.alert('Verification Failed', 'Face does not match');
+              }
+            }
+            setIsLoading(false);
+          });
+        },
+      },
+    ]);
+  };
+
+  const handleCheckOut = async () => {
+    setIsLoading(true);
+    try {
+      await saveCheckInState(false);
+      await stopBackgroundService();
+
+      setCheckedIn(false);
+      setCheckInTime(null);
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+
+      Alert.alert('Check-Out Successful', 'Have a great day!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to check out');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Circular Progress Component
+  const CircularProgress = ({percentage, size = 180}) => {
+    const strokeWidth = 12;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    return (
+      <View style={[styles.circularProgressContainer, {width: size, height: size}]}>
+        <View style={styles.circularProgressOuter}>
+          <View style={styles.circularProgressInner}>
+            <Text style={styles.circularProgressPercentage}>{percentage}%</Text>
+            <Text style={styles.circularProgressLabel}>Complete</Text>
+          </View>
+        </View>
+        {/* Using View-based progress indication */}
+        <View style={styles.progressRing}>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6']}
+            style={[
+              styles.progressRingFill,
+              {
+                transform: [{rotate: `${(percentage * 3.6)}deg`}],
+              },
+            ]}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <AppSafeArea>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <View>
+            <Text style={styles.topBarGreeting}>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}</Text>
+            <Text style={styles.topBarName}>{employeeDetails?.employeeName || 'Employee'}</Text>
+          </View>
+          <View style={styles.topBarRight}>
+            <View style={styles.dateBadge}>
+              <Text style={styles.dateText}>{currentDate}</Text>
+              <Text style={styles.timeText}>{currentTime}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Registration Section */}
+        {showRegistration && !registeredFace ? (
+          <View style={styles.registrationContainer}>
+            <View style={styles.registrationCard}>
+              <View style={styles.registrationHeader}>
+                <View style={styles.registrationIconBox}>
+                  <Text style={styles.registrationIconEmoji}>🔐</Text>
+                </View>
+                <Text style={styles.registrationHeading}>Biometric Registration</Text>
+                <Text style={styles.registrationSubtext}>
+                  Secure your attendance with face recognition technology
+                </Text>
+              </View>
+
+              <View style={styles.registrationSteps}>
+                <View style={styles.stepItem}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>1</Text>
+                  </View>
+                  <Text style={styles.stepText}>Position your face in frame</Text>
+                </View>
+                <View style={styles.stepItem}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>2</Text>
+                  </View>
+                  <Text style={styles.stepText}>Look directly at camera</Text>
+                </View>
+                <View style={styles.stepItem}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>3</Text>
+                  </View>
+                  <Text style={styles.stepText}>Capture your face</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleReregisterFace}
+                disabled={isRegistering || isProcessing}
+                activeOpacity={0.9}>
+                <LinearGradient
+                  colors={['#6366F1', '#8B5CF6']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={styles.primaryButtonGradient}>
+                  {isRegistering ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.primaryButtonIcon}>📸</Text>
+                      <Text style={styles.primaryButtonText}>Start Registration</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Status Card */}
+            <View style={styles.statusCard}>
+              <View style={styles.statusCardHeader}>
+                <View style={styles.statusBadgeContainer}>
+                  <View style={[styles.statusBadgeDot, checkedIn ? styles.activeDot : styles.inactiveDot]} />
+                  <Text style={styles.statusBadgeText}>
+                    {checkedIn ? 'Checked In' : 'Not Checked In'}
+                  </Text>
+                </View>
+                <Text style={styles.shiftTimeText}>{shiftHours}</Text>
+              </View>
+
+              {/* Circular Progress */}
+              <View style={styles.progressSection}>
+                <View style={styles.circularProgressWrapper}>
+                  <CircularProgress percentage={progressPercentage} />
+                </View>
+                <View style={styles.timeInfoCard}>
+                  <View style={styles.timeInfoItem}>
+                    <Text style={styles.timeInfoLabel}>Working Time</Text>
+                    <Text style={styles.timeInfoValue}>{elapsedTime}</Text>
+                  </View>
+                  <View style={styles.timeInfoDivider} />
+                  <View style={styles.timeInfoItem}>
+                    <Text style={styles.timeInfoLabel}>Remaining</Text>
+                    <Text style={styles.timeInfoValue}>
+                      {formatTime(28800 - Math.floor((progressPercentage / 100) * 28800))}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.checkInBtn]}
+                onPress={handleCheckIn}
+                disabled={checkedIn || isLoading}
+                activeOpacity={0.9}>
+                <LinearGradient
+                  colors={checkedIn ? ['#E2E8F0', '#CBD5E1'] : ['#10B981', '#059669']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={styles.actionBtnGradient}>
+                  {isLoading && !checkedIn ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <View style={styles.actionBtnContent}>
+                      <View style={styles.actionBtnIconBox}>
+                        <Text style={styles.actionBtnIcon}>→</Text>
+                      </View>
+                      <View>
+                        <Text style={[styles.actionBtnText, checkedIn && styles.disabledText]}>
+                          Check In
+                        </Text>
+                        <Text style={[styles.actionBtnSubtext, checkedIn && styles.disabledText]}>
+                          Start your shift
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.checkOutBtn]}
+                onPress={handleCheckOut}
+                disabled={!checkedIn || isLoading}
+                activeOpacity={0.9}>
+                <LinearGradient
+                  colors={!checkedIn ? ['#E2E8F0', '#CBD5E1'] : ['#EF4444', '#DC2626']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={styles.actionBtnGradient}>
+                  {isLoading && checkedIn ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <View style={styles.actionBtnContent}>
+                      <View style={styles.actionBtnIconBox}>
+                        <Text style={styles.actionBtnIcon}>←</Text>
+                      </View>
+                      <View>
+                        <Text style={[styles.actionBtnText, !checkedIn && styles.disabledText]}>
+                          Check Out
+                        </Text>
+                        <Text style={[styles.actionBtnSubtext, !checkedIn && styles.disabledText]}>
+                          End your shift
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* Biometric Verification Section */}
+            <View style={styles.biometricSection}>
+              <Text style={styles.sectionTitle}>Biometric Verification</Text>
+              
+              <View style={styles.faceCardsRow}>
+                <View style={styles.faceCard}>
+                  <View style={styles.faceCardHeader}>
+                    <Text style={styles.faceCardTitle}>Registered</Text>
+                    {registeredFace && (
+                      <View style={styles.verifiedTag}>
+                        <Text style={styles.verifiedTagText}>✓</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.faceImageBox}>
+                    {isFaceLoading ? (
+                      <ActivityIndicator size="small" color="#6366F1" />
+                    ) : registeredFace ? (
+                      <Image source={{uri: registeredFace}} style={styles.faceImg} />
+                    ) : (
+                      <View style={styles.faceImgPlaceholder}>
+                        <Text style={styles.faceImgPlaceholderText}>No Image</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.faceCard}>
+                  <View style={styles.faceCardHeader}>
+                    <Text style={styles.faceCardTitle}>Latest</Text>
+                  </View>
+                  <View style={styles.faceImageBox}>
+                    {capturedFace ? (
+                      <Image source={{uri: capturedFace}} style={styles.faceImg} />
+                    ) : (
+                      <View style={styles.faceImgPlaceholder}>
+                        <Text style={styles.faceImgPlaceholderText}>Not Captured</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+
+              {registeredFace && (
+                <TouchableOpacity
+                  style={styles.reregisterBtn}
+                  onPress={handleReregisterFace}
+                  disabled={isRegistering}>
+                  <Text style={styles.reregisterBtnText}>
+                    {isRegistering ? 'Processing...' : '🔄 Update Face Registration'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Match Result */}
+            {matchResult && (
+              <View style={[styles.matchCard, matchResult.isMatch ? styles.matchSuccess : styles.matchFail]}>
+                <View style={styles.matchCardHeader}>
+                  <Text style={styles.matchCardTitle}>
+                    {matchResult.isMatch ? '✓ Verification Successful' : '✗ Verification Failed'}
+                  </Text>
+                </View>
+                <View style={styles.matchStats}>
+                  <View style={styles.matchStatItem}>
+                    <Text style={styles.matchStatLabel}>Similarity</Text>
+                    <Text style={styles.matchStatValue}>{(matchResult.similarity * 100).toFixed(1)}%</Text>
+                  </View>
+                  <View style={styles.matchStatItem}>
+                    <Text style={styles.matchStatLabel}>Confidence</Text>
+                    <Text style={styles.matchStatValue}>{matchResult.confidence}</Text>
+                  </View>
+                  <View style={styles.matchStatItem}>
+                    <Text style={styles.matchStatLabel}>Distance</Text>
+                    <Text style={styles.matchStatValue}>{matchResult.distance.toFixed(3)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Info Grid */}
+            <View style={styles.infoGrid}>
+              <View style={styles.infoGridItem}>
+                <View style={styles.infoGridIconBox}>
+                  <Text style={styles.infoGridIcon}>📍</Text>
+                </View>
+                <Text style={styles.infoGridLabel}>Location</Text>
+                <Text style={styles.infoGridValue}>Verified</Text>
+              </View>
+
+              <View style={styles.infoGridItem}>
+                <View style={styles.infoGridIconBox}>
+                  <Text style={styles.infoGridIcon}>🔒</Text>
+                </View>
+                <Text style={styles.infoGridLabel}>Security</Text>
+                <Text style={styles.infoGridValue}>Active</Text>
+              </View>
+
+              <View style={styles.infoGridItem}>
+                <View style={styles.infoGridIconBox}>
+                  <Text style={styles.infoGridIcon}>📊</Text>
+                </View>
+                <Text style={styles.infoGridLabel}>Status</Text>
+                <Text style={styles.infoGridValue}>{checkedIn ? 'Working' : 'Off Duty'}</Text>
+              </View>
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </AppSafeArea>
+  );
+};
+
+export default HomeScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+  },
+  topBarGreeting: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  topBarName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  topBarRight: {
+    alignItems: 'flex-end',
+  },
+  dateBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'flex-end',
+  },
+  dateText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  timeText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  registrationContainer: {
+    padding: 20,
+  },
+  registrationCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  registrationHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  registrationIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  registrationIconEmoji: {
+    fontSize: 40,
+  },
+  registrationHeading: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  registrationSubtext: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  registrationSteps: {
+    marginBottom: 24,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  stepText: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  primaryButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#6366F1',
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  primaryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 10,
+  },
+  primaryButtonIcon: {
+    fontSize: 20,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  statusCard: {
+    margin: 20,
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  statusCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  statusBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  statusBadgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  activeDot: {
+    backgroundColor: '#10B981',
+  },
+  inactiveDot: {
+    backgroundColor: '#F59E0B',
+  },
+  statusBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  shiftTimeText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  progressSection: {
+    alignItems: 'center',
+  },
+  circularProgressWrapper: {
+    marginBottom: 24,
+  },
+  circularProgressContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circularProgressOuter: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circularProgressInner: {
+    width: 156,
+    height: 156,
+    borderRadius: 78,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circularProgressPercentage: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: '#6366F1',
+  },
+  circularProgressLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  progressRing: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    overflow: 'hidden',
+  },
+  progressRingFill: {
+    width: '50%',
+    height: '100%',
+  },
+  timeInfoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+  },
+  timeInfoItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timeInfoLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  timeInfoValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  timeInfoDivider: {
+    width: 1,
+    backgroundColor: '#CBD5E1',
+    marginHorizontal: 16,
+  },
+  actionButtonsContainer: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  actionBtnGradient: {
+    padding: 20,
+  },
+  actionBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  actionBtnIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnIcon: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  actionBtnText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  actionBtnSubtext: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+  disabledText: {
+    color: '#94A3B8',
+  },
+  biometricSection: {
+    margin: 20,
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  faceCardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  faceCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  faceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  faceCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  verifiedTag: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifiedTagText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  faceImageBox: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
+  },
+  faceImg: {
+    width: '100%',
+    height: '100%',
+  },
+  faceImgPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  faceImgPlaceholderText: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  reregisterBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  reregisterBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6366F1',
+  },
+  matchCard: {
+    margin: 20,
+    marginTop: 0,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+  },
+  matchSuccess: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
+  matchFail: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  matchCardHeader: {
+    marginBottom: 12,
+  },
+  matchCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  matchStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  matchStatItem: {
+    alignItems: 'center',
+  },
+  matchStatLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  matchStatValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 20,
+  },
+  infoGridItem: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  infoGridIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoGridIcon: {
+    fontSize: 24,
+  },
+  infoGridLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  infoGridValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  checkInBtn: {},
+  checkOutBtn: {},
+});
+
+//////
+
+

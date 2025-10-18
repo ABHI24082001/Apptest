@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   Image,
+  Text,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {Menu, Provider} from 'react-native-paper';
@@ -21,7 +22,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {useAuth} from '../constants/AuthContext';
-import AntDesign from 'react-native-vector-icons/AntDesign';
+
 import BASE_URL from '../constants/apiConfig';
 import axiosinstance from '../utils/axiosInstance';
 
@@ -76,7 +77,7 @@ const NotificationButton = ({navigation}) => {
     <TouchableOpacity
       onPress={() => navigation.navigate('Notifications')}
       style={{marginRight: 10}}>
-      <MaterialIcons name="notifications-none" size={28} color="#000" />
+      <MaterialIcons name="notifications" size={30} color="#4b8ee1ff" />
       {/* Red Dot + Animated Wave */}
       {hasNotification && (
         <View style={styles.dotContainer}>
@@ -124,6 +125,7 @@ const ProfileMenu = ({navigation}) => {
       setImageUrl(null);
     }
   }, [user?.empImage]);
+  
 const handleLogout = async () => {
     try {
       console.log('Starting logout process...');
@@ -144,10 +146,12 @@ const handleLogout = async () => {
       });
     }
   };
+  
   return (
     <Menu
       visible={visible}
       onDismiss={() => setVisible(false)}
+      contentStyle={styles.menuContainer}
       anchor={
         <TouchableOpacity
           onPress={() => setVisible(true)}
@@ -170,51 +174,62 @@ const handleLogout = async () => {
           ) : (
             <MaterialCommunityIcons
               name="account-circle"
-              size={26}
-              color="#000"
+              size={30}
+              color="#4b8ee1ff"
             />
           )}
         </TouchableOpacity>
       }>
+      {/* <View style={styles.menuHeader}>
+        <MaterialCommunityIcons name="account-circle" size={24} color="#4b8ee1ff" />
+        <View style={styles.menuHeaderText}>
+          <Text style={styles.menuUserName}>{user?.name || 'User'}</Text>
+          <Text style={styles.menuUserEmail}>{user?.email || 'No email'}</Text>
+        </View>
+      </View> */}
+      
       <Menu.Item
         onPress={() => {
           setVisible(false);
           navigation.navigate('Profile');
         }}
         leadingIcon={() => (
-          <MaterialIcons name="person" size={20} color="#555" />
+          <View style={styles.menuIconContainer}>
+            <MaterialIcons name="person" size={24} color="#4b8ee1ff" />
+          </View>
         )}
+        style={styles.menuItem}
+        titleStyle={styles.menuItemTitle}
         title="My Profile"
       />
+      
       <Menu.Item
         onPress={() => {
           setVisible(false);
           navigation.navigate('Setting');
         }}
         leadingIcon={() => (
-          <MaterialIcons name="settings-suggest" size={20} color="#555" />
+          <View style={styles.menuIconContainer}>
+            <MaterialIcons name="settings-suggest" size={24} color="#4b8ee1ff" />
+          </View>
         )}
+        style={styles.menuItem}
+        titleStyle={styles.menuItemTitle}
         title="Setting"
       />
-
-      {/* <Menu.Item
-        onPress={() => {
-          setVisible(false);
-          navigation.navigate('Exit');
-        }}
-        leadingIcon={() => (
-          <MaterialIcons name="exit-to-app" size={20} color="#555" />
-        )}
-        title="Exit"
-      /> */}
+      
       <Menu.Item
         onPress={() => {
           setVisible(false);
           handleLogout();
         }}
         leadingIcon={() => (
-          <MaterialIcons name="logout" size={20} color="#E74C3C" />
+          <View style={styles.menuIconContainer}>
+            <MaterialIcons name="logout" size={24} color="#4b8ee1ff" />
+          </View>
         )}
+        style={styles.menuItem}
+        titleStyle={styles.menuItemTitle}
         title="Logout"
       />
     </Menu>
@@ -273,8 +288,8 @@ export default function DrawerNavigator() {
               case 'Attendance':
                 title = 'Attendance';
                 break;
-              case 'Exit':
-                title = 'Exit Apply';
+              case 'Leave':
+                title = 'Leave Apply';
                 break;
               case 'Payslip':
                 title = 'Payslip';
@@ -323,5 +338,57 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'red',
     zIndex: 2,
+  },
+  // New menu styles
+  menuContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    width: 200,
+    paddingVertical: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  menuHeaderText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  
+  menuItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+    height: 56,
+    justifyContent: 'center',
+  },
+  menuItemTitle: {
+    fontWeight: '600',
+    fontSize: 15,
+    color: '#333',
+  },
+  menuIconContainer: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f2f7ff',
+    borderRadius: 8,
   },
 });

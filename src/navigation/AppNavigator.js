@@ -32,6 +32,7 @@ import AdvanceReport from '../screens/AdvanceReport';
 import Exit from '../screens/Exit';
 import Profile from '../screens/Profile';
 import LeaveReport from '../screens/LeaveReport';
+import MyApplyLeave from '../screens/MyApplyLeave'
 
 
 //   request 
@@ -72,6 +73,7 @@ export default function AppNavigator() {
        {/* DrawerTabbar */}
       <Stack.Screen name="LogReport" component={LogReport} />
       <Stack.Screen name="ApplyLeave" component={ApplyLeave} />
+      <Stack.Screen name="MyApplyLeave" component={MyApplyLeave} />
       <Stack.Screen name="MyPayslip" component={MyPayslip} />
       <Stack.Screen name="PaymentRequest" component={PaymentRequest} />
       <Stack.Screen name="MyExpenses" component={MyExpenses} />
