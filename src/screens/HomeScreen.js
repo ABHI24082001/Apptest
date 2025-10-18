@@ -251,8 +251,6 @@ const HomeScreen = () => {
     }
   };
 
-
-
   const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     const totalSeconds = 28800; // 8 hours
     let elapsedSeconds = startSeconds;
@@ -261,7 +259,7 @@ const HomeScreen = () => {
     if (shiftStartTime && checkInTime) {
       const shiftStart = new Date(shiftStartTime);
       const actualCheckIn = new Date(checkInTime);
-      
+
       // Calculate missed seconds (time between shift start and actual check-in)
       const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
       const missedPercent = (missedSeconds / totalSeconds) * 100;
@@ -270,12 +268,12 @@ const HomeScreen = () => {
         shiftStart: shiftStart.toLocaleString(),
         actualCheckIn: actualCheckIn.toLocaleString(),
         missedSeconds,
-        missedPercent: missedPercent.toFixed(2) + '%'
+        missedPercent: missedPercent.toFixed(2) + '%',
       });
 
       // Set the missed percentage for the red portion
       setMissedPercentage(Math.min(100, missedPercent));
-      
+
       // Adjust starting seconds to include missed time
       elapsedSeconds = startSeconds + missedSeconds;
     }
@@ -285,7 +283,9 @@ const HomeScreen = () => {
 
     // Set initial progress
     setElapsedTime(formatTime(elapsedSeconds));
-    setProgressPercentage(Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)));
+    setProgressPercentage(
+      Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)),
+    );
 
     if (elapsedSeconds >= totalSeconds) {
       setElapsedTime(formatTime(totalSeconds));
@@ -569,8 +569,118 @@ const HomeScreen = () => {
       },
     );
   };
-
+  // debugger;
   // Check-in handler
+  // const handleCheckIn = async () => {
+  //   if (!registeredFace) {
+  //     Alert.alert(
+  //       'Registration Required',
+  //       'Please register your face first to enable check-in.',
+  //     );
+  //     setShowRegistration(true);
+  //     return;
+  //   }
+
+  //   setIsLoading(true);
+  //   const locationResult = await checkLocation();
+
+  //   if (!locationResult.inside) {
+  //     const nearest = locationResult.nearestFence
+  //       ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+  //           locationResult.nearestFence.distance,
+  //         )}m away)`
+  //       : 'Unknown area';
+
+  //     Alert.alert(
+  //       '❌ Location Check Failed',
+  //       `You are not within the required area.\nNearest: ${nearest}`,
+  //     );
+  //     setIsLoading(false);
+  //     return;
+  //   }
+  //   debugger;
+  //   Alert.alert(
+  //     'Face Verification',
+  //     'Please capture your face for verification',
+  //     [
+  //       {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
+  //       {
+  //         text: 'Capture',
+  //         onPress: () => {
+  //           launchCamera(async res => {
+  //             if (res.assets?.[0]?.base64) {
+  //               const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+  //               setCapturedFace(capturedImage);
+
+  //               const result = await matchFaces(registeredFace, capturedImage);
+  //               if (result && result.isMatch) {
+  //                 const now = new Date();
+  //                 const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  //                 const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+  //                 try {
+  //                   // Prepare attendance payload
+  //                   const attendancePayload = {
+  //                     EmployeeCode: '29',
+  //                     LogDateTime: '2025-10-18T10:41:26.000Z',
+  //                     LogDate: '2025-10-18',
+  //                     LogTime: '10:41:26',
+  //                     Direction: 'in',
+  //                     DeviceName: 'Bhubneswar',
+  //                     SerialNo: '1',
+  //                     VerificationCode: '1',
+  //                   };
+
+  //                   console.log('Posting attendance:', attendancePayload);
+
+  //                   // Post attendance to API
+  //                   const attendanceResponse = await axiosInstance.post(
+  //                     `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+  //                     attendancePayload,
+  //                   );
+
+  //                   if (!attendanceResponse.data?.isSuccess) {
+  //                     throw new Error(
+  //                       attendanceResponse.data?.message ||
+  //                         'Failed to save attendance',
+  //                     );
+  //                   }
+
+  //                   // If attendance is saved successfully, proceed with check-in
+  //                   setCheckedIn(true);
+  //                   setCheckInTime(now.getTime());
+  //                   setProgressPercentage(0);
+
+  //                   await saveCheckInState(true, now.getTime(), capturedImage);
+  //                   await startBackgroundService();
+
+  //                   Alert.alert(
+  //                     '✅ Check-In Successful',
+  //                     'Welcome! Your shift has started.',
+  //                   );
+  //                   startShiftProgress(0);
+  //                 } catch (error) {
+  //                   console.error('Attendance API Error:', error);
+  //                   Alert.alert(
+  //                     '❌ Check-In Failed',
+  //                     'Failed to record attendance. Please try again.',
+  //                   );
+  //                 }
+  //               } else {
+  //                 Alert.alert(
+  //                   '❌ Verification Failed',
+  //                   'Face does not match. Please try again.',
+  //                 );
+  //               }
+  //             }
+  //             setIsLoading(false);
+  //           });
+  //         },
+  //       },
+  //     ],
+  //   );
+  // };
+
   const handleCheckIn = async () => {
     if (!registeredFace) {
       Alert.alert(
@@ -608,33 +718,78 @@ const HomeScreen = () => {
           text: 'Capture',
           onPress: () => {
             launchCamera(async res => {
-              if (res.assets?.[0]?.base64) {
-                const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
-                setCapturedFace(capturedImage);
+              try {
+                if (res.assets?.[0]?.base64) {
+                  const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+                  setCapturedFace(capturedImage);
 
-                const result = await matchFaces(registeredFace, capturedImage);
-                if (result && result.isMatch) {
-                  const now = new Date().getTime();
-                  setCheckedIn(true);
-                  setCheckInTime(now);
-                  setProgressPercentage(0);
-
-                  await saveCheckInState(true, now, capturedImage);
-                  await startBackgroundService();
-
-                  Alert.alert(
-                    '✅ Check-In Successful',
-                    'Welcome! Your shift has started.',
+                  const result = await matchFaces(
+                    registeredFace,
+                    capturedImage,
                   );
-                  startShiftProgress(0);
+
+                  if (result && result.isMatch) {
+                    const now = new Date();
+                    const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                    const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+                    // ✅ Prepare dynamic attendance payload
+                    const attendancePayload = {
+                      EmployeeCode: employeeDetails?.companyUserId || '29', // ✅ string
+                      LogDateTime: now.toISOString(), // ✅ full timestamp
+                      LogDate: logDate, // ✅ only date
+                      LogTime: logTime, // ✅ matches LogDateTime
+                      Direction: 'IN', // ✅ correct for checkout
+                      DeviceName: 'Bhubneswar',
+                      SerialNo: '1',
+                      VerificationCode: '1',
+                    };
+
+                    console.log('Posting attendance:', attendancePayload);
+
+                    // ✅ Post attendance to API
+                    const attendanceResponse = await axiosInstance.post(
+                      `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+                      attendancePayload,
+                    );
+
+                    if (!attendanceResponse.data?.isSuccess) {
+                      throw new Error(
+                        attendanceResponse.data?.message ||
+                          'Failed to save attendance',
+                      );
+                    }
+
+                    // ✅ If successful
+                    setCheckedIn(true);
+                    setCheckInTime(now.getTime());
+                    setProgressPercentage(0);
+
+                    await saveCheckInState(true, now.getTime(), capturedImage);
+                    await startBackgroundService();
+
+                    Alert.alert(
+                      '✅ Check-In Successful',
+                      'Welcome! Your shift has started.',
+                    );
+                    startShiftProgress(0);
+                  } else {
+                    Alert.alert(
+                      '❌ Verification Failed',
+                      'Face does not match. Please try again.',
+                    );
+                  }
                 } else {
-                  Alert.alert(
-                    '❌ Verification Failed',
-                    'Face does not match. Please try again.',
-                  );
+                  Alert.alert('No Image Captured', 'Please try again.');
                 }
+              } catch (error) {
+                console.error('Attendance API Error:', error);
+                Alert.alert(
+                  '❌ Check-In Failed',
+                  'Failed to record attendance. Please try again.',
+                );
+              } finally {
+                setIsLoading(false);
               }
-              setIsLoading(false);
             });
           },
         },
@@ -643,17 +798,105 @@ const HomeScreen = () => {
   };
 
   // Check-out handler
+  // const handleCheckOut = async () => {
+  //   setIsLoading(true);
+  //   try {
+  //     // Post attendance for check-out
+  //     const now = new Date();
+  //     const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  //     const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+  //     const attendancePayload = {
+  //       EmployeeCode: employeeDetails?.id || '',
+  //       LogDateTime: now.toISOString(),
+  //       LogDate: logDate,
+  //       LogTime: logTime,
+  //       Direction: 'in', // Changed to 'out' for check-out
+  //       DeviceName: 'Bhubneswar',
+  //       SerialNo: '1',
+  //       VerificationCode: '1',
+  //     };
+
+  //     console.log('Posting check-out attendance:', attendancePayload);
+
+  //     // Post attendance to API
+  //     const attendanceResponse = await axiosInstance.post(
+  //       `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+  //       attendancePayload,
+  //     );
+
+  //     if (!attendanceResponse.data?.isSuccess) {
+  //       throw new Error(
+  //         attendanceResponse.data?.message || 'Failed to save attendance',
+  //       );
+  //     }
+
+  //     // If attendance is saved successfully, proceed with check-out
+  //     await saveCheckInState(false);
+  //     await stopBackgroundService();
+
+  //     // Reset all progress related states
+  //     setCheckedIn(false);
+  //     setCheckInTime(null);
+  //     setProgressPercentage(0);
+  //     setMissedPercentage(0);
+  //     setElapsedTime('00:00:00');
+
+  //     if (progressIntervalRef.current) {
+  //       clearInterval(progressIntervalRef.current);
+  //     }
+
+  //     Alert.alert(
+  //       '✅ Check-Out Successful',
+  //       'Your shift has ended. Have a great day!',
+  //     );
+  //   } catch (error) {
+  //     console.error('Check-out error:', error);
+  //     Alert.alert('Error', 'Failed to check out. Please try again.');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleCheckOut = async () => {
     setIsLoading(true);
     try {
+      const now = new Date();
+      const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+      const attendancePayload = {
+        EmployeeCode: employeeDetails?.companyUserId || '29', // ✅ string
+        LogDateTime: now.toISOString(), // ✅ full timestamp
+        LogDate: logDate, // ✅ only date
+        LogTime: logTime, // ✅ matches LogDateTime
+        Direction: 'OUT', // ✅ correct for checkout
+        DeviceName: 'Bhubneswar',
+        SerialNo: '1',
+        VerificationCode: '1',
+      };
+
+      console.log('Posting check-out attendance:', attendancePayload);
+
+      const attendanceResponse = await axiosInstance.post(
+        `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+        attendancePayload,
+      );
+
+      if (!attendanceResponse.data?.isSuccess) {
+        throw new Error(
+          attendanceResponse.data?.message || 'Failed to save attendance',
+        );
+      }
+
+      // ✅ If successful, reset check-in state
       await saveCheckInState(false);
       await stopBackgroundService();
 
-      // Reset all progress related states
       setCheckedIn(false);
       setCheckInTime(null);
       setProgressPercentage(0);
-      setMissedPercentage(0); // Reset missed time percentage
+      setMissedPercentage(0);
       setElapsedTime('00:00:00');
 
       if (progressIntervalRef.current) {
@@ -666,7 +909,10 @@ const HomeScreen = () => {
       );
     } catch (error) {
       console.error('Check-out error:', error);
-      Alert.alert('Error', 'Failed to check out. Please try again.');
+      Alert.alert(
+        '❌ Check-Out Failed',
+        'Failed to check out. Please try again.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -1121,7 +1367,8 @@ const HomeScreen = () => {
             console.log('Shift Details:', {
               shiftStart: shiftStart.toLocaleString(),
               shiftEnd: shiftEnd.toLocaleString(),
-              actualCheckIn: actualCheckIn?.toLocaleString() || 'Not checked in',
+              actualCheckIn:
+                actualCheckIn?.toLocaleString() || 'Not checked in',
               rawShiftStart: todayShift.shiftStartTime,
               rawShiftEnd: todayShift.shiftEndTime,
             });
@@ -1129,11 +1376,17 @@ const HomeScreen = () => {
             // Validate shift times
             if (!isNaN(shiftStart.getTime()) && !isNaN(shiftEnd.getTime())) {
               // Calculate total shift duration in seconds
-              const totalShiftSeconds = Math.max(0, (shiftEnd - shiftStart) / 1000);
+              const totalShiftSeconds = Math.max(
+                0,
+                (shiftEnd - shiftStart) / 1000,
+              );
 
               // If checked in, calculate missed time
               if (actualCheckIn && totalShiftSeconds > 0) {
-                const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+                const missedSeconds = Math.max(
+                  0,
+                  (actualCheckIn - shiftStart) / 1000,
+                );
                 const missedPercent = (missedSeconds / totalShiftSeconds) * 100;
 
                 console.log('Time Calculations:', {
@@ -1265,8 +1518,6 @@ const HomeScreen = () => {
             </Text>
           </View>
 
-         
-
           <View style={styles.progressBarContainer}>
             <View style={styles.progressBarBg}>
               {/* Red portion for missed time */}
@@ -1275,7 +1526,7 @@ const HomeScreen = () => {
                   styles.missedTimeFill,
                   {
                     width: `${missedPercentage}%`,
-                    backgroundColor: '#EF4444',  // Red color
+                    backgroundColor: '#EF4444', // Red color
                     left: 0,
                   },
                 ]}
