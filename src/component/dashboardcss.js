@@ -227,6 +227,12 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 6,
   },
+  missedTimeFill: {
+    backgroundColor: '#EF4444', // Red color for missed time
+    height: '100%',
+    borderRadius: 6,
+    position: 'absolute',
+  },
   progressDetails: {
     flexDirection: 'row',
     alignItems: 'center',

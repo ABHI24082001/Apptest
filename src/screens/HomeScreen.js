@@ -51,7 +51,9 @@ const HomeScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [progressPercentage, setProgressPercentage] = useState(0);
-  const [shiftHours, setShiftHours] = useState('09:00 AM - 05:00 PM');
+  const [missedPercentage, setMissedPercentage] = useState(0);
+
+  const [shiftHours, setShiftHours] = useState('');
   const [shiftName, setShiftName] = useState(''); // NEW: Track shift name
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -232,6 +234,7 @@ const HomeScreen = () => {
 
       if (checkInData) {
         const parsedData = JSON.parse(checkInData);
+        //
         if (parsedData.checkedIn && parsedData.checkInTime) {
           setCheckedIn(true);
           setCheckInTime(parsedData.checkInTime);
@@ -240,7 +243,7 @@ const HomeScreen = () => {
             (now - parsedData.checkInTime) / 1000,
           );
           setElapsedTime(formatTime(elapsedSeconds));
-          startShiftProgress(elapsedSeconds);
+          startShiftProgress(elapsedSeconds, parsedData.shiftStartTime);
         }
       }
     } catch (error) {
@@ -248,16 +251,41 @@ const HomeScreen = () => {
     }
   };
 
-  const startShiftProgress = (startSeconds = 0) => {
-    const totalSeconds = 28800;
+
+
+  const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
+    const totalSeconds = 28800; // 8 hours
     let elapsedSeconds = startSeconds;
 
+    // Calculate missed time if shift start time is available
+    if (shiftStartTime && checkInTime) {
+      const shiftStart = new Date(shiftStartTime);
+      const actualCheckIn = new Date(checkInTime);
+      
+      // Calculate missed seconds (time between shift start and actual check-in)
+      const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+      const missedPercent = (missedSeconds / totalSeconds) * 100;
+
+      console.log('Missed Time Calculations:', {
+        shiftStart: shiftStart.toLocaleString(),
+        actualCheckIn: actualCheckIn.toLocaleString(),
+        missedSeconds,
+        missedPercent: missedPercent.toFixed(2) + '%'
+      });
+
+      // Set the missed percentage for the red portion
+      setMissedPercentage(Math.min(100, missedPercent));
+      
+      // Adjust starting seconds to include missed time
+      elapsedSeconds = startSeconds + missedSeconds;
+    }
+
+    // Clear any existing interval
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
+    // Set initial progress
     setElapsedTime(formatTime(elapsedSeconds));
-    setProgressPercentage(
-      Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)),
-    );
+    setProgressPercentage(Math.min(100, Math.floor((elapsedSeconds / totalSeconds) * 100)));
 
     if (elapsedSeconds >= totalSeconds) {
       setElapsedTime(formatTime(totalSeconds));
@@ -265,6 +293,7 @@ const HomeScreen = () => {
       return;
     }
 
+    // Start progress interval
     progressIntervalRef.current = setInterval(() => {
       elapsedSeconds++;
       if (elapsedSeconds >= totalSeconds) {
@@ -278,7 +307,6 @@ const HomeScreen = () => {
     }, 1000);
   };
 
-  // App state and initialization
   useEffect(() => {
     const initializeApp = async () => {
       await loadCheckInState();
@@ -621,9 +649,11 @@ const HomeScreen = () => {
       await saveCheckInState(false);
       await stopBackgroundService();
 
+      // Reset all progress related states
       setCheckedIn(false);
       setCheckInTime(null);
       setProgressPercentage(0);
+      setMissedPercentage(0); // Reset missed time percentage
       setElapsedTime('00:00:00');
 
       if (progressIntervalRef.current) {
@@ -1070,7 +1100,6 @@ const HomeScreen = () => {
         );
 
         if (response.data && Array.isArray(response.data)) {
-          // Find today's shift data by comparing dates
           const todayDateStr =
             today.getDate().toString().padStart(2, '0') +
             ' ' +
@@ -1083,36 +1112,84 @@ const HomeScreen = () => {
           );
 
           if (todayShift) {
-            // Format shift hours for display
-            const formatTime = dateTimeStr => {
-              if (!dateTimeStr) return '';
-              const date = new Date(dateTimeStr);
-              return date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
+            // Ensure valid shift times with fallback
+            const shiftStart = new Date(todayShift.shiftStartTime || today);
+            const shiftEnd = new Date(todayShift.shiftEndTime || today);
+            const actualCheckIn = checkInTime ? new Date(checkInTime) : null;
+
+            // Debug logging
+            console.log('Shift Details:', {
+              shiftStart: shiftStart.toLocaleString(),
+              shiftEnd: shiftEnd.toLocaleString(),
+              actualCheckIn: actualCheckIn?.toLocaleString() || 'Not checked in',
+              rawShiftStart: todayShift.shiftStartTime,
+              rawShiftEnd: todayShift.shiftEndTime,
+            });
+
+            // Validate shift times
+            if (!isNaN(shiftStart.getTime()) && !isNaN(shiftEnd.getTime())) {
+              // Calculate total shift duration in seconds
+              const totalShiftSeconds = Math.max(0, (shiftEnd - shiftStart) / 1000);
+
+              // If checked in, calculate missed time
+              if (actualCheckIn && totalShiftSeconds > 0) {
+                const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+                const missedPercent = (missedSeconds / totalShiftSeconds) * 100;
+
+                console.log('Time Calculations:', {
+                  totalShiftSeconds,
+                  missedSeconds,
+                  missedPercent: missedPercent.toFixed(2) + '%',
+                  shiftStartTime: shiftStart.toLocaleTimeString(),
+                  checkInTime: actualCheckIn.toLocaleTimeString(),
+                });
+
+                setMissedPercentage(Math.min(100, missedPercent));
+              }
+
+              // Format times for display with validation
+              const formatTime = dateTimeStr => {
+                try {
+                  const date = new Date(dateTimeStr);
+                  if (isNaN(date.getTime())) throw new Error('Invalid date');
+                  return date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                } catch (err) {
+                  console.error('Time format error:', err);
+                  return 'Invalid time';
+                }
+              };
+
+              const startTime = formatTime(todayShift.shiftStartTime);
+              const endTime = formatTime(todayShift.shiftEndTime);
+
+              if (startTime !== 'Invalid time' && endTime !== 'Invalid time') {
+                setShiftHours(`${startTime} - ${endTime}`);
+              } else {
+                setShiftHours('Shift times not available');
+              }
+
+              setShiftName(todayShift.shiftName || 'N/A');
+            } else {
+              console.error('Invalid shift times:', {
+                start: todayShift.shiftStartTime,
+                end: todayShift.shiftEndTime,
               });
-            };
-
-            const startTime = formatTime(todayShift.shiftStartTime);
-            const endTime = formatTime(todayShift.shiftEndTime);
-
-            setShiftHours(`${startTime} - ${endTime}`);
-
-            // You could also store shift name if needed
-            if (todayShift.shiftName) {
-              // Store shift name in state if you want to display it
-              setShiftName(todayShift.shiftName);
+              setShiftHours('Invalid shift times');
             }
           }
         }
       } catch (error) {
         console.error('Error fetching shift details:', error);
+        setShiftHours('Error loading shift');
       }
     };
 
     fetchShiftDetails();
-  }, [employeeDetails?.id, user?.childCompanyId]);
+  }, [employeeDetails?.id, user?.childCompanyId, checkInTime]);
 
   // Render logic
   const renderContent = () => {
@@ -1188,15 +1265,32 @@ const HomeScreen = () => {
             </Text>
           </View>
 
+         
+
           <View style={styles.progressBarContainer}>
             <View style={styles.progressBarBg}>
+              {/* Red portion for missed time */}
+              <View
+                style={[
+                  styles.missedTimeFill,
+                  {
+                    width: `${missedPercentage}%`,
+                    backgroundColor: '#EF4444',  // Red color
+                    left: 0,
+                  },
+                ]}
+              />
+              {/* Blue portion for active work time */}
               <LinearGradient
                 colors={['#3B82F6', '#2563EB']}
                 start={{x: 0, y: 0}}
                 end={{x: 1, y: 0}}
                 style={[
                   styles.progressBarFill,
-                  {width: `${progressPercentage}%`},
+                  {
+                    width: `${progressPercentage}%`,
+                    left: `${missedPercentage}%`,
+                  },
                 ]}
               />
             </View>
@@ -1221,7 +1315,10 @@ const HomeScreen = () => {
             <View style={styles.progressDivider} />
             <View style={styles.progressDetailItem}>
               <Text style={styles.progressDetailLabel}>Shift Hours</Text>
-              <Text style={styles.progressDetailValue}>{shiftHours}</Text>
+              <Text style={styles.progressDetailValue}>
+                {shiftHours || 'No shift'}
+              </Text>
+              {/* <Text style={styles.progressDetailValue}>{shiftHours}</Text> */}
             </View>
           </View>
 
@@ -1363,3 +1460,5 @@ const HomeScreen = () => {
 };
 
 export default HomeScreen;
+
+// export default HomeScreen;

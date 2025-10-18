@@ -197,7 +197,7 @@ export default function BottomTabNavigator({navigation}) {
                   />
                 </LinearGradient>
                 <Text style={styles.actionLabel}>Leave</Text>
-                <Text style={styles.actionSubLabel}>Apply & Track</Text>
+                <Text style={styles.actionSubLabel}>Apply & Check</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -213,7 +213,7 @@ export default function BottomTabNavigator({navigation}) {
                   />
                 </LinearGradient>
                 <Text style={styles.actionLabel}>Exit</Text>
-                <Text style={styles.actionSubLabel}>Request & View</Text>
+                <Text style={styles.actionSubLabel}>Req & Check</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -229,7 +229,7 @@ export default function BottomTabNavigator({navigation}) {
                   />
                 </LinearGradient>
                 <Text style={styles.actionLabel}>Expense</Text>
-                <Text style={styles.actionSubLabel}>Submit & Check</Text>
+                <Text style={styles.actionSubLabel}>Sub & Check</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
