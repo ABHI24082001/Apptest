@@ -23,7 +23,7 @@ import {useNavigation} from '@react-navigation/native';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 import axiosinstance from '../utils/axiosInstance';
-
+import LeaveHeader from '../component/LeaveHeader';
 import moment from 'moment';
 import PDFViewer from '../component/Payslipcomponent';
 import RNFS from 'react-native-fs';
@@ -613,7 +613,11 @@ const MyPaySlip = () => {
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
       </Appbar.Header>
-
+         <LeaveHeader
+        title="Payslip"
+        subtitle="Here’s the summary of your monthly earnings and deductions."
+        iconName="file-document-outline"
+      />
       {/* Show logoBase64 image if available */}
       {typeof logoBase64 === 'string' && !!logoBase64 && (
         <Image

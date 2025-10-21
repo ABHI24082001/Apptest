@@ -13,7 +13,7 @@ export default function App() {
     <>
       <StatusBar
         barStyle={Platform.OS === 'ios' ? 'dark-content' : 'light-content'}
-        backgroundColor={Platform.OS === 'android' ? '#7BC1FF' : undefined}
+        backgroundColor={Platform.OS === 'android' ? '#7BC1FF' : '#7BC1FF'}
         translucent={Platform.OS === 'android' ? false : true}
         animated={true}
       />

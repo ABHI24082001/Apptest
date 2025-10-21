@@ -209,10 +209,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
   },
-  progressPercentageText: {
-    fontSize: 24,
+  missesPercentageText: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: '#d73f1dff',
+  },
+  progressPercentageText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   progressBarContainer: {
     marginBottom: 20,

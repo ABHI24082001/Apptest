@@ -266,7 +266,8 @@ const EditableField = ({
             onPress={() => onEdit(label)}
             style={styles.fieldEditButton}
             activeOpacity={0.7}>
-            <Icon name="pencil" size={16} color="#3B82F6" />
+            <Text style={styles.fieldEditText}>Edit</Text>
+            {/* <Icon name="pencil" size={16} color="#a73109ff" /> */}
           </TouchableOpacity>
         )}
       </View>
@@ -353,8 +354,6 @@ const ProfileSection = ({
 };
 
 // Enhanced ChangePasswordModal Component
-
-
 
 const ChangePasswordModal = ({
   visible,
@@ -517,13 +516,12 @@ const ProfileScreen = () => {
   const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
   const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
 
-const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [imageUrll, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
 
-
- useEffect(() => {
+  useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
         if (user?.id) {
@@ -540,22 +538,20 @@ const [visible, setVisible] = useState(false);
     fetchEmployeeData();
   }, [user]);
 
+  useEffect(() => {
+    // Always log the user object for debugging
+    console.log('ProfileMenu user:', user);
 
-    useEffect(() => {
-      // Always log the user object for debugging
-      console.log('ProfileMenu user:', user);
-  
-      if (user?.empImage) {
-        // Use the static image URL directly
-        const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
-        setImageUrl(staticImageUrl);
-      } else {
-        setImageUrl(null);
-      }
-    }, [user?.empImage]);
-  
-  
-    console.log('employee avatar ➜', imageUrl);
+    if (user?.empImage) {
+      // Use the static image URL directly
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+      setImageUrl(staticImageUrl);
+    } else {
+      setImageUrl(null);
+    }
+  }, [user?.empImage]);
+
+  console.log('employee avatar ➜', imageUrl);
 
   // Refresh functionality
   const onRefresh = useCallback(async () => {
@@ -698,10 +694,7 @@ const [visible, setVisible] = useState(false);
     }
   };
 
-
-
   // debugger;
-
 
   const uploadDocumentBase64 = async photo => {
     try {
@@ -1199,8 +1192,6 @@ const [visible, setVisible] = useState(false);
     );
   }
 
-
-
   // Use uploadedPhotoFileName for immediate UI update if available
   const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/${user}';
   const imageUrl = uploadedPhotoFileName
@@ -1359,9 +1350,14 @@ const [visible, setVisible] = useState(false);
             <>
               <Appbar.Action
                 icon="lock-reset"
+                iconColor="#2196F3"
                 onPress={() => setIsPasswordModalVisible(true)}
               />
-              <Appbar.Action icon="pencil" onPress={() => setIsEditing(true)} />
+              <Appbar.Action
+                icon="pencil"
+                iconColor="#2196F3"
+                onPress={() => setIsEditing(true)}
+              />
             </>
           )}
         </Appbar.Header>
@@ -1373,55 +1369,79 @@ const [visible, setVisible] = useState(false);
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }>
           {/* Enhanced Profile Header Card with LinearGradient */}
-          <Card style={styles.profileCard} elevation={3}>
+          <View style={styles.profileHeaderContainer}>
             <LinearGradient
-              colors={['#3B82F6', '#2563EB']}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 1}}
-              style={styles.profileGradient}>
-              <View style={styles.profileContent}>
+              colors={['#3B82F6', '#2563EB', '#3B82F6']}
+              style={styles.headerGradient}>
+              <View style={styles.headerCurve} />
+
+              <View style={styles.profileHeaderContent}>
+                {/* Profile Image Section */}
                 <TouchableOpacity
                   onPress={handleProfilePhotoUpdate}
-                  style={styles.profilePhotoContainer}
-                  activeOpacity={0.8}>
-                  <View style={styles.profileImageContainer}>
-                    <Image
-                      source={
-                        uploadedPhoto
-                          ? {uri: uploadedPhoto.uri}
-                          : imageUrll
-                          ? {uri: imageUrll}
-                          : {
-                              uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
-                            }
-                      }
-                      style={styles.profileImage}
-                    />
-
-                    <View style={styles.profilePhotoOverlay}>
-                      {uploading ? (
-                        <ActivityIndicator size={20} color="#fff" />
-                      ) : (
-                        <Icon name="camera" size={20} color="#fff" />
-                      )}
-                    </View>
+                  style={styles.modernProfileImageContainer}>
+                  <Image
+                    source={
+                      uploadedPhoto
+                        ? {uri: uploadedPhoto.uri}
+                        : imageUrll
+                        ? {uri: imageUrll}
+                        : {
+                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
+                          }
+                    }
+                    style={styles.modernProfileImage}
+                  />
+                  <View style={styles.editIconContainer}>
+                    <Icon name="camera" size={14} color="#fff" />
                   </View>
                 </TouchableOpacity>
-                <Text style={styles.profileName}>
-                  {employeeDetails.employeeName}
-                </Text>
-                <Text style={styles.profileRole}>
-                  {employeeDetails.designationName}
-                </Text>
-                <View style={styles.profileBadge}>
-                  <Icon name="office-building" size={14} color="#fff" style={styles.profileBadgeIcon} />
-                  <Text style={styles.profileDepartment}>
+
+                {/* Profile Info Section */}
+                <View style={styles.profileInfoContainer}>
+                  <Text style={styles.modernProfileName}>
+                    {employeeDetails.employeeName}
+                  </Text>
+                  <Text style={styles.modernProfileDesignation}>
+                    {employeeDetails.designationName}
+                  </Text>
+
+                  {/* Employee Status Badge */}
+                  {/* <View style={styles.statusBadge}>
+                    <Icon name="check-circle" size={14} color="#4CAF50" />
+                    <Text style={styles.statusText}>Active Employee</Text>
+                  </View> */}
+                </View>
+              </View>
+
+              {/* Quick Stats Cards */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Icon name="calendar-clock" size={24} color="#4c669f" />
+                  <Text style={styles.statValue}>
+                    {employeeDetails.employeeId}
+                  </Text>
+                  <Text style={styles.statLabel}>Emp ID</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                  <Icon name="domain" size={24} color="#4c669f" />
+                  <Text style={styles.statValue}>
                     {employeeDetails.departmentName}
                   </Text>
+                  <Text style={styles.statLabel}>Department</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                  <Icon name="office-building" size={24} color="#4c669f" />
+                  <Text style={styles.statValue}>
+                    {employeeDetails.branchName}
+                  </Text>
+                  <Text style={styles.statLabel}>Branch</Text>
                 </View>
               </View>
             </LinearGradient>
-          </Card>
+          </View>
 
           {/* Profile Sections */}
           <ProfileSection
@@ -1433,7 +1453,7 @@ const [visible, setVisible] = useState(false);
             setEditedFields={setEditedFields}
             onEdit={handleEdit}
           />
-          
+
           <ProfileSection
             title="Contact Information"
             icon="phone-outline"
@@ -1472,7 +1492,7 @@ const [visible, setVisible] = useState(false);
           onSubmit={handlePasswordChange}
           loading={passwordLoading}
         />
-        
+
         {/* Removed FAB button */}
       </AppSafeArea>
     </PaperProvider>
@@ -1482,7 +1502,7 @@ const [visible, setVisible] = useState(false);
 const styles = StyleSheet.create({
   // Header styles
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffffff',
     elevation: Platform.OS === 'android' ? 3 : 0,
   },
   headerTitle: {
@@ -1649,8 +1669,13 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   fieldEditButton: {
-    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
   },
+
   fieldInput: {
     fontSize: 16,
     color: '#333',
@@ -1809,6 +1834,119 @@ const styles = StyleSheet.create({
   },
   modalSubmitButton: {
     backgroundColor: '#3B82F6',
+  },
+
+  // New styles for modern profile header
+  profileHeaderContainer: {
+    marginBottom: -49,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  headerGradient: {
+    position: 'relative',
+    paddingTop: 20,
+    paddingBottom: 80,
+  },
+  headerCurve: {
+    position: 'absolute',
+    bottom: -50,
+    left: 0,
+    right: 0,
+    height: 100,
+    backgroundColor: '#f4f6f8',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  profileHeaderContent: {
+    alignItems: 'center',
+    // paddingHorizontal: 20,
+  },
+  modernProfileImageContainer: {
+    position: 'relative',
+    padding: 3,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  modernProfileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: '#fff',
+  },
+  editIconContainer: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#4c669f',
+    padding: 6,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  profileInfoContainer: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  modernProfileName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2,
+  },
+  modernProfileDesignation: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  statusText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    marginTop: 20,
+  },
+  statCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    width: '30%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

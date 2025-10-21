@@ -21,6 +21,7 @@ import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BASE_URL from '../constants/apiConfig';
+import LeaveHeader from '../component/LeaveHeader';
 const PaymentRequest = ({navigation, route}) => {
   const [date, setDate] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
@@ -649,7 +650,7 @@ const PaymentRequest = ({navigation, route}) => {
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header Section */}
-        <View style={styles.headerSection}>
+        {/* <View style={styles.headerSection}>
           <Icon name="credit-card-outline" size={40} color="#10B981" />
           <Text style={styles.headerText}>
             {expenceData ? 'Edit Payment Request' : 'Payment Request'}
@@ -659,7 +660,12 @@ const PaymentRequest = ({navigation, route}) => {
               ? 'Update the details of your payment request'
               : 'Please fill in the details below to submit your payment request'}
           </Text>
-        </View>
+        </View> */}
+       <LeaveHeader
+        title="Payment Request"
+        subtitle="Submit your payment or reimbursement request below."
+        iconName="bank-transfer"
+      />
 
         <Text style={styles.label}>
           Request Type <Text style={styles.required}>*</Text>
@@ -767,14 +773,15 @@ const PaymentRequest = ({navigation, route}) => {
                     <Text style={styles.gridHeaderText}>Actions</Text>
                   </View>
                   {paymentDetails.map(item => (
-                    
                     <View key={item.id} style={styles.gridRow}>
                       <Text style={styles.gridCell}>
                         {item.transactionDate
                           ? new Date(item.transactionDate).toLocaleDateString()
                           : '—'}
                       </Text>
-                      <Text style={styles.gridCell}>{item.expenseHead || '—'}</Text>
+                      <Text style={styles.gridCell}>
+                        {item.expenseHead || '—'}
+                      </Text>
                       <Text style={styles.gridCell}>
                         ₹{formatCurrency(item.amount)}
                       </Text>
@@ -802,18 +809,20 @@ const PaymentRequest = ({navigation, route}) => {
                               'Delete Payment Detail',
                               'Are you sure you want to delete this payment detail?',
                               [
-                                { text: 'Cancel', style: 'cancel' },
+                                {text: 'Cancel', style: 'cancel'},
                                 {
                                   text: 'Delete',
                                   style: 'destructive',
                                   onPress: () => {
                                     // Remove from paymentDetails state
                                     setPaymentDetails(prev =>
-                                      prev.filter(detail => detail.id !== item.id)
+                                      prev.filter(
+                                        detail => detail.id !== item.id,
+                                      ),
                                     );
                                   },
                                 },
-                              ]
+                              ],
                             );
                           }}>
                           <Icon name="trash-can" size={18} color="#EF4444" />
@@ -1026,8 +1035,6 @@ const PaymentRequest = ({navigation, route}) => {
                 onCancel={() => setOpenDatePicker(false)}
               />
 
-             
-
               {/* Expense Head */}
               <Text style={styles.label}>
                 Expense Head <Text style={styles.required}>*</Text>
@@ -1153,6 +1160,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     elevation: Platform.OS === 'android' ? 4 : 0,
+    marginBottom: -8,
   },
   headerTitle: {
     fontSize: 18,

@@ -22,7 +22,7 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
-
+import LeaveHeader from '../component/LeaveHeader';
 
 const ExitApplyScreen = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -65,9 +65,11 @@ const ExitApplyScreen = ({navigation}) => {
             `${BASE_URL}/EmployeeExit/GetExEmpByEmpId/${employeeDetails.id}`,
           );
 
-          const exitRequests = Array.isArray(response.data) ? response.data : [];
-          const hasPendingRequest = exitRequests.some(req =>
-            req.applicationStatus?.toLowerCase() === 'pending',
+          const exitRequests = Array.isArray(response.data)
+            ? response.data
+            : [];
+          const hasPendingRequest = exitRequests.some(
+            req => req.applicationStatus?.toLowerCase() === 'pending',
           );
 
           if (hasPendingRequest) {
@@ -207,7 +209,7 @@ const ExitApplyScreen = ({navigation}) => {
         setFeedbackMessage(
           response.data?.message
             ? response.data.message
-            : 'Exit application submitted successfully.'
+            : 'Exit application submitted successfully.',
         );
         setFeedbackVisible(true);
         // Navigation will be handled after modal closes
@@ -279,11 +281,13 @@ const ExitApplyScreen = ({navigation}) => {
             titleStyle={styles.headerTitle}
           />
         </Appbar.Header>
+
         <View style={styles.redirectContainer}>
           <Icon name="alert-circle-outline" size={48} color="#EF4444" />
           <Text style={styles.redirectTitle}>Application In Progress</Text>
           <Text style={styles.redirectText}>
-            You already have a pending exit application. Please withdraw it before submitting a new one.
+            You already have a pending exit application. Please withdraw it
+            before submitting a new one.
           </Text>
           <Button
             mode="contained"
@@ -317,13 +321,19 @@ const ExitApplyScreen = ({navigation}) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {/* Header Section */}
-          <View style={styles.headerSection}>
+          {/* <View style={styles.headerSection}>
             <Icon name="exit-run" size={40} color="#3B82F6" />
             <Text style={styles.headerText}>Request Exit</Text>
             <Text style={styles.subHeaderText}>
               Please fill in the details below to submit your exit request
             </Text>
-          </View>
+          </View> */}
+
+          <LeaveHeader
+            title="Exit Request"
+            subtitle="Please fill in the details below to submit your exit request"
+            iconName="exit-run"
+          />
 
           {/* Form Section */}
           <View style={styles.formContainer}>
@@ -380,7 +390,10 @@ const ExitApplyScreen = ({navigation}) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Exit Date <Text style={{color: 'red'}}>*</Text>
-                <Text style={styles.dateHintText}> (must be at least 30 days from today)</Text>
+                <Text style={styles.dateHintText}>
+                  {' '}
+                  (must be at least 30 days from today)
+                </Text>
               </Text>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -461,7 +474,9 @@ const ExitApplyScreen = ({navigation}) => {
             setValue('exitDate', date, {shouldValidate: true});
           } else {
             // If validation fails, set to minimum acceptable date
-            setValue('exitDate', new Date(minimumExitDate), {shouldValidate: true});
+            setValue('exitDate', new Date(minimumExitDate), {
+              shouldValidate: true,
+            });
           }
         }}
         onCancel={() => setShowDatePicker(false)}
@@ -511,7 +526,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#111827',
-    fontWeight: '600',
+    fontWeight: '800',
     fontSize: 18,
     fontFamily: Platform.OS === 'android' ? 'sans-serif-medium' : undefined,
   },

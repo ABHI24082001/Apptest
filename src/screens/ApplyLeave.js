@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Alert,
   ActionSheetIOS,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useForm, Controller} from 'react-hook-form';
@@ -22,13 +22,13 @@ import LeaveBalanceCards from '../component/LeaveBalanceCards';
 import {Picker} from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
-import { Platform } from 'react-native';
+import {Platform} from 'react-native';
 
 import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import BASE_URL from '../constants/apiConfig';
 
-const ApplyLeaveScreen = ({ navigation, route }) => {
+const ApplyLeaveScreen = ({navigation, route}) => {
   const employeeDetails = useFetchEmployeeDetails();
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,16 +37,20 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [documentPath, setDocumentPath] = useState('');
   const [charCount, setCharCount] = useState(100);
-  const [feedback, setFeedback] = useState({ visible: false, type: '', message: '' }); // State for FeedbackModal
+  const [feedback, setFeedback] = useState({
+    visible: false,
+    type: '',
+    message: '',
+  }); // State for FeedbackModal
 
-  const passedLeaveData = route.params?.leaveData; 
+  const passedLeaveData = route.params?.leaveData;
 
   const {
     control,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: {errors},
   } = useForm({
     defaultValues: {
       EmployeeId: employeeDetails?.id ?? '',
@@ -119,7 +123,6 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
         // Fetch leave policies for Leave Name dropdown
         const policiesResponse = await axiosInstance.get(
           `${BASE_URL}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
-        
         );
 
         // Validate response data
@@ -136,20 +139,18 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
 
         setLeavePolicies(policies);
 
-        
         if (passedLeaveData?.LeaveId || passedLeaveData?.leaveName) {
           const selectedPolicy = policies.find(
             policy =>
               policy.policyId === passedLeaveData?.LeaveId ||
-              policy.leaveName === passedLeaveData?.leaveName
+              policy.leaveName === passedLeaveData?.leaveName,
           );
           if (selectedPolicy) {
-            setValue('LeaveId', selectedPolicy.policyId); 
+            setValue('LeaveId', selectedPolicy.policyId);
           }
         }
       } catch (error) {
         console.error('Error fetching leave policies:', error.message || error);
-      
       }
     };
 
@@ -160,7 +161,11 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
   function generatePdfFileName() {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
-    return `leave_${pad(now.getDate())}${pad(now.getMonth() + 1)}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.pdf`;
+    return `leave_${pad(now.getDate())}${pad(
+      now.getMonth() + 1,
+    )}${now.getFullYear()}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(
+      now.getSeconds(),
+    )}.pdf`;
   }
 
   // Document picker handler
@@ -191,8 +196,6 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
       }
     }
   };
-
-
 
   const onSubmit = async data => {
     const payload = {
@@ -264,7 +267,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
 
         // Delay navigation until feedback modal is closed
         setTimeout(() => {
-          setFeedback({ visible: false, type: '', message: '' });
+          setFeedback({visible: false, type: '', message: ''});
           navigation.navigate('LeaveRequstStatus');
         }, 2000); // Adjust delay as needed
       } else {
@@ -286,13 +289,12 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
     }
   };
 
-
-    useEffect(() => {
+  useEffect(() => {
     const fetchLeaveData = async () => {
       try {
         if (employeeDetails?.id && employeeDetails?.childCompanyId) {
           const response = await axiosInstance.get(
-            `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`
+            `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
           );
 
           const transformed = response.data.leaveBalances.map(item => ({
@@ -325,14 +327,17 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
         if (buttonIndex > 0) {
           onChange(values[buttonIndex - 1]);
         }
-      }
+      },
     );
   };
 
   return (
     <AppSafeArea>
       <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} color="#4B5563" />
+        <Appbar.BackAction
+          onPress={() => navigation.goBack()}
+          color="#4B5563"
+        />
         <Appbar.Content title="Apply Leave" titleStyle={styles.headerTitle} />
       </Appbar.Header>
 
@@ -343,7 +348,14 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          <LeaveHeader />
+          <LeaveHeader
+            title="Apply Leave"
+            subtitle="Please fill in the details below to submit your leave request."
+            iconName="calendar-account-outline"
+          />
+         
+         <Text style={styles.headerText}>Leave application</Text>
+         
           <LeaveBalanceCards leaveData={leaveData} />
 
           {/* Leave Name Dropdown */}
@@ -360,18 +372,20 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 onPress={() =>
                   showIOSPicker(
                     [
-                      { label: 'Select Leave', value: '' },
+                      {label: 'Select Leave', value: ''},
                       ...leavePolicies.map(policy => ({
                         label: policy.leaveName,
                         value: policy.policyId,
                       })),
                     ],
                     watch('LeaveId'),
-                    value => setValue('LeaveId', value)
+                    value => setValue('LeaveId', value),
                   )
                 }>
                 <Text style={styles.iosPickerText}>
-                  {leavePolicies.find(policy => policy.policyId === watch('LeaveId'))?.leaveName || 'Select Leave'}
+                  {leavePolicies.find(
+                    policy => policy.policyId === watch('LeaveId'),
+                  )?.leaveName || 'Select Leave'}
                 </Text>
                 <Icon name="chevron-down" size={20} color="#9CA3AF" />
               </TouchableOpacity>
@@ -379,9 +393,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
               <View style={styles.pickerContainer}>
                 <Controller
                   control={control}
-                  rules={{ required: 'This field is required' }}
+                  rules={{required: 'This field is required'}}
                   name="LeaveId"
-                  render={({ field: { onChange, value } }) => (
+                  render={({field: {onChange, value}}) => (
                     <Picker
                       selectedValue={value}
                       onValueChange={onChange}
@@ -415,17 +429,19 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 onPress={() =>
                   showIOSPicker(
                     [
-                      { label: 'Select Leave Type', value: '' },
-                      { label: 'Full Day', value: '1' },
-                      { label: 'Half Day', value: '2' },
-                      { label: 'Company Off', value: '3' },
+                      {label: 'Select Leave Type', value: ''},
+                      {label: 'Full Day', value: '1'},
+                      {label: 'Half Day', value: '2'},
+                      {label: 'Company Off', value: '3'},
                     ],
                     watch('LeaveType'),
-                    value => setValue('LeaveType', value)
+                    value => setValue('LeaveType', value),
                   )
                 }>
                 <Text style={styles.iosPickerText}>
-                  {['Select Leave Type', 'Full Day', 'Half Day', 'Company Off'][Number(watch('LeaveType'))] || 'Select Leave Type'}
+                  {['Select Leave Type', 'Full Day', 'Half Day', 'Company Off'][
+                    Number(watch('LeaveType'))
+                  ] || 'Select Leave Type'}
                 </Text>
                 <Icon name="chevron-down" size={20} color="#9CA3AF" />
               </TouchableOpacity>
@@ -433,14 +449,13 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
               <View style={styles.pickerContainer}>
                 <Controller
                   control={control}
-                  rules={{ required: 'This field is required' }}
+                  rules={{required: 'This field is required'}}
                   name="LeaveType"
-                  render={({ field: { onChange, value } }) => (
+                  render={({field: {onChange, value}}) => (
                     <Picker
                       selectedValue={value}
                       onValueChange={onChange}
                       style={styles.picker}>
-
                       <Picker.Item label="Full Day" value="1" />
                       <Picker.Item label="Half Day" value="2" />
                       <Picker.Item label="Company Off" value="3" />
@@ -456,7 +471,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
             <Text style={styles.label}>
               Date <Text style={styles.required}>*</Text>
               {errors.FromLeaveDate && (
-                <Text style={styles.errorText}>{errors.FromLeaveDate.message}</Text>
+                <Text style={styles.errorText}>
+                  {errors.FromLeaveDate.message}
+                </Text>
               )}
             </Text>
             <TouchableOpacity
@@ -475,8 +492,17 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
               ]}
               onPress={() => setShowFromDatePicker(true)}
               activeOpacity={0.7}>
-              <Icon name="calendar" size={20} color="#3B82F6" style={{marginRight: 8}} />
-              <Text style={[styles.dateText, {flex: 1, fontSize: 14, color: '#374151'}]}>
+              <Icon
+                name="calendar"
+                size={20}
+                color="#3B82F6"
+                style={{marginRight: 8}}
+              />
+              <Text
+                style={[
+                  styles.dateText,
+                  {flex: 1, fontSize: 14, color: '#374151'},
+                ]}>
                 {fromLeaveDateValue
                   ? new Date(fromLeaveDateValue).toLocaleDateString()
                   : 'Select Date'}
@@ -486,7 +512,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
             <DatePicker
               modal
               open={showFromDatePicker}
-              date={fromLeaveDateValue ? new Date(fromLeaveDateValue) : new Date()}
+              date={
+                fromLeaveDateValue ? new Date(fromLeaveDateValue) : new Date()
+              }
               mode="date"
               minimumDate={new Date()}
               onConfirm={date => {
@@ -521,7 +549,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                   <>
                     <TouchableOpacity
                       style={styles.numberButton}
-                      onPress={() => onChange(Math.max(1, (Number(value) || 1) - 1))}>
+                      onPress={() =>
+                        onChange(Math.max(1, (Number(value) || 1) - 1))
+                      }>
                       <Icon name="minus" size={20} color="#6B7280" />
                     </TouchableOpacity>
                     <Text style={styles.numberDisplay}>{value}</Text>
@@ -549,7 +579,10 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
               name="Remarks"
               rules={{
                 required: 'Reason is required',
-                maxLength: {value: 100, message: 'Maximum 100 characters allowed'},
+                maxLength: {
+                  value: 100,
+                  message: 'Maximum 100 characters allowed',
+                },
               }}
               render={({field: {onChange, value}}) => (
                 <TextInput
@@ -565,7 +598,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 />
               )}
             />
-            <Text style={styles.charCount}>{charCount} characters remaining</Text>
+            <Text style={styles.charCount}>
+              {charCount} characters remaining
+            </Text>
           </View>
 
           {/* Document Upload UI */}
@@ -574,9 +609,15 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
             {uploadedFile ? (
               <View style={styles.documentPreview}>
                 <Icon
-                  name={uploadedFile.type.includes('pdf') ? 'file-pdf-box' : 'file-image'}
+                  name={
+                    uploadedFile.type.includes('pdf')
+                      ? 'file-pdf-box'
+                      : 'file-image'
+                  }
                   size={24}
-                  color={uploadedFile.type.includes('pdf') ? '#e74c3c' : '#3498db'}
+                  color={
+                    uploadedFile.type.includes('pdf') ? '#e74c3c' : '#3498db'
+                  }
                 />
                 <Text style={styles.documentName}>{documentPath}</Text>
                 <TouchableOpacity
@@ -589,7 +630,9 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentPick}>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={handleDocumentPick}>
                 <Icon name="upload" size={20} color="#3498db" />
                 <Text style={styles.uploadText}>Upload Document</Text>
               </TouchableOpacity>
@@ -613,7 +656,7 @@ const ApplyLeaveScreen = ({ navigation, route }) => {
         visible={feedback.visible}
         type={feedback.type}
         message={feedback.message}
-        onClose={() => setFeedback({ visible: false, type: '', message: '' })}
+        onClose={() => setFeedback({visible: false, type: '', message: ''})}
       />
     </AppSafeArea>
   );
@@ -624,6 +667,14 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 15,
     backgroundColor: '#fff',
+    marginTop: -20,
+  },
+   headerText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#484848ff',
+    marginTop: 10,
+    marginBottom: 6,
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -633,10 +684,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    color: '#111827',
-    fontWeight: '600',
-    fontSize: 18,
-    textAlign: 'center',
+     fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   container: {
     flexGrow: 1,
@@ -812,8 +862,5 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 });
-
-
-
 
 export default ApplyLeaveScreen;
