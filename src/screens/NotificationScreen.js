@@ -280,8 +280,9 @@ const RequestDetailsScreen = () => {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.retryText}>Refresh</Text>
-                  )}
+                  ) }
                 </TouchableOpacity>
+
               </View>
             )}
           </>

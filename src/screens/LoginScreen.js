@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   StyleSheet,
@@ -17,11 +17,10 @@ import HookFormInput from '../component/HookFormInput';
 
 import {setAuthToken, setUserIdHeader} from '../utils/axiosInstance'
 import axiosInstance from '../utils/axiosInstance'; 
-// const BASE_URL = 'https://hcmapiv2.anantatek.com/api/';
 const ERROR_COLOR = '#f44336';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../constants/AuthContext';
+
 const LoginScreen = () => {
   const {
     control,
@@ -38,139 +37,100 @@ const LoginScreen = () => {
 
   const {login} = useAuth();
 
-  // Check for stored credentials on component mount
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const hasLoggedIn = await AsyncStorage.getItem('hasLoggedIn');
-        const storedUser = await AsyncStorage.getItem('user');
-        const storedToken = await AsyncStorage.getItem('token');
-        const storedUserId = await AsyncStorage.getItem('userId');
+  const onSubmit = async (data) => {
+    const { username, password } = data;
+    setLoading(true);
+    setLoginMessage({ type: '', text: '' });
+    clearErrors();
 
-        if (hasLoggedIn === 'true' && storedUser && storedToken && storedUserId) {
-          // Set the authentication state
-          const userData = JSON.parse(storedUser);
-          login(userData, storedToken, storedUserId);
-          
-          // Set headers for axios
-          setAuthToken(storedToken);
-          setUserIdHeader(storedUserId);
-          
-          // Navigate to Main screen
-          navigation.replace('Main');
-        }
-      } catch (error) {
-        console.error('Error checking login status:', error);
-      }
-    };
+    const token =
+      'SoN8HIgE3rYpS22E4ngvUj7Bj5PypE0JKUvbgIo3N7bMy1bVnhAWNKyFaMmBAnZz+n1Nyry29JujM3MmZJ4fdpzC2LMf0pCoR4a44dJxDXtutvdcMLZVBNoMYNcwbnx5Na1/ujDmC2SO/mCYZ8HXuL++c+EMS3EDVHc0gEcjxyEOb8rMv3q5XOY8Ha+hV0DIn5e1lfsp18cz9Kwm0mBlo9IykXIyeQyNCp1/AxhmaRQkb37BLRLOXfX251myZJbm';
 
-    checkLoginStatus();
-  }, []);
-
-const onSubmit = async (data) => {
-  const { username, password } = data;
-  setLoading(true);
-  setLoginMessage({ type: '', text: '' });
-  clearErrors();
-
-  const token =
-    'SoN8HIgE3rYpS22E4ngvUj7Bj5PypE0JKUvbgIo3N7bMy1bVnhAWNKyFaMmBAnZz+n1Nyry29JujM3MmZJ4fdpzC2LMf0pCoR4a44dJxDXtutvdcMLZVBNoMYNcwbnx5Na1/ujDmC2SO/mCYZ8HXuL++c+EMS3EDVHc0gEcjxyEOb8rMv3q5XOY8Ha+hV0DIn5e1lfsp18cz9Kwm0mBlo9IykXIyeQyNCp1/AxhmaRQkb37BLRLOXfX251myZJbm';
-
-  try {
-    // 🔍 Step 1: Fetch User ID
-    console.log('🔄 Sending request to FetchCompanyUserId...');
-    const fetchUserIdResponse = await axiosInstance.post(
-      '/EmpRegistration/FetchCompanyUserId',
-      {
-        UserName: username,
-        Password: password,
-        descriptor: null,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          UserId: '0',
+    try {
+      // 🔍 Step 1: Fetch User ID
+      console.log('🔄 Sending request to FetchCompanyUserId...');
+      const fetchUserIdResponse = await axiosInstance.post(
+        '/EmpRegistration/FetchCompanyUserId',
+        {
+          UserName: username,
+          Password: password,
+          descriptor: null,
         },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            UserId: '0',
+          },
+        }
+      );
+
+      const fetchedUserId = fetchUserIdResponse?.data;
+
+      if (!fetchedUserId) {
+        throw new Error('User ID not found. Please check your username/password.');
       }
-    );
 
-    const fetchedUserId = fetchUserIdResponse?.data;
+      // ✅ Set token and userId globally for all axiosInstance calls
+      setAuthToken(token);
+      setUserIdHeader(fetchedUserId);
 
-    if (!fetchedUserId) {
-      throw new Error('User ID not found. Please check your username/password.');
+      // 🔐 Step 2: Authenticate User
+      console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
+
+      const getAuthUserResponse = await axiosInstance.post(
+        '/EmpRegistration/GetAuthUser',
+        {
+          UserName: username,
+          Password: password,
+          UserType: 0,
+        }
+      );
+
+      console.log('✅ GetAuthUser Response:', getAuthUserResponse.data);
+
+      if (getAuthUserResponse.data) {
+        // Use the login function from AuthContext to handle all auth-related tasks
+        await login(getAuthUserResponse.data, token, fetchedUserId);
+        
+        setLoginMessage({
+          type: 'success',
+          text: 'Login Successful. Welcome back!',
+        });
+
+        navigation.replace('Main');
+      } else {
+        setLoginMessage({
+          type: 'error',
+          text: 'Invalid username or password.',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Login flow error:', error?.response?.data || error.message);
+
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message || error?.message || 'Login failed';
+
+      const isUsernameError = message.toLowerCase().includes('username');
+      const isPasswordError = message.toLowerCase().includes('password');
+
+      if (status === 404 || isUsernameError || isPasswordError) {
+        if (isUsernameError) {
+          setError('username', { type: 'manual', message: 'Username is invalid' });
+        }
+        if (isPasswordError) {
+          setError('password', { type: 'manual', message: 'Password is invalid' });
+        }
+        if (!isUsernameError && !isPasswordError) {
+          setLoginMessage({ type: 'error', text: 'Username or Password is invalid' });
+        }
+      } else {
+        setLoginMessage({ type: 'error', text: message });
+      }
+    } finally {
+      console.log('✅ Login process completed.');
+      setLoading(false);
     }
-
-    // ✅ Set token and userId globally for all axiosInstance calls
-    setAuthToken(token);
-    setUserIdHeader(fetchedUserId);
-
-    // 🔐 Step 2: Authenticate User
-    console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
-
-    const getAuthUserResponse = await axiosInstance.post(
-      '/EmpRegistration/GetAuthUser',
-      {
-        UserName: username,
-        Password: password,
-        UserType: 0,
-      }
-    );
-
-    console.log('✅ GetAuthUser Response:', getAuthUserResponse.data);
-
-    if (getAuthUserResponse.data) {
-      await AsyncStorage.setItem('hasLoggedIn', 'true');
-      await AsyncStorage.setItem('user', JSON.stringify(getAuthUserResponse.data));
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('userId', fetchedUserId);
-      
-      login(getAuthUserResponse.data, token, fetchedUserId); // ✅ Include userId if needed
-
-      setLoginMessage({
-        type: 'success',
-        text: 'Login Successful. Welcome back!',
-      });
-
-      navigation.replace('Main');
-    } else {
-      setLoginMessage({
-        type: 'error',
-        text: 'Invalid username or password.',
-      });
-    }
-  } catch (error) {
-    console.error('❌ Login flow error:', error?.response?.data || error.message);
-
-    const status = error?.response?.status;
-    const message = error?.response?.data?.message || error?.message || 'Login failed';
-
-    const isUsernameError = message.toLowerCase().includes('username');
-    const isPasswordError = message.toLowerCase().includes('password');
-
-    if (status === 404 || isUsernameError || isPasswordError) {
-      if (isUsernameError) {
-        setError('username', { type: 'manual', message: 'Username is invalid' });
-      }
-      if (isPasswordError) {
-        setError('password', { type: 'manual', message: 'Password is invalid' });
-      }
-      if (!isUsernameError && !isPasswordError) {
-        setLoginMessage({ type: 'error', text: 'Username or Password is invalid' });
-      }
-    } else {
-      setLoginMessage({ type: 'error', text: message });
-    }
-  } finally {
-    console.log('✅ Login process completed.');
-    setLoading(false);
-  }
-};
-
-
-
-
-
-
+  };
 
   return (
     <SafeAreaView style={styles.safeContainer}>

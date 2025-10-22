@@ -197,12 +197,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 15,
   },
   progressTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+   progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+   justifyContent: 'space-evenly',
+   marginTop: 5,
   },
   progressTitle: {
     fontSize: 16,

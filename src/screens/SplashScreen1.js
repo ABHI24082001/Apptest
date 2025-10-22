@@ -1,15 +1,15 @@
-
 import React, {useState} from 'react';
 import {
-  SafeAreaView,
-  View,
-  StyleSheet,
-  TouchableOpacity,
+  View, 
+  Text, 
+  TouchableOpacity, 
+  StyleSheet, 
+  StatusBar, 
   Dimensions,
-  Platform,
+  Platform
 } from 'react-native';
 import LottieView from 'lottie-react-native';
-import {Text} from 'react-native-paper';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const {width} = Dimensions.get('window');
@@ -57,10 +57,15 @@ const OnboardingScreen = ({navigation}) => {
       'Track time, manage shifts, and generate reports effortlessly.',
     ][step];
   };
-  
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={['#1E40AF', '#2563EB', '#3B82F6']}
+      start={{x: 0, y: 0}}
+      end={{x: 0, y: 1}}
+      style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
       {/* Lottie Animation */}
       <View style={styles.animationContainer}>
         <LottieView
@@ -71,125 +76,133 @@ const OnboardingScreen = ({navigation}) => {
         />
       </View>
 
-      {/* Text Content */}
+      {/* Text Section */}
       <View style={styles.textContainer}>
-        <Text variant="titleLarge" style={styles.title}>
-          {getTitle()}
-        </Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          {getSubtitle()}
-        </Text>
+        <Text style={styles.title}>{getTitle()}</Text>
+        <Text style={styles.subtitle}>{getSubtitle()}</Text>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        {/* Dot Indicators */}
-        <View style={styles.dotsContainer}>
-          {[0, 1, 2].map(index => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                step === index && styles.activeDot,
-              ]}
-            />
-          ))}
-        </View>
+      {/* Pagination Dots */}
+      <View style={styles.dotsContainer}>
+        {[0, 1, 2].map(index => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              step === index ? styles.dotActive : null,
+            ]}
+          />
+        ))}
+      </View>
 
-        {/* Controls */}
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
+      {/* Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.nextButton}
+          onPress={handleNext}>
+          <LinearGradient
+            colors={['#1E3A8A', '#2563EB']}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            style={styles.nextGradient}>
             <Text style={styles.nextText}>
-              {step < 2 ? 'Next' : 'Start'}
+              {step < 2 ? 'Next' : 'Get Started'}
             </Text>
-            <Icon name="arrow-forward-ios" size={16} color="#fff" />
-          </TouchableOpacity>
-        </View>
+            <Icon name="arrow-forward-ios" size={16} color="#fff" style={styles.nextIcon} />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleSkip}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </LinearGradient>
   );
 };
-
-export default OnboardingScreen;
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? 60 : 0,
-    paddingHorizontal: 20,
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   animationContainer: {
+    marginTop: 80,
     alignItems: 'center',
-    marginTop: 60,
+    justifyContent: 'center',
   },
   lottie: {
     width: width * 0.8,
     height: width * 0.8,
   },
   textContainer: {
+    marginTop: 20,
+    paddingHorizontal: 30,
     alignItems: 'center',
-    marginBottom: 40,
-    paddingHorizontal: 10,
   },
   title: {
-    fontWeight: 'bold',
     fontSize: 26,
+    fontWeight: '700',
+    color: '#fff',
     textAlign: 'center',
-    color: '#333',
     marginBottom: 12,
   },
   subtitle: {
-    textAlign: 'center',
-    color: '#666',
     fontSize: 16,
-    lineHeight: 20,
-  },
-  footer: {
-    marginBottom: 20,
+    color: '#e0e7ff',
+    textAlign: 'center',
+    lineHeight: 22,
   },
   dotsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 15,
+    marginTop: 40,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     marginHorizontal: 4,
   },
-  activeDot: {
-    backgroundColor: '#000',
+  dotActive: {
+    backgroundColor: '#fff',
+    width: 20,
   },
-  buttonsContainer: {
-    margin: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  buttonContainer: {
+    marginTop: 50,
     alignItems: 'center',
-  },
-  skipText: {
-    fontSize: 16,
-    color: '#888',
+    width: '100%',
+    paddingHorizontal: 20,
   },
   nextButton: {
+    width: 250,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  nextGradient: {
+    flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#000',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 25,
   },
   nextText: {
     color: '#fff',
+    fontWeight: '600',
     fontSize: 16,
     marginRight: 6,
+  },
+  nextIcon: {
+    marginTop: 1,
+  },
+  skipText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '500',
+    opacity: 0.8,
   },
 });
+
+export default OnboardingScreen;

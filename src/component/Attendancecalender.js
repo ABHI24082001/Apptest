@@ -44,7 +44,7 @@ export default function MonthCalendarWithAgenda({
   // Event type defaults (used for color/icon fallbacks)
   const eventTypes = {
     present: { color: '#666666', icon: 'check', status: 'P' },
-    absent: { color: '#FF0000', icon: 'close', status: 'A' },
+    absent: { color: '#aeaeaeff', icon: 'close', status: 'A' },
     holiday: { color: '#a80000ff', icon: 'celebration', status: 'H' },
   };
 
@@ -317,15 +317,13 @@ export default function MonthCalendarWithAgenda({
                 <Text style={[styles.statusText, { color: eventTypes['present'].color }]}>P</Text>
               )} */}
 
-              {e.type === 'absent' && (
+              {/* {e.type === 'absent' && (
                 <Text style={[styles.statusText, {
                   color: eventTypes['absent'].color,
                   backgroundColor: '#FFEBEE',
-                  paddingHorizontal: 4,
-                  paddingVertical: 2,
-                  borderRadius: 4,
+                 
                 }]}>A</Text>
-              )}
+              )} */}
             </View>
           );
         })}
@@ -494,8 +492,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   absentCard: {
-    backgroundColor: '#FF4444',
-    borderColor: '#FF0000',
+    backgroundColor: '#f9f9f9ff',
+    borderColor: '#fcfcfcff',
     borderWidth: 1,
   },
   presentCard: {

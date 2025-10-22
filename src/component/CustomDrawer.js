@@ -22,6 +22,13 @@ import AppSafeArea from '../component/AppSafeArea';
 
 import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
+
+// Add theme constants for consistent coloring & small UI tweaks
+const ICON_COLOR = '#2196F3';
+const ACTIVE_BG = 'rgba(33,150,243,0.08)'; // subtle blue highlight
+const INACTIVE_TEXT = '#5D6D7E';
+const ACTIVE_TEXT = '#0D47A1';
+
 const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
@@ -37,7 +44,7 @@ const CustomDrawer = ({navigation}) => {
       console.log('Starting logout from CustomDrawer...');
       await logout(); // ✅ Clear user and AsyncStorage
       console.log('Logout successful, navigating to Login screen');
-      
+
       // Ensure we reset the navigation stack to prevent going back
       navigation.reset({
         index: 0,
@@ -56,62 +63,40 @@ const CustomDrawer = ({navigation}) => {
   const menuItems = [
     {
       label: 'Dashboard',
-      icon: 'view-dashboard-outline',
-      activeIcon: 'view-dashboard-outline',
+      icon: 'home-outline',
+      activeIcon: 'home',
       screen: 'Tabs',
       params: {screen: 'Home'},
     },
     {
       label: 'Apply Leave',
       icon: 'calendar-outline',
-      activeIcon: 'calendar',
+      activeIcon: 'calendar-check',
       screen: 'ApplyLeave',
     },
     {
       label: 'My Payslip',
       icon: 'file-certificate-outline',
-      activeIcon: 'file-certificate',
+      activeIcon: 'file-document',
       screen: 'MyPayslip',
     },
-    // {label: 'My Expenses', icon: 'cash-minus', activeIcon: 'cash', screen: 'MyExpenses'},
     {
       label: 'Payment Request',
-      icon: 'cash-plus',
-      activeIcon: 'cash-plus',
+      icon: 'credit-card-outline',
+      activeIcon: 'credit-card',
       screen: 'PaymentRequest',
     },
     {
       label: 'Exit Apply',
-      icon: 'exit-to-app',
-      activeIcon: 'exit-to-app',
+      icon: 'exit-run',
+      activeIcon: 'exit-run',
       screen: 'Exit',
     },
-    // {label: 'LeaveReport', icon: 'calendar-outline' , activeIcon: 'calendar',  screen: 'LeaveReport'},
-    // {
-    //   label: 'LeaveDetails',
-    //   icon: 'calendar-outline',
-    //   activeIcon: 'calendar',
-    //   screen: 'LeaveRequestDetails',
-    // },
-    // {
-    //   label: 'ExpenseDetails',
-    //   icon: 'calendar-outline',
-    //   activeIcon: 'calendar',
-    //   screen: 'ExpenseRequestDetails',
-    // },
-    // {
-    //   label: 'ExitRequest Details',
-    //   icon: 'calendar-outline',
-    //   activeIcon: 'calendar',
-    //   screen: 'ExitRequestDetails',
-    // },
   ];
 
   const avatarStyle = useAnimatedStyle(() => ({
     transform: [{scale: withSpring(avatarScale.value)}],
   }));
-
-
 
   const DrawerItem = ({icon, activeIcon, label, screen, params}) => {
     const isActive = selectedScreen === screen;
@@ -122,12 +107,13 @@ const CustomDrawer = ({navigation}) => {
       transform: [{scale: withTiming(animatedScale.value, {duration: 200})}],
       backgroundColor: withTiming(animatedBg.value, {duration: 300}),
       borderRadius: 12,
-      padding: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
     }));
 
     React.useEffect(() => {
-      animatedScale.value = isActive ? 1.05 : 1;
-      animatedBg.value = isActive ? '#E3EBF6' : 'transparent';
+      animatedScale.value = isActive ? 1.03 : 1;
+      animatedBg.value = isActive ? ACTIVE_BG : 'transparent';
     }, [isActive]);
 
     return (
@@ -141,13 +127,13 @@ const CustomDrawer = ({navigation}) => {
           <MaterialCommunityIcons
             name={isActive ? activeIcon : icon}
             size={26}
-            color={isActive ? '#3A5BA0' : '#5D6D7E'}
+            color={ICON_COLOR}
             style={styles.menuIcon}
           />
           <Text
             style={[
               styles.menuLabel,
-              {color: isActive ? '#3A5BA0' : '#5D6D7E'},
+              {color: isActive ? ACTIVE_TEXT : INACTIVE_TEXT},
             ]}>
             {label}
           </Text>
@@ -192,7 +178,6 @@ const CustomDrawer = ({navigation}) => {
     }
   }, [user?.empImage]);
 
-
   console.log('employee avatar ➜', imageUrl);
 
   return (
@@ -203,10 +188,14 @@ const CustomDrawer = ({navigation}) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <Animated.View style={[styles.profile, avatarStyle]}>
-            <TouchableOpacity  onPress={() => setVisible(true)} activeOpacity={0.9}>
+            <TouchableOpacity
+              onPress={() => setVisible(true)}
+              activeOpacity={0.9}>
               <Image
                 source={
-                  imageUrl ? {uri: imageUrl} : require('../assets/image/boy.png')
+                  imageUrl
+                    ? {uri: imageUrl}
+                    : require('../assets/image/boy.png')
                 }
                 style={styles.avatar}
               />
@@ -215,7 +204,9 @@ const CustomDrawer = ({navigation}) => {
             {employeeData && (
               <>
                 <Text style={styles.name}>{employeeData?.employeeName}</Text>
-                <Text style={styles.subText}>{employeeData.designationName}</Text>
+                <Text style={styles.subText}>
+                  {employeeData.designationName}
+                </Text>
               </>
             )}
           </Animated.View>
@@ -233,17 +224,20 @@ const CustomDrawer = ({navigation}) => {
               style={[styles.menuItem, {justifyContent: 'space-between'}]}>
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <MaterialCommunityIcons
-                  name="file-document-outline"
+                  name="chart-box-outline"
                   size={26}
-                  color="#5D6D7E"
+                  color={ICON_COLOR}
                   style={styles.menuIcon}
                 />
-                <Text style={styles.menuLabel}> My Reports</Text>
+                <Text style={[styles.menuLabel, {color: INACTIVE_TEXT}]}>
+                  {' '}
+                  My Reports
+                </Text>
               </View>
               <MaterialCommunityIcons
                 name={isLogExpanded ? 'chevron-down' : 'chevron-right'}
                 size={24}
-                color="#5D6D7E"
+                color={ICON_COLOR}
               />
             </TouchableOpacity>
 
@@ -260,17 +254,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="file-document"
+                    name="file-chart-outline"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Log Report
                   </Text>
                 </TouchableOpacity>
@@ -286,17 +280,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="cash"
+                    name="wallet-outline"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     My Expenses
                   </Text>
                 </TouchableOpacity>
@@ -312,17 +306,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="calendar"
+                    name="calendar-range"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Leave Report
                   </Text>
                 </TouchableOpacity>
@@ -338,15 +332,17 @@ const CustomDrawer = ({navigation}) => {
                 <MaterialCommunityIcons
                   name="file-multiple-outline"
                   size={26}
-                  color="#5D6D7E"
+                  color={ICON_COLOR}
                   style={styles.menuIcon}
                 />
-                <Text style={styles.menuLabel}>My Requests </Text>
+                <Text style={[styles.menuLabel, {color: INACTIVE_TEXT}]}>
+                  My Requests{' '}
+                </Text>
               </View>
               <MaterialCommunityIcons
                 name={isRequestExpanded ? 'chevron-down' : 'chevron-right'}
                 size={24}
-                color="#5D6D7E"
+                color={ICON_COLOR}
               />
             </TouchableOpacity>
 
@@ -363,17 +359,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
                     name="calendar"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Leave Request
                   </Text>
                 </TouchableOpacity>
@@ -389,17 +385,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
                     name="cash"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Expense Request
                   </Text>
                 </TouchableOpacity>
@@ -415,17 +411,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="exit-to-app"
+                    name="exit-run"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Exit Request
                   </Text>
                 </TouchableOpacity>
@@ -443,15 +439,19 @@ const CustomDrawer = ({navigation}) => {
                 <MaterialCommunityIcons
                   name="file-eye-outline"
                   size={26}
-                  color="#5D6D7E"
+                  color={ICON_COLOR}
                   style={styles.menuIcon}
                 />
-                <Text style={styles.menuLabel}>Employees' Requests</Text>
+                <Text style={[styles.menuLabel, {color: INACTIVE_TEXT}]}>
+                  Employees' Requests
+                </Text>
               </View>
               <MaterialCommunityIcons
-                name={isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'}
+                name={
+                  isRequestExpandedDetails ? 'chevron-down' : 'chevron-right'
+                }
                 size={24}
-                color="#5D6D7E"
+                color={ICON_COLOR}
               />
             </TouchableOpacity>
 
@@ -467,17 +467,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
                     name="calendar"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Leave Request
                   </Text>
                 </TouchableOpacity>
@@ -492,17 +492,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
                     name="cash"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Expense Request
                   </Text>
                 </TouchableOpacity>
@@ -517,17 +517,17 @@ const CustomDrawer = ({navigation}) => {
                     styles.menuItem,
                     {
                       marginLeft: 40,
-                      backgroundColor: '#E3EBF6',
+                      backgroundColor: ACTIVE_BG,
                       borderRadius: 10,
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="exit-to-app"
+                    name="exit-run"
                     size={24}
-                    color="#3A5BA0"
+                    color={ICON_COLOR}
                     style={styles.menuIcon}
                   />
-                  <Text style={[styles.menuLabel, {color: '#3A5BA0'}]}>
+                  <Text style={[styles.menuLabel, {color: ACTIVE_TEXT}]}>
                     Exit Request
                   </Text>
                 </TouchableOpacity>
@@ -543,10 +543,10 @@ const CustomDrawer = ({navigation}) => {
           <MaterialCommunityIcons
             name="logout-variant"
             size={24}
-            color="#E74C3C"
+            color={ICON_COLOR}
             style={styles.menuIcon}
           />
-          <Text style={[styles.menuLabel, {color: '#E74C3C'}]}>Logout</Text>
+          <Text style={[styles.menuLabel, {color: ICON_COLOR}]}>Logout</Text>
         </TouchableOpacity>
       </View>
     </AppSafeArea>
@@ -588,21 +588,21 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#3A5BA0',
+    borderColor: ICON_COLOR,
   },
   name: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2C3E50',
+    color: ACTIVE_TEXT,
   },
   subText: {
     fontSize: 14,
-    color: '#5D6D7E',
+    color: INACTIVE_TEXT,
     marginTop: 6,
   },
   menuList: {
@@ -612,18 +612,18 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   menuIcon: {
-    marginRight: 20,
+    marginRight: 16,
   },
   menuLabel: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#34495E',
+    color: '#37474F',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -632,27 +632,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderColor: '#D6DBDF',
+    borderColor: '#E0E0E0',
     marginTop: 10,
     marginBottom: Platform.OS === 'ios' ? 20 : 10,
   },
 });
-
-// export default CustomDrawer;
-//     fontSize: 17,
-//     fontWeight: '600',
-//     color: '#34495E',
-//   },
-//   footer: {
-//     padding: 25,
-//     borderTopWidth: 1,
-//     borderColor: '#D6DBDF',
-//     backgroundColor: '#fff',
-//   },
-//   logout: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//   },
-// });
 
 export default CustomDrawer;

@@ -10,24 +10,57 @@ export const AuthProvider = ({children}) => {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Load user from AsyncStorage if needed
+  // Load user from AsyncStorage when the app starts
   useEffect(() => {
-    const loadUser = async () => {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) setUser(JSON.parse(userData));
+    const loadUserData = async () => {
+      try {
+        setIsLoading(true);
+        const [userData, userToken, userIdValue] = await Promise.all([
+          AsyncStorage.getItem('user'),
+          AsyncStorage.getItem('token'),
+          AsyncStorage.getItem('userId')
+        ]);
+
+        if (userData && userToken && userIdValue) {
+          setUser(JSON.parse(userData));
+          setToken(userToken);
+          setUserId(userIdValue);
+          setAuthToken(userToken);
+          setUserIdHeader(userIdValue);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    loadUser();
+    loadUserData();
   }, []);
 
-  const login = async (userData, token, userId) => {
-  setAuthToken(token);           // ✅ Set token globally
-  setUserIdHeader(userId);       // ✅ Set userId globally
+  // Fixed login function to properly update all state
+  const login = async (userData, userToken, userIdValue) => {
+    try {
+      // Set global axios headers
+      setAuthToken(userToken);
+      setUserIdHeader(userIdValue);
 
-  setUser(userData);
-  await AsyncStorage.setItem('user', JSON.stringify(userData));
-  await AsyncStorage.setItem('token', token);
-  await AsyncStorage.setItem('userId', String(userId));
-};
+      // Update context state
+      setUser(userData);
+      setToken(userToken);
+      setUserId(userIdValue);
+
+      // Store in AsyncStorage
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('token', userToken);
+      await AsyncStorage.setItem('userId', String(userIdValue));
+      await AsyncStorage.setItem('hasLoggedIn', 'true');
+
+      console.log('✅ Auth context: Login successful, user data saved');
+    } catch (error) {
+      console.error('❌ Auth context login error:', error);
+      throw error;
+    }
+  };
 
   // Ensure logout function properly clears all AsyncStorage keys
   const logout = async () => {
@@ -55,7 +88,6 @@ export const AuthProvider = ({children}) => {
     }
   };
 
-  // Make sure to include logout in the context value
   return (
     <AuthContext.Provider 
       value={{
@@ -63,11 +95,7 @@ export const AuthProvider = ({children}) => {
         token,
         userId,
         isLoading,
-        login: (userData, userToken, userId) => {
-          setUser(userData);
-          setToken(userToken);
-          setUserId(userId);
-        },
+        login,
         logout,
       }}>
       {children}
