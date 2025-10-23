@@ -114,7 +114,10 @@ const HomeScreen = () => {
             const now = Date.now();
             const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
             // Use dynamic totalShiftSeconds instead of hardcoded 28800
-            const clamped = Math.min(totalShiftSeconds, Math.max(0, elapsedSeconds));
+            const clamped = Math.min(
+              totalShiftSeconds,
+              Math.max(0, elapsedSeconds),
+            );
             const progressPercentage = Math.floor(
               (clamped / totalShiftSeconds) * 100,
             );
@@ -612,6 +615,9 @@ const HomeScreen = () => {
             CompanyId: employeeDetails.childCompanyId,
           };
 
+
+          console.log()
+
           const response = await axios.post(
             `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
             payload,
@@ -703,26 +709,16 @@ const HomeScreen = () => {
                     return;
                   }
 
-                  // ✅ Convert to IST
-                  const nowUTC = new Date();
-                  const istOffset = 5.5 * 60 * 60 * 1000; // +5:30
-                  const istDate = new Date(nowUTC.getTime() + istOffset);
-
-                  // ✅ Fixed date (you can change this as needed)
-                  const fixedDate = istDate.toISOString().split('T')[0];
-
-                  // ✅ Extract 24-hour time (HH:mm:ss)
-                  const istTime = istDate.toTimeString().split(' ')[0];
-
-                  // ✅ Build ISO datetime for API
-                  const logDateTime = `${fixedDate}T${istTime}.000Z`;
+                  const now = new Date();
+                  const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                  const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
 
                   // ✅ Build payload
                   const attendancePayload = {
                     EmployeeCode: employeeDetails?.companyUserId || '29',
-                    LogDateTime: logDateTime,
-                    LogDate: fixedDate,
-                    LogTime: istTime,
+                    LogDateTime: now.toISOString(), // ✅ full timestamp
+                    LogDate: logDate, // ✅ only date
+                    LogTime: logTime, // ✅ matches LogDateTime
                     Direction: 'in', // must be lowercase
                     DeviceName: 'Bhubneswar',
                     SerialNo: '1',
@@ -746,21 +742,13 @@ const HomeScreen = () => {
 
                   // ✅ If success
                   setCheckedIn(true);
-                  const checkInMs = nowUTC.getTime();
+                  const checkInMs = new Date().getTime();
                   setCheckInTime(checkInMs);
                   await saveCheckInState(true, checkInMs, capturedImage);
                   await startBackgroundService();
 
-                  const formattedLogin = istDate.toLocaleString('en-IN', {
-                    timeZone: 'Asia/Kolkata',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true,
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  });
+                  const formattedLogin = `${logDate} ${logTime}`;
+
 
                   Alert.alert(
                     '✅ Check-In Successful',
@@ -801,7 +789,7 @@ const HomeScreen = () => {
         LogDateTime: now.toISOString(), // ✅ full timestamp
         LogDate: logDate, // ✅ only date
         LogTime: logTime, // ✅ matches LogDateTime
-        Direction: 'OUT', // ✅ correct for checkout
+        Direction: 'in', // ✅ correct for checkout
         DeviceName: 'Bhubneswar',
         SerialNo: '1',
         VerificationCode: '1',
@@ -1230,7 +1218,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchShiftDetails = async () => {
       if (!employeeDetails?.id || !user?.childCompanyId) return;
-      
+
       try {
         const today = new Date();
 
@@ -1311,10 +1299,10 @@ const HomeScreen = () => {
                 0,
                 (shiftEnd - shiftStart) / 1000,
               );
-              
+
               // Update the state with the calculated shift duration
               setTotalShiftSeconds(calculatedTotalShiftSeconds);
-              
+
               console.log('Calculated shift duration:', {
                 calculatedTotalShiftSeconds,
                 hours: (calculatedTotalShiftSeconds / 3600).toFixed(2),
@@ -1326,7 +1314,8 @@ const HomeScreen = () => {
                   0,
                   (actualCheckIn - shiftStart) / 1000,
                 );
-                const missedPercent = (missedSeconds / calculatedTotalShiftSeconds) * 100;
+                const missedPercent =
+                  (missedSeconds / calculatedTotalShiftSeconds) * 100;
 
                 console.log('Time Calculations:', {
                   totalShiftSeconds: calculatedTotalShiftSeconds,
@@ -1365,7 +1354,7 @@ const HomeScreen = () => {
               }
 
               setShiftName(todayShift.shiftName || 'N/A');
-              
+
               // If user is checked in, restart the shift progress with updated duration
               if (checkedIn && checkInTime) {
                 const now = Date.now();
