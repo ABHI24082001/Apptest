@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingTop: Platform.OS === 'ios' ? 44 : 0,
-    marginBottom: -40, // Added bottom padding to prevent content from being cut off
+    marginBottom: -10, // Added bottom padding to prevent content from being cut off
   },
   header: {
     paddingHorizontal: 20,
