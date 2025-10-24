@@ -5,12 +5,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingTop: Platform.OS === 'ios' ? 44 : 0,
-    marginBottom: -10, // Added bottom padding to prevent content from being cut off
+    // marginBottom: 20, // Added bottom padding to prevent content from being cut off
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: 30,
+    paddingBottom: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   headerGreeting: {
     fontSize: 14,

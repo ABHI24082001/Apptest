@@ -11,7 +11,7 @@ import Otp from '../screens/Otp';
 import NewPassword from '../screens/NewPassword';
 import PasswordChange from '../screens/PasswordChange';
 import NotificationScreen from '../screens/NotificationScreen';
-import Approvals from '../screens/Approvals';
+// import Approvals from '../screens/Approvals';
 import Attendance from '../screens/Attendance';
 import Payslip from '../screens/Payslip';
 import WhoLeave from '../screens/WhoLeave';
@@ -28,7 +28,7 @@ import ApplyLeave from '../screens/ApplyLeave';
 import MyPayslip from '../screens/MyPayslip';
 import PaymentRequest from '../screens/PaymentRequest';
 import MyExpenses from '../screens/MyExpenses';
-import AdvanceReport from '../screens/AdvanceReport';
+// import AdvanceReport from '../screens/AdvanceReport';
 import Exit from '../screens/Exit';
 import Profile from '../screens/Profile';
 import LeaveReport from '../screens/LeaveReport';
@@ -38,7 +38,7 @@ import MyApplyLeave from '../screens/MyApplyLeave'
 //   request 
 
 import LeaveRequestedit from '../screens/LeaveRequestedit';
-import ExpenseRequestedit from '../screens/ExpenseRequestedit';
+// import ExpenseRequestedit from '../screens/ExpenseRequestedit';
 import ExitRequestedit from '../screens/ExitRequestedit';
 import Setting from '../screens/Setting';
 import Mylocation from '../screens/Mylocation';
@@ -66,7 +66,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Notifications" component={NotificationScreen} />
 
       {/* bottomtabbar */}
-      <Stack.Screen name="Approvals" component={Approvals} />
+      {/* <Stack.Screen name="Approvals" component={Approvals} /> */}
       <Stack.Screen name="Attendance" component={Attendance} />
       <Stack.Screen name="Payslip" component={Payslip} />
      
@@ -77,7 +77,7 @@ export default function AppNavigator() {
       <Stack.Screen name="MyPayslip" component={MyPayslip} />
       <Stack.Screen name="PaymentRequest" component={PaymentRequest} />
       <Stack.Screen name="MyExpenses" component={MyExpenses} />
-      <Stack.Screen name="AdvanceReport" component={AdvanceReport} />
+      {/* <Stack.Screen name="AdvanceReport" component={AdvanceReport} /> */}
       <Stack.Screen name="Exit" component={Exit} />
       <Stack.Screen name="WhoLeave" component={WhoLeave} />
       <Stack.Screen name="Profile"  component={Profile}/>
@@ -94,7 +94,7 @@ export default function AppNavigator() {
 
 
       <Stack.Screen name="LeaveRequestedit"  component={LeaveRequestedit}/>
-      <Stack.Screen name="ExpenseRequestedit"  component={ExpenseRequestedit}/>
+      {/* <Stack.Screen name="ExpenseRequestedit"  component={ExpenseRequestedit}/> */}
       <Stack.Screen name="ExitRequestedit"  component={ExitRequestedit}/>
       <Stack.Screen name="Setting"  component={Setting}/>
       <Stack.Screen name="Mylocation"  component={Mylocation}/>
