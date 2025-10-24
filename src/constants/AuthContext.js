@@ -55,7 +55,7 @@ export const AuthProvider = ({children}) => {
       await AsyncStorage.setItem('userId', String(userIdValue));
       await AsyncStorage.setItem('hasLoggedIn', 'true');
 
-      console.log('✅ Auth context: Login successful, user data saved');
+     
     } catch (error) {
       console.error('❌ Auth context login error:', error);
       throw error;

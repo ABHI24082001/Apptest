@@ -540,7 +540,7 @@ const ProfileScreen = () => {
 
   useEffect(() => {
     // Always log the user object for debugging
-    console.log('ProfileMenu user:', user);
+    // console.log('ProfileMenu user:', user);
 
     if (user?.empImage) {
       // Use the static image URL directly
@@ -551,7 +551,6 @@ const ProfileScreen = () => {
     }
   }, [user?.empImage]);
 
-  console.log('employee avatar ➜', imageUrl);
 
   // Refresh functionality
   const onRefresh = useCallback(async () => {

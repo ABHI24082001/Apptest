@@ -147,7 +147,7 @@ const CustomDrawer = ({navigation}) => {
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
 
-  console.log(user, 'User============ Data');
+
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
@@ -167,7 +167,7 @@ const CustomDrawer = ({navigation}) => {
 
   useEffect(() => {
     // Always log the user object for debugging
-    console.log('ProfileMenu user:', user);
+    // console.log('ProfileMenu user:', user);
 
     if (user?.empImage) {
       // Use the static image URL directly
@@ -178,7 +178,7 @@ const CustomDrawer = ({navigation}) => {
     }
   }, [user?.empImage]);
 
-  console.log('employee avatar ➜', imageUrl);
+
 
   return (
     <AppSafeArea style={styles.container}>

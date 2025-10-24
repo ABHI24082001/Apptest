@@ -48,7 +48,7 @@ const NotificationButton = ({navigation}) => {
           const response = await axiosinstance.get(
             `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`,
           );
-          console.log('Notification API d==================================:', response.data);
+         
           // Set notification state based on response
           setHasNotification(
             response.data && (
@@ -98,7 +98,7 @@ const ProfileMenu = ({navigation}) => {
 
   useEffect(() => {
     // Always log the user object for debugging
-    console.log('ProfileMenu user:', user);
+    // console.log('ProfileMenu user:', user);
     // debugger; // Debug here to inspect user object
 
     if (user?.empImage) {

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ActivityIndicator,
-  Image,
   TouchableOpacity,
   Alert,
   ScrollView,
@@ -12,7 +11,7 @@ import {
   AppState,
   StatusBar,
 } from 'react-native';
-import styles from '../component/dashboardcss';
+import styles from '../Stylesheet/dashboardcss';
 import LinearGradient from 'react-native-linear-gradient';
 import * as ort from 'onnxruntime-react-native';
 import RNFS from 'react-native-fs';
@@ -449,7 +448,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       if (!employeeDetails?.id || !employeeDetails?.childCompanyId) {
-        console.log('❌ Employee details not available yet');
+        // console.log('❌ Employee details not available yet');
         setIsFaceLoading(false);
         setInitialLoadComplete(true);
         return;
@@ -482,10 +481,10 @@ const HomeScreen = () => {
 
         const response = await Promise.race([fetchPromise, timeoutPromise]);
 
-        console.log('📦 API Response received:', {
-          hasFaceImage: !!response.data?.faceImage,
-          faceImageLength: response.data?.faceImage?.length,
-        });
+        // console.log('📦 API Response received:', {
+        //   hasFaceImage: !!response.data?.faceImage,
+        //   faceImageLength: response.data?.faceImage?.length,
+        // });
 
         // VALIDATE face image properly
         const faceImage = response.data?.faceImage;
@@ -496,7 +495,7 @@ const HomeScreen = () => {
           faceImage.length > 100;
 
         if (hasValidFaceImage) {
-          console.log('✅ Valid face image found');
+          // console.log('✅ Valid face image found');
           const imageData = `data:image/jpeg;base64,${faceImage}`;
 
           // Set all states together to avoid race conditions
@@ -505,7 +504,7 @@ const HomeScreen = () => {
           setShowRegistration(false); // HIDE registration
           console.log('🎯 Setting showRegistration to FALSE');
         } else {
-          console.log('❌ No valid face image found');
+          // console.log('❌ No valid face image found');
           setRegisteredFace(null);
           setShowRegistration(true); // SHOW registration
           console.log('🎯 Setting showRegistration to TRUE');
@@ -1214,7 +1213,7 @@ const HomeScreen = () => {
     fetchLeaveData();
   }, [user]);
 
-  ////////Post shift hours and Shift Name
+
   useEffect(() => {
     const fetchShiftDetails = async () => {
       if (!employeeDetails?.id || !user?.childCompanyId) return;
@@ -1660,6 +1659,9 @@ const HomeScreen = () => {
       </ScrollView>
     </AppSafeArea>
   );
+
+
+
 };
 
 export default HomeScreen;

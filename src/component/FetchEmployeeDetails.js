@@ -10,7 +10,7 @@ const useFetchEmployeeDetails = () => {
     const fetchEmployeeDetails = async () => {
       try {
         if (user?.id) {
-          console.log('Fetching employee details for user ID:', user.id); // Debug user ID
+          // console.log('Fetching employee details for user ID:', user.id); // Debug user ID
           const response = await axiosinstance.get(
             // `https://hcmapiv2.anantatek.com/api/EmpRegistration/GetEmpRegistrationById/${user.id}`,
            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,

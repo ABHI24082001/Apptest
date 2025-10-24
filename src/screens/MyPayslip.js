@@ -148,7 +148,7 @@ const MyPaySlip = () => {
 
  useEffect(() => {
       // Always log the user object for debugging
-      console.log('ProfileMenu user:', user);
+      // console.log('ProfileMenu user:', user);
       // debugger; // Debug here to inspect user object
   
       if (user?.empImage) {
