@@ -22,7 +22,7 @@ import moment from 'moment';
 import axiosinstance from '../utils/axiosInstance';
 import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 
 const LeaveReportScreen = ({ navigation }) => {
   const [fromDate, setFromDate] = useState(null);

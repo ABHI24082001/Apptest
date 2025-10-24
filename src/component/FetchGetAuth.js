@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import axiosinstance from '../utils/axiosInstance';
-import useFetchEmployeeDetails from './FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 
 

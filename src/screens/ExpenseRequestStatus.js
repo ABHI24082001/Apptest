@@ -15,10 +15,10 @@ import {useNavigation} from '@react-navigation/native';
 import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
-import TabFilter from '../components/TabFilter'; // Import the reusable TabFilter component
-import StatusCard from '../components/StatusCard'; // Import the reusable component
+import TabFilter from '../component/TabFilter'; // Import the reusable TabFilter component
+import StatusCard from '../component/StatusCard'; // Import the reusable component
 import BASE_URL from '../constants/apiConfig';
 
 

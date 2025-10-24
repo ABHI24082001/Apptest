@@ -12,7 +12,7 @@ import {
 import AppSafeArea from '../component/AppSafeArea';
 import {Appbar, Avatar, Chip, Divider, Button} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 

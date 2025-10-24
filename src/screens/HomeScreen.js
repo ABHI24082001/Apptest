@@ -23,7 +23,7 @@ import ImageResizer from '@bam.tech/react-native-image-resizer';
 import axios from 'axios';
 import AppSafeArea from '../component/AppSafeArea';
 import * as geolib from 'geolib';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import {useAuth} from '../constants/AuthContext';
 import BASE_URL from '../constants/apiConfig';
 import Geolocation from '@react-native-community/geolocation';

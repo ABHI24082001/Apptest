@@ -12,7 +12,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Appbar, Button } from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 

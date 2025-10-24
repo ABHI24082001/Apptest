@@ -28,12 +28,12 @@ import Icon from 'react-native-vector-icons/Feather';
 
 import {useAuth} from '../constants/AuthContext';
 // Import the Pagination component
-import Pagination from '../components/Pagination';
+import Pagination from '../component/Pagination';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import LinearGradient from 'react-native-linear-gradient';
 import WebView from 'react-native-webview';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 
 const ExpenseTypeColors = {

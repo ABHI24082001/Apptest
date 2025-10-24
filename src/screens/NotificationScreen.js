@@ -4,7 +4,7 @@ import { Text, Avatar, Divider } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppSafeArea from '../component/AppSafeArea';
 import { useNavigation } from '@react-navigation/native';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 const RequestCard = ({ item, onPress }) => {

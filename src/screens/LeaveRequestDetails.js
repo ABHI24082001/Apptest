@@ -26,18 +26,18 @@ import {
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import FeedbackModal from '../component/FeedbackModal';
 
 import {useAuth} from '../constants/AuthContext';
 // Import the Pagination component
-import Pagination from '../components/Pagination';
+import Pagination from '../component/Pagination';
 // Import Picker for task assignment dropdown
 import {Picker} from '@react-native-picker/picker';
 // Import the new LeaveBalanceTable component
-import LeaveBalanceTable from '../components/LeaveBalanceTable';
+import LeaveBalanceTable from '../component/LeaveBalanceTable';
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue

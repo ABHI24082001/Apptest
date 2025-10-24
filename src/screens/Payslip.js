@@ -19,7 +19,7 @@ import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
 
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 import axiosinstance from '../utils/axiosInstance';
 import moment from 'moment';

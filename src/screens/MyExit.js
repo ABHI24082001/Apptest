@@ -20,7 +20,7 @@ import AppSafeArea from '../component/AppSafeArea';
 import axiosinstance from '../utils/axiosInstance';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import BASE_URL from '../constants/apiConfig';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 
 
 const ExitApplyScreen = ({navigation}) => {

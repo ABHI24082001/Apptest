@@ -14,11 +14,11 @@ import {useNavigation} from '@react-navigation/native';
 import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
-import StatusCard from '../components/StatusCard'; // Import the StatusCard component
-import Pagination from '../components/Pagination'; // Import the Pagination component
+import StatusCard from '../component/StatusCard'; // Import the StatusCard component
+import Pagination from '../component/Pagination'; // Import the Pagination component
 import BASE_URL from '../constants/apiConfig';
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},

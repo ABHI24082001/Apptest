@@ -1,86 +1,179 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Using MaterialIcons for arrows
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 
-const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  itemsPerPage,
+  totalItems,
+}) => {
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+
+    if (totalPages <= maxPagesToShow) {
+      // If total pages are less than max to show, display all pages
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always include first page
+      pages.push(1);
+
+      // Calculate start and end of page range to show
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+      // Adjust if we're at the start or end
+      if (currentPage <= 2) {
+        endPage = 4;
+      } else if (currentPage >= totalPages - 1) {
+        startPage = totalPages - 3;
+      }
+
+      // Add ellipsis if needed
+      if (startPage > 2) {
+        pages.push('...');
+      }
+
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+
+      // Add ellipsis if needed
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+      // Always include last page
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.button, currentPage === 1 && styles.disabled]}
-        onPress={() => currentPage > 1 && onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        activeOpacity={0.7}
-      >
-        <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#aaa' : 'white'} />
-        <Text style={[styles.buttonText, currentPage === 1 && styles.disabledText]}>
-          Previous
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoText}>
+          Showing {(currentPage - 1) * itemsPerPage + 1}-
+          {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
         </Text>
-      </TouchableOpacity>
+      </View>
+      <View style={styles.paginationContainer}>
+        {/* Previous button */}
+        <TouchableOpacity
+          style={[
+            styles.pageButton,
+            currentPage === 1 && styles.disabledButton,
+          ]}
+          onPress={() => currentPage > 1 && onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}>
+          <Icon
+            name="chevron-left"
+            size={16}
+            color={currentPage === 1 ? '#9CA3AF' : '#4B5563'}
+          />
+        </TouchableOpacity>
 
-      <Text style={styles.pageInfo}>
-        Page <Text style={styles.currentPage}>{currentPage}</Text> of <Text style={styles.totalPages}>{totalPages}</Text>
-      </Text>
+        {/* Page numbers */}
+        {getPageNumbers().map((page, index) => (
+          <TouchableOpacity
+            key={`page-${index}`}
+            style={[
+              styles.pageButton,
+              page === currentPage && styles.activePageButton,
+              page === '...' && styles.ellipsisButton,
+            ]}
+            onPress={() => page !== '...' && onPageChange(page)}
+            disabled={page === '...' || page === currentPage}>
+            <Text
+              style={[
+                styles.pageText,
+                page === currentPage && styles.activePageText,
+              ]}>
+              {page}
+            </Text>
+          </TouchableOpacity>
+        ))}
 
-      <TouchableOpacity
-        style={[styles.button, currentPage === totalPages && styles.disabled]}
-        onPress={() => currentPage < totalPages && onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.buttonText, currentPage === totalPages && styles.disabledText]}>
-          Next
-        </Text>
-        <Icon name="chevron-right" size={20} color={currentPage === totalPages ? '#aaa' : 'white'} />
-      </TouchableOpacity>
+        {/* Next button */}
+        <TouchableOpacity
+          style={[
+            styles.pageButton,
+            currentPage === totalPages && styles.disabledButton,
+          ]}
+          onPress={() =>
+            currentPage < totalPages && onPageChange(currentPage + 1)
+          }
+          disabled={currentPage === totalPages}>
+          <Icon
+            name="chevron-right"
+            size={16}
+            color={currentPage === totalPages ? '#9CA3AF' : '#4B5563'}
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  infoContainer: {
+    marginBottom: 8,
     alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 12,
-  },
-  button: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#6D75FF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginHorizontal: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    flexWrap: 'wrap',
   },
-  disabled: {
-    backgroundColor: '#ddd',
-    shadowOpacity: 0,
-    elevation: 0,
+  pageButton: {
+    minWidth: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    marginHorizontal: 2,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  buttonText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
+  activePageButton: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
   },
-  disabledText: {
-    color: '#999',
+  disabledButton: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
   },
-  pageInfo: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+  ellipsisButton: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
-  currentPage: {
-    color: '#6D75FF',
+  pageText: {
+    fontSize: 14,
+    color: '#4B5563',
   },
-  totalPages: {
-    color: '#888',
+  activePageText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

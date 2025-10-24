@@ -14,7 +14,7 @@ import RNPickerSelect from 'react-native-picker-select';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import BASE_URL from '../constants/apiConfig';
 import axiosInstance from '../utils/axiosInstance';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from './FetchEmployeeDetails';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = 50;

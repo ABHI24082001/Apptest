@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Alert, Platform, ToastAndroid } from 'react-nat
 import { Button, Card, Snackbar, ActivityIndicator } from 'react-native-paper';
 import axiosinstance from '../utils/axiosInstance';
 import * as geolib from 'geolib';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from './FetchEmployeeDetails';
 // import CameraComponent from './CameraComponent';
 
 const API_URL = 'http://192.168.29.2:90/api/';

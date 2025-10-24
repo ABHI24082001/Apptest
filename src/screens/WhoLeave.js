@@ -18,7 +18,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import axiosInstance from '../utils/axiosInstance';
 import {useAuth} from '../constants/AuthContext';
 
-import useFetchEmployeeDetails from "../components/FetchEmployeeDetails";
+import useFetchEmployeeDetails from "../component/FetchEmployeeDetails";
 import BASE_URL from '../constants/apiConfig';
 const WhoLeave = ({ navigation }) => {
   const [employees, setEmployees] = useState([]);

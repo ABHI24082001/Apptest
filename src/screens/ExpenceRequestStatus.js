@@ -13,7 +13,7 @@ import AppSafeArea from '../component/AppSafeArea';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosinstance from '../utils/axiosInstance';
-import useFetchEmployeeDetails from '../components/FetchEmployeeDetails';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 const ExpenceRequestStatus = ({ navigation, route }) => {
   const [expenseData, setExpenseData] = useState(null);
