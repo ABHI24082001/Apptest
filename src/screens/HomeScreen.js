@@ -1660,10 +1660,8 @@ const HomeScreen = () => {
     </AppSafeArea>
   );
 
-
-
 };
 
 export default HomeScreen;
 
-// export default HomeScreen;
+
