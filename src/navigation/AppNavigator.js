@@ -33,7 +33,6 @@ import MyApplyLeave from '../screens/MyApplyLeave'
 import LeaveRequestedit from '../screens/LeaveRequestedit';
 import ExitRequestedit from '../screens/ExitRequestedit';
 import Setting from '../screens/Setting';
-import Mylocation from '../screens/Mylocation';
 import HRScreen from '../screens/HRScreen';
 const Stack = createNativeStackNavigator();
 
@@ -73,9 +72,7 @@ export default function AppNavigator() {
       <Stack.Screen name="LeaveRequestedit"  component={LeaveRequestedit}/>  
       <Stack.Screen name="ExitRequestedit"  component={ExitRequestedit}/>
       <Stack.Screen name="Setting"  component={Setting}/>
-      <Stack.Screen name="Mylocation"  component={Mylocation}/>   
       <Stack.Screen name="HRScreen"  component={HRScreen}/>
-      {/* Add more screens as needed */}
     </Stack.Navigator>
   );
 }
