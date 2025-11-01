@@ -9,7 +9,6 @@ import {
   Platform,
   PermissionsAndroid,
   AppState,
-  Image,
   StatusBar,
 } from 'react-native';
 import styles from '../Stylesheet/dashboardcss';
@@ -32,7 +31,6 @@ import BackgroundService from 'react-native-background-actions';
 import axiosInstance from '../utils/axiosInstance';
 import LeaveStatus from '../component/LeaveStatus';
 import OnLeaveUsers from '../component/OnLeaveUsers';
-import { getFormattedLocalDateTime, formatTime, formatHoursMinutes } from '../utils/dateTimeUtils';
 // Icons
 const CheckIcon = () => <Text style={styles.icon}>✓</Text>;
 const CameraIcon = () => <Text style={styles.icon}>📷</Text>;
@@ -185,6 +183,20 @@ const HomeScreen = () => {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const formatTime = seconds => {
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
+  // Format time in hours and minutes
+  const formatHoursMinutes = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
   };
 
   // Update current time every second
@@ -602,7 +614,8 @@ const HomeScreen = () => {
             CompanyId: employeeDetails.childCompanyId,
           };
 
-          console.log();
+
+          console.log()
 
           const response = await axios.post(
             `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
@@ -638,7 +651,7 @@ const HomeScreen = () => {
       },
     );
   };
-
+  // debugger;
   const handleCheckIn = async () => {
     if (!registeredFace) {
       Alert.alert(
@@ -649,10 +662,8 @@ const HomeScreen = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-
-      // Check location first
       const locationResult = await checkLocation();
       if (!locationResult.inside) {
         const nearest = locationResult.nearestFence
@@ -660,7 +671,6 @@ const HomeScreen = () => {
               locationResult.nearestFence.distance,
             )}m away)`
           : 'Unknown area';
-
         Alert.alert(
           '❌ Location Check Failed',
           `You are not within the required area.\nNearest: ${nearest}`,
@@ -668,101 +678,123 @@ const HomeScreen = () => {
         return;
       }
 
-      // Wrap camera launch in Promise for better control
-      const captureResult = await new Promise((resolve) => {
-        Alert.alert(
-          'Face Verification',
-          'Please capture your face for verification',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => resolve(null),
-            },
-            {
-              text: 'Capture',
-              onPress: () => {
-                launchCamera((res) => resolve(res));
-              },
-            },
-          ],
-        );
-      });
-
-      if (!captureResult || !captureResult.assets?.[0]?.base64) {
-        throw new Error('Face capture cancelled or failed');
-      }
-
-      const capturedImage = `data:image/jpeg;base64,${captureResult.assets[0].base64}`;
-      setCapturedFace(capturedImage);
-
-      const result = await matchFaces(registeredFace, capturedImage);
-      if (!result?.isMatch) {
-        throw new Error('Face verification failed');
-      }
-
-      const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
-
-      const attendancePayload = {
-        EmployeeId: String(employeeDetails?.id),
-        EmployeeCode: String(employeeDetails?.companyUserId || employeeDetails?.id),
-        LogDateTime: logDateTime,
-        LogDate: logDate,
-        LogTime: logTime,
-        Direction: 'In',
-        DeviceName: 'Bhubneswar',
-        SerialNo: '1',
-        VerificationCode: '1',
-      };
-
-      const attendanceResponse = await axiosInstance.post(
-        `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
-        attendancePayload,
-      );
-
-      if (!attendanceResponse.data?.isSuccess) {
-        throw new Error(attendanceResponse.data?.message || 'Failed to save attendance');
-      }
-
-      // Update states after successful check-in
-      const checkInMs = new Date().getTime();
-      setCheckedIn(true);
-      setCheckInTime(checkInMs);
-      await saveCheckInState(true, checkInMs, capturedImage);
-      await startBackgroundService();
-      startShiftProgress(0);
-
       Alert.alert(
-        '✅ Check-In Successful',
-        `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
-      );
+        'Face Verification',
+        'Please capture your face for verification',
+        [
+          {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
+          {
+            text: 'Capture',
+            onPress: () => {
+              launchCamera(async res => {
+                try {
+                  if (!res.assets?.[0]?.base64) {
+                    Alert.alert('No Image Captured', 'Please try again.');
+                    return;
+                  }
 
+                  const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+                  setCapturedFace(capturedImage);
+
+                  const result = await matchFaces(
+                    registeredFace,
+                    capturedImage,
+                  );
+                  if (!result?.isMatch) {
+                    Alert.alert(
+                      '❌ Verification Failed',
+                      'Face does not match. Please try again.',
+                    );
+                    return;
+                  }
+
+                  const now = new Date();
+                  const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                  const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+                  // ✅ Build payload
+                  const attendancePayload = {
+                    EmployeeCode: employeeDetails?.companyUserId || '9',
+                    LogDateTime: now.toISOString(), // ✅ full timestamp
+                    LogDate: logDate, // ✅ only date
+                    LogTime: logTime, // ✅ matches LogDateTime
+                    Direction: 'in', // must be lowercase
+                    DeviceName: 'Bhubneswar',
+                    SerialNo: '1',
+                    VerificationCode: '1',
+                  };
+
+                  console.log('📤 Posting attendance:', attendancePayload);
+
+                  // ✅ Send to API
+                  const attendanceResponse = await axiosInstance.post(
+                    `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+                    attendancePayload,
+                  );
+
+                  if (!attendanceResponse.data?.isSuccess) {
+                    throw new Error(
+                      attendanceResponse.data?.message ||
+                        'Failed to save attendance',
+                    );
+                  }
+
+                  // ✅ If success
+                  setCheckedIn(true);
+                  const checkInMs = new Date().getTime();
+                  setCheckInTime(checkInMs);
+                  await saveCheckInState(true, checkInMs, capturedImage);
+                  await startBackgroundService();
+
+                  const formattedLogin = `${logDate} ${logTime}`;
+
+
+                  Alert.alert(
+                    '✅ Check-In Successful',
+                    `Login: ${formattedLogin}\nWelcome! Your shift has started.`,
+                  );
+                  startShiftProgress(0);
+                } catch (error) {
+                  console.error('Attendance API Error:', error);
+                  Alert.alert(
+                    '❌ Check-In Failed',
+                    'Failed to record attendance. Please try again.',
+                  );
+                } finally {
+                  setIsLoading(false);
+                }
+              });
+            },
+          },
+        ],
+      );
     } catch (error) {
       console.error('Check-in error:', error);
-      Alert.alert(
-        '❌ Check-In Failed',
-        error.message || 'Something went wrong during check-in.',
-      );
+      Alert.alert('Error', 'Something went wrong during check-in.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCheckOut = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
+      const now = new Date();
+      const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
       const attendancePayload = {
-        EmployeeId: String(employeeDetails?.id),
-        EmployeeCode: String(employeeDetails?.companyUserId || employeeDetails?.id),
-        LogDateTime: logDateTime,
-        LogDate: logDate,
-        LogTime: logTime,
-        Direction: 'Out',
+        EmployeeCode: employeeDetails?.companyUserId || '9', // ✅ string
+        LogDateTime: now.toISOString(), // ✅ full timestamp
+        LogDate: logDate, // ✅ only date
+        LogTime: logTime, // ✅ matches LogDateTime
+        Direction: 'in', // ✅ correct for checkout
         DeviceName: 'Bhubneswar',
         SerialNo: '1',
         VerificationCode: '1',
       };
+
+      console.log('Posting check-out attendance:', attendancePayload);
 
       const attendanceResponse = await axiosInstance.post(
         `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
@@ -770,9 +802,12 @@ const HomeScreen = () => {
       );
 
       if (!attendanceResponse.data?.isSuccess) {
-        throw new Error(attendanceResponse.data?.message || 'Failed to save attendance');
+        throw new Error(
+          attendanceResponse.data?.message || 'Failed to save attendance',
+        );
       }
 
+      // ✅ If successful, reset check-in state
       await saveCheckInState(false);
       await stopBackgroundService();
 
@@ -788,20 +823,20 @@ const HomeScreen = () => {
 
       Alert.alert(
         '✅ Check-Out Successful',
-        `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`,
+        'Your shift has ended. Have a great day!',
       );
-
     } catch (error) {
       console.error('Check-out error:', error);
       Alert.alert(
         '❌ Check-Out Failed',
-        error.message || 'Failed to check out. Please try again.',
+        'Failed to check out. Please try again.',
       );
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Keep all your existing helper functions (normalize, preprocessImage, getEmbedding, matchFaces, etc.)
   const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
     if (norm === 0) return vec;
@@ -1178,6 +1213,7 @@ const HomeScreen = () => {
     fetchLeaveData();
   }, [user]);
 
+
   useEffect(() => {
     const fetchShiftDetails = async () => {
       if (!employeeDetails?.id || !user?.childCompanyId) return;
@@ -1226,8 +1262,6 @@ const HomeScreen = () => {
           `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
           payload,
         );
-
-        console.log(response.data, 'uicgiuogiudvgiudfgiu');
 
         if (response.data && Array.isArray(response.data)) {
           const todayDateStr =
@@ -1625,6 +1659,8 @@ const HomeScreen = () => {
       </ScrollView>
     </AppSafeArea>
   );
+
 };
 
 export default HomeScreen;
+
