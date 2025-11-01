@@ -515,8 +515,6 @@ const ProfileScreen = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [isPickingPhoto, setIsPickingPhoto] = useState(false); // Prevent multiple pick calls
   const [uploadedPhotoFileName, setUploadedPhotoFileName] = useState(null); // Store uploaded filename
-
-  const [visible, setVisible] = useState(false);
   const [imageUrll, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
@@ -715,7 +713,7 @@ const ProfileScreen = () => {
 
       // ✅ Use http, not https
       const response = await fetch(
-        'http://192.168.29.2:90/api/UploadDocument/UploadDocument',
+        `${BASE_URL}/UploadDocument/UploadDocument`,
         {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -735,7 +733,7 @@ const ProfileScreen = () => {
         await saveProfileImage(uploadedFileName);
 
         // ✅ Now fetch uploaded image as base64
-        const fetchUrl = `http://192.168.29.2:90/api/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
+        const fetchUrl = `${BASE_URL}/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
         console.log('Step 4: Fetching image from:', fetchUrl);
 
         const fileResponse = await fetch(fetchUrl);

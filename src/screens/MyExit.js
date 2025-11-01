@@ -147,6 +147,29 @@ const ExitApplyScreen = ({navigation}) => {
   };
 
   const onSubmit = async data => {
+    // Validate fields first
+    if (!data.exitDate) {
+      Alert.alert('Validation Error', 'Exit date is required');
+      return;
+    }
+    if (!data.reason) {
+      Alert.alert('Validation Error', 'Reason is required');
+      return;
+    }
+
+    // Validate exit date
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 30);
+    
+    if (new Date(data.exitDate) < minDate) {
+      Alert.alert(
+        'Validation Error',
+        'Exit date must be at least 30 days from today as per company policy.',
+      );
+      return;
+    }
+
     // Double check for active requests before submission
     if (hasActiveRequest) {
       Alert.alert(
@@ -302,60 +325,12 @@ const ExitApplyScreen = ({navigation}) => {
 
           {/* Form Section */}
           <View style={styles.formContainer}>
-            {/* Employee Information */}
-            {/* <View style={styles.employeeInfoCard}>
-              <Text style={styles.employeeInfoTitle}>Employee Information</Text>
-              <View style={styles.employeeInfoRow}>
-                <Text style={styles.employeeInfoLabel}>Employee ID:</Text>
-                <Text style={styles.employeeInfoValue}>
-                  {employeeDetails?.employeeId || 'Loading...'}
-                </Text>
-              </View>
-              <View style={styles.employeeInfoRow}>
-                <Text style={styles.employeeInfoLabel}>Name:</Text>
-                <Text style={styles.employeeInfoValue}>
-                  {employeeDetails?.employeeName || 'Loading...'}
-                </Text>
-              </View>
-              <View style={styles.employeeInfoRow}>
-                <Text style={styles.employeeInfoLabel}>Department:</Text>
-                <Text style={styles.employeeInfoValue}>
-                  {employeeDetails?.departmentName || 'N/A'}
-                </Text>
-              </View>
-            </View> */}
-
-            {/* Applied Date */}
-            {/* <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Applied Date <Text style={{color: 'red'}}>*</Text>
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowAppliedDatePicker(true)}
-                activeOpacity={0.7}>
-                <View style={styles.dateInputWrapper}>
-                  <Icon
-                    name="calendar"
-                    size={20}
-                    color="#3B82F6"
-                    style={styles.dateIcon}
-                  />
-                  <Text style={styles.dateText}>
-                    {moment(appliedDate).format('MMMM D, YYYY')}
-                  </Text>
-                  <Icon name="chevron-down" size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-              {errors.appliedDate && (
-                <Text style={styles.errorText}>Applied Date is required</Text>
-              )}
-            </View> */}
+           
 
             {/* Exit Date */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Exit Date <Text style={{color: 'red'}}>*</Text>
-                <Text style={styles.dateHintText}> (must be at least 30 days from today)</Text>
               </Text>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -386,7 +361,13 @@ const ExitApplyScreen = ({navigation}) => {
               <Controller
                 control={control}
                 name="reason"
-                rules={{required: 'Reason is required', maxLength: 500}}
+                rules={{
+                  required: 'Reason is required',
+                  maxLength: {
+                    value: 100,
+                    message: 'Reason cannot exceed 100 characters'
+                  }
+                }}
                 render={({field: {onChange, value}}) => (
                   <TextInput
                     placeholder="Explain your reason for leaving..."
@@ -394,13 +375,21 @@ const ExitApplyScreen = ({navigation}) => {
                     multiline
                     numberOfLines={5}
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      // Limit text to 100 characters
+                      if (text.length <= 100) {
+                        onChange(text);
+                      }
+                    }}
                     style={styles.textArea}
                   />
                 )}
               />
-              <Text style={styles.charCount}>
-                {watch('reason')?.length || 0}/500 characters
+              <Text style={[
+                styles.charCount,
+                watch('reason')?.length >= 100 ? {color: 'red'} : {}
+              ]}>
+                {watch('reason')?.length || 0}/100 characters
               </Text>
               {errors.reason && (
                 <Text style={styles.errorText}>{errors.reason.message}</Text>

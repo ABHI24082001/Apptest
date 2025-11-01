@@ -227,7 +227,7 @@ const ExitRequestStatusScreen = () => {
                   </View>
                 )}
 
-                {item.applicationStatus?.toLowerCase() === 'rejected' && (
+                {/* {item.applicationStatus?.toLowerCase() === 'rejected' && (
                   <View style={styles.cardActions}>
                     <Button
                       mode="contained"
@@ -239,7 +239,7 @@ const ExitRequestStatusScreen = () => {
                       Apply Again
                     </Button>
                   </View>
-                )}
+                )} */}
               </View>
             ))}
           </>

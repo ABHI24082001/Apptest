@@ -207,6 +207,24 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     paddingHorizontal: 2,
   },
+  emptyCard: {
+    marginTop: 24,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
   submitBtn: {
     backgroundColor: '#3B82F6',
     marginRight: 8,

@@ -7,20 +7,37 @@ import { useNavigation } from '@react-navigation/native';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
+import styles from '../Stylesheet/RequestDetailsCs';
+
+const getRequestTypeAndColor = (notification) => {
+  const msg = notification.toLowerCase();
+  if (msg.includes('approved')) {
+    return { type: 'Approved Request', color: '#4CAF50' }; // green
+  } else if (msg.includes('rejected')) {
+    return { type: 'Rejected Request', color: '#F44336' }; // red
+  } else if (msg.includes('pending')) {
+    return { type: 'Pending Request', color: '#FF9800' }; // orange
+  } else if (msg.includes('exit')) {
+    return { type: 'Exit Request', color: '#9C27B0' }; // purple
+  }
+  return { type: 'Leave Request', color: '#2196F3' }; // default blue
+};
+
 const RequestCard = ({ item, onPress }) => {
+  const { type, color } = getRequestTypeAndColor(item.notification);
   return (
     <TouchableOpacity 
       activeOpacity={0.9} 
       onPress={onPress}
-      style={[styles.card, { borderLeftColor: '#2196F3' }]}
+      style={[styles.card, { borderLeftColor: color }]}
     >
       <View style={styles.row}>
         <View style={styles.textContent}>
-          <Text style={styles.employeeName} numberOfLines={1}>
-            {item.employeeName || 'Unknown'}
+          <Text style={[styles.employeeName, { color }]} numberOfLines={1}>
+            {type}
           </Text>
           <Text style={styles.notificationText} numberOfLines={2}>
-            {item.notification}
+            {item.notification}ID {item.id || 'NO ID '}
           </Text>
           <View style={styles.timeRow}>
             <MaterialCommunityIcons 
@@ -37,8 +54,8 @@ const RequestCard = ({ item, onPress }) => {
   );
 };
 
-const RequestDetailsScreen = () => {
-  const navigation = useNavigation();
+const RequestDetailsScreen = ({ navigation }) => {
+
   const [notifications, setNotifications] = useState({
     today: [],
     older: []
@@ -58,8 +75,10 @@ const RequestDetailsScreen = () => {
 
   // Fetch notifications from API
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    if (companyId && userId) {
+      fetchNotifications();
+    }
+  }, [companyId, userId]); // Add dependencies to re-fetch when IDs are available
   
   // Moved fetchNotifications outside to be able to call it from the retry button
   const fetchNotifications = async () => {
@@ -72,16 +91,14 @@ const RequestDetailsScreen = () => {
         `${BASE_URL}/Email/GetAllNotificationByEmployeeIdWithSenderDetails/${companyId}/${userId}`
       );
       console.log('API Response:', JSON.stringify(response.data));
+
+      console.log('===============================', response.data)
       
       if (response.data && Array.isArray(response.data)) {
         processNotifications(response.data);
-      } else {
-        console.error('Invalid response format:', response.data);
-        setError('Invalid response format from server');
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
-      // Do not set error, just log it
     } finally {
       setLoading(false);
     }
@@ -167,13 +184,28 @@ const RequestDetailsScreen = () => {
     }
   };
 
+  const markNotificationsAsRead = async () => {
+    try {
+      const response = await axiosinstance.get(
+        `${BASE_URL}/Notification/NotificationMarkasRead/${companyId}/${userId}`
+      );
+      
+      if (response.status === 200) {
+        // Update local state after successful API call
+        const updatedNotifications = {
+          today: notifications.today.map(item => ({ ...item, unread: false })),
+          older: notifications.older.map(item => ({ ...item, unread: false }))
+        };
+        setNotifications(updatedNotifications);
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+    }
+  };
+
   const markAllAsRead = () => {
-    const updatedNotifications = {
-      today: notifications.today.map(item => ({ ...item, unread: false })),
-      older: notifications.older.map(item => ({ ...item, unread: false }))
-    };
-    setNotifications(updatedNotifications);
-    setUnreadCount(0);
+    markNotificationsAsRead(); // Call the API function
   };
 
   const handleCardPress = (section, index) => {
@@ -190,7 +222,6 @@ const RequestDetailsScreen = () => {
     }
   };
 
-  // Add console logs to the UI render section
   return (
     <AppSafeArea>
       {/* Header */}
@@ -268,21 +299,7 @@ const RequestDetailsScreen = () => {
             {notifications.today.length === 0 && notifications.older.length === 0 && (
               <View style={styles.emptyContainer}>
                 <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
-                <Text style={styles.emptyText}>No notifications to display</Text>
-                <TouchableOpacity 
-                  style={styles.retryButton}
-                  onPress={() => {
-                    setLoading(true);
-                    fetchNotifications();
-                  }}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.retryText}>Refresh</Text>
-                  ) }
-                </TouchableOpacity>
-
+                <Text style={styles.emptyText}>No notifications available</Text>
               </View>
             )}
           </>
@@ -294,176 +311,3 @@ const RequestDetailsScreen = () => {
 
 export default RequestDetailsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    backgroundColor: '#FAFAFA',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#212121',
-    flex: 1,
-  },
-  markAllButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  markAllText: {
-    color: '#2196F3',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  section: {
-    marginTop: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#424242',
-  },
-  unreadCount: {
-    backgroundColor: '#F44336',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  unreadCountText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardsContainer: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderLeftWidth: 4,
-    padding: 16,
-    marginBottom: 8,
-    borderRadius: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  textContent: {
-    flex: 1,
-  },
-  employeeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#212121',
-    marginBottom: 4,
-  },
-  notificationText: {
-    fontSize: 14,
-    color: '#424242',
-    marginBottom: 8,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  timeIcon: {
-    marginRight: 4,
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#757575',
-  },
-  divider: {
-    marginVertical: 16,
-    height: 1,
-    backgroundColor: '#EEEEEE',
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    height: 300,
-  },
-  loaderText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#616161',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    height: 300,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#616161',
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#2196F3',
-    borderRadius: 4,
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    height: 300,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#9E9E9E',
-    textAlign: 'center',
-  },
-  debugText: {
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 8,
-    fontSize: 12,
-    color: '#666',
-  },
-});

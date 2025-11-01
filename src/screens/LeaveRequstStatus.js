@@ -396,6 +396,7 @@ const LeaveRequestStatus = () => {
                   remarks={item.remarks}
                   onEdit={() => handleEditLeave(item)}
                   onDelete={() =>
+                    !item.status?.toLowerCase().includes('approved') &&
                     item.status === 'Pending' &&
                     Alert.alert(
                       'Delete Leave Request',

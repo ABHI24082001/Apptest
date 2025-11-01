@@ -437,7 +437,7 @@ const LeaveRequestDetails = ({navigation}) => {
         CompanyId: leaveDetails.companyId,
         Id: leaveDetails.id,
         Visible: false,
-        EmployeeId: leaveDetails.employeeId,
+        EmployeeId: leaveDetails.id,
         ReportingId: leaveDetails.reportingId,
         DocumentPath: leaveDetails.documentPath || '',
         EmployeeEmail: leaveDetails.employeeEmail || '',
@@ -1606,7 +1606,7 @@ const LeaveRequestDetails = ({navigation}) => {
             <Card.Content style={styles.emptyContainer}>
               <Icon name="inbox" size={60} color="#9CA3AF" />
               <Text style={styles.emptyText}>
-                No pending exit requests found
+                No pending leave requests found
               </Text>
             </Card.Content>
           </Card>

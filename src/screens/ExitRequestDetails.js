@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icons from 'react-native-vector-icons/Feather';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {
   Appbar,
@@ -58,16 +59,17 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
   // const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
 
-  console.log( 'employeeDetails:', employeeDetails);
+  console.log('employeeDetails:', employeeDetails);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null); // Add state for the selected request
 
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] = useState(false);
+  const [isAuthorizedForFinalApproval, setIsAuthorizedForFinalApproval] =
+    useState(false);
   const [statusAction, setStatusAction] = useState(''); // Add this new state for status actions
-  
+
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
 
@@ -75,7 +77,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
   const [toDate, setToDate] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  
+
   // Add new state variables for Account role
   const [isAccountRole, setIsAccountRole] = useState(false);
   const [isAuthorizedAccount, setIsAuthorizedAccount] = useState(false);
@@ -88,11 +90,14 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
   // Check if user is in Account department
   const checkAccountRole = () => {
-    if (user && 
-        (user.departmentName === 'Account' || 
-         user.designationName === 'Account Head' || 
-         user.departmentId === 64 ||  // Updated to 64 based on your user object
-         user.departmentId === 3)) {   // Keep the original value as fallback
+    if (
+      user &&
+      (user.departmentName === 'Account' ||
+        user.designationName === 'Account Head' ||
+        user.departmentId === 64 || // Updated to 64 based on your user object
+        user.departmentId === 3)
+    ) {
+      // Keep the original value as fallback
       console.log('User is in Account department role');
       setIsAccountRole(true);
       return true;
@@ -150,7 +155,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         // Check if user is in Account department
         const isAccountUser = checkAccountRole();
         console.log('Is account user:', isAccountUser);
-        
+
         if (isAccountUser) {
           console.log('Fetching account requests...');
           fetchAccountRequests();
@@ -158,9 +163,9 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
           console.log('Fetching employee requests...');
           currentEmploye();
         }
-        
+
         fetchEmployees();
-        
+
         // Get selected request from route params if available
         if (route.params?.selectedRequest) {
           setSelectedRequest(route.params.selectedRequest);
@@ -186,8 +191,11 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         return;
       }
 
-      console.log('Fetching account requests with childCompanyId:', childCompanyId);
-      
+      console.log(
+        'Fetching account requests with childCompanyId:',
+        childCompanyId,
+      );
+
       const response = await fetch(
         `${BASE_URL}/EmployeeExit/GetAllEmpExitAccountRecords/${childCompanyId}`,
       );
@@ -197,25 +205,45 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       }
 
       const data = await response.json();
-      console.log('✅ All employee in accounted side exit records:==========================', data);
+      console.log(
+        '✅ All employee in accounted side exit records:==========================',
+        data,
+      );
 
       // Filter pending records for account department - log counts to debug
-      console.log('Total account records received:', Array.isArray(data) ? data.length : 0);
-      
+      console.log(
+        'Total account records received:',
+        Array.isArray(data) ? data.length : 0,
+      );
+
       // Ensure we're getting data and properly filtering
-      const pendingAccountRequests = Array.isArray(data) 
+      const pendingAccountRequests = Array.isArray(data)
         ? data.filter(item => {
-            const isPending = item.accountStatus === 'Pending' || item.accountStatus === '' || !item.accountStatus;
-            console.log(`Record ${item.id}: accountStatus=${item.accountStatus}, isPending=${isPending}`);
+            const isPending =
+              item.accountStatus === 'Pending' ||
+              item.accountStatus === '' ||
+              !item.accountStatus;
+            console.log(
+              `Record ${item.id}: accountStatus=${item.accountStatus}, isPending=${isPending}`,
+            );
             return isPending;
           })
         : [];
-      
-      console.log('Pending account requests after filter:', pendingAccountRequests.length);
-      
+
+      console.log(
+        'Pending account requests after filter:',
+        pendingAccountRequests.length,
+      );
+
       // If we have no data after filtering, try showing all records for debugging
-      if (pendingAccountRequests.length === 0 && Array.isArray(data) && data.length > 0) {
-        console.log('No pending requests found. Showing all account requests for debugging.');
+      if (
+        pendingAccountRequests.length === 0 &&
+        Array.isArray(data) &&
+        data.length > 0
+      ) {
+        console.log(
+          'No pending requests found. Showing all account requests for debugging.',
+        );
         setRequests(data);
         if (data.length > 0) {
           setSelectedRequest(data[0]);
@@ -223,13 +251,12 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       } else {
         setRequests(pendingAccountRequests);
         setAccountRequests(pendingAccountRequests);
-        
+
         // If no selected request but we have requests, select the first one
         if (!selectedRequest && pendingAccountRequests.length > 0) {
           setSelectedRequest(pendingAccountRequests[0]);
         }
       }
-
     } catch (error) {
       console.error('❌ Error fetching account exit records:', error);
     } finally {
@@ -261,12 +288,14 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       console.log('Account authorization data:', response.data);
 
       if (Array.isArray(response.data)) {
-        const isAuthorized = response.data.some(item => item.employeeId === user?.id);
+        const isAuthorized = response.data.some(
+          item => item.employeeId === user?.id,
+        );
         console.log('Is user authorized for account actions:', isAuthorized);
         setIsAuthorizedAccount(isAuthorized);
         return isAuthorized;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Error checking account authorization:', error);
@@ -295,9 +324,10 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       }
 
       const data = await response.json();
-      console.log('✅ All employee in accounted side exit records:==========================', data);
-
-    
+      console.log(
+        '✅ All employee in accounted side exit records:==========================',
+        data,
+      );
     } catch (error) {
       console.error('❌ Error fetching exit records:', error);
     } finally {
@@ -461,20 +491,22 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       Alert.alert('Required', 'Please enter remarks before approving.');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Create a copy of the selected request to update
-      const updatedRequest = { ...selectedRequest };
-      
+      const updatedRequest = {...selectedRequest};
+
       // Set the correct fields based on who's approving
       if (isAuthorizedForFinalApproval) {
         // HR approval flow
         updatedRequest.hrstatus = 'Approved';
         updatedRequest.hrremarks = remarks;
         updatedRequest.applicationStatus = 'Approved';
-        updatedRequest.exitDt = fromDate ? fromDate.toISOString() : updatedRequest.exitDt;
+        updatedRequest.exitDt = fromDate
+          ? fromDate.toISOString()
+          : updatedRequest.exitDt;
         updatedRequest.contingentEmpId = selectedEmployee || null;
       } else if (isAccountRole) {
         // Account approval flow
@@ -485,25 +517,25 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         updatedRequest.supervisorStatus = 'Approved';
         updatedRequest.supervisorRemarks = remarks;
       }
-      
+
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-      
+
       console.log('Sending approval request with data:', updatedRequest);
-      
+
       // Make API call
       const response = await axiosinstance.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
-        updatedRequest
+        updatedRequest,
       );
-      
+
       console.log('API Response:', response.data);
-      
+
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('success');
-        
+
         // Set appropriate message based on role
         if (isAccountRole) {
           setFeedbackMessage('Request has been approved by Account department');
@@ -512,9 +544,9 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         } else {
           setFeedbackMessage('Request has been approved by supervisor');
         }
-        
+
         setFeedbackVisible(true);
-        
+
         // Refresh data after a short delay
         setTimeout(() => {
           if (isAccountRole) {
@@ -532,7 +564,11 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       console.error('Error approving request:', error);
       // Show error in feedback modal
       setFeedbackType('fail');
-      setFeedbackMessage(`Failed to approve request: ${error.message || 'Unknown error occurred'}`);
+      setFeedbackMessage(
+        `Failed to approve request: ${
+          error.message || 'Unknown error occurred'
+        }`,
+      );
       setFeedbackVisible(true);
     } finally {
       setLoading(false);
@@ -544,13 +580,13 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       Alert.alert('Required', 'Please enter remarks before rejecting.');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Create a copy of the selected request to update
-      const updatedRequest = { ...selectedRequest };
-      
+      const updatedRequest = {...selectedRequest};
+
       // Set the correct fields based on who's rejecting
       if (isAuthorizedForFinalApproval) {
         // HR rejection flow
@@ -567,25 +603,25 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         updatedRequest.supervisorRemarks = remarks;
         updatedRequest.applicationStatus = 'Rejected'; // Also reject the application if supervisor rejects
       }
-      
+
       // Common updates
       updatedRequest.modifiedBy = user?.id;
       updatedRequest.modifiedDate = new Date().toISOString();
-      
+
       console.log('Sending rejection request with data:', updatedRequest);
-      
+
       // Make API call
       const response = await axiosinstance.post(
         `${BASE_URL}/EmployeeExit/SaveEmpExitApplication`,
-        updatedRequest
+        updatedRequest,
       );
-      
+
       console.log('API Response:', response.data);
-      
+
       if (response.status === 200 || response.status === 201) {
         // Show feedback modal instead of alert
         setFeedbackType('fail'); // Using 'fail' type as it's visually appropriate for rejection
-        
+
         // Set appropriate message based on role
         if (isAccountRole) {
           setFeedbackMessage('Request has been rejected by Account department');
@@ -594,9 +630,9 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         } else {
           setFeedbackMessage('Request has been rejected by supervisor');
         }
-        
+
         setFeedbackVisible(true);
-        
+
         // Refresh data after a short delay
         setTimeout(() => {
           if (isAccountRole) {
@@ -614,7 +650,11 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       console.error('Error rejecting request:', error);
       // Show error in feedback modal
       setFeedbackType('fail');
-      setFeedbackMessage(`Failed to reject request: ${error.message || 'Unknown error occurred'}`);
+      setFeedbackMessage(
+        `Failed to reject request: ${
+          error.message || 'Unknown error occurred'
+        }`,
+      );
       setFeedbackVisible(true);
     } finally {
       setLoading(false);
@@ -629,7 +669,6 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
     {id: 'escalate', label: 'Escalate Account'},
   ];
 
-
   return (
     <AppSafeArea>
       {/* Header with Gradient Background */}
@@ -639,7 +678,11 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
           color="#4B5563"
         />
         <Appbar.Content
-          title={isAccountRole ? "Account's Exit Requests" : "Employee's Exit Request"}
+          title={
+            isAccountRole
+              ? "Account's Exit Requests"
+              : "Employee's Exit Request"
+          }
           titleStyle={styles.headerTitle}
         />
       </Appbar.Header>
@@ -665,9 +708,9 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
           <>
             {/* Horizontal Employee Request Cards */}
             <Text style={styles.sectionTitle}>
-              {isAccountRole 
-                ? "Pending Account Clearance Requests" 
-                : "Pending Exit Requests"}
+              {isAccountRole
+                ? 'Pending Account Clearance Requests'
+                : 'Pending Exit Requests'}
             </Text>
             <ScrollView
               horizontal
@@ -692,7 +735,9 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
                           styles.miniStatusIndicator,
                           {
                             backgroundColor: getStatusColor(
-                              isAccountRole ? request.accountStatus : request.applicationStatus,
+                              isAccountRole
+                                ? request.accountStatus
+                                : request.applicationStatus,
                             ),
                           },
                         ]}
@@ -726,8 +771,8 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
                               styles.statusIndicator,
                               {
                                 backgroundColor: getStatusColor(
-                                  isAccountRole 
-                                    ? selectedRequest?.accountStatus 
+                                  isAccountRole
+                                    ? selectedRequest?.accountStatus
                                     : selectedRequest?.applicationStatus,
                                 ),
                               },
@@ -738,15 +783,15 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
                               styles.statusText,
                               {
                                 color: getStatusColor(
-                                  isAccountRole 
-                                    ? selectedRequest?.accountStatus 
+                                  isAccountRole
+                                    ? selectedRequest?.accountStatus
                                     : selectedRequest?.applicationStatus,
                                 ),
                               },
                             ]}>
-                            {isAccountRole 
-                              ? (selectedRequest?.accountStatus || 'Pending') 
-                              : (selectedRequest?.applicationStatus || 'Pending')}
+                            {isAccountRole
+                              ? selectedRequest?.accountStatus || 'Pending'
+                              : selectedRequest?.applicationStatus || 'Pending'}
                           </Text>
                         </View>
                       </View>
@@ -1054,7 +1099,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
                   mode="contained"
                   onPress={handleApprove}
                   style={styles.approveBtn}>
-                  {isAccountRole ? "Approve Account Clearance" : "Approve"}
+                  {isAccountRole ? 'Approve Account Clearance' : 'Approve'}
                 </Button>
                 <Button
                   mode="outlined"
@@ -1067,34 +1112,18 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
             </Card>
           </>
         ) : (
-          <View style={styles.noDataContainer}>
-            <Icon name="account-off-outline" size={60} color="#9CA3AF" />
-            <Text style={styles.noDataText}>
-              {isAccountRole 
-                ? "No pending account clearance requests" 
-                : "No pending exit requests found"}
-            </Text>
-            <Text style={styles.noDataSubText}>
-              {isAccountRole 
-                ? `Account clearance requests will appear here. Department ID: ${user?.departmentId}` 
-                : "All exit requests will appear here"}
-            </Text>
-            <Button 
-              mode="contained" 
-              style={{marginTop: 20}} 
-              onPress={isAccountRole ? fetchAccountRequests : currentEmploye}>
-              Refresh Data
-            </Button>
-          </View>
+          <Card style={styles.emptyCard}>
+            <Card.Content style={styles.emptyContainer}>
+              <Icons name="inbox" size={60} color="#9CA3AF" />
+              <Text style={styles.emptyText}>
+                No pending exit requests found
+              </Text>
+            </Card.Content>
+          </Card>
         )}
       </ScrollView>
     </AppSafeArea>
   );
 };
 
-
-
 export default ExitRequestStatusScreen;
-
-
-

@@ -1,22 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import {
   SafeAreaView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   Dimensions,
   FlatList,
+  ScrollView,
 } from 'react-native';
+import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
-import RNPickerSelect from 'react-native-picker-select';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import BASE_URL from '../constants/apiConfig';
 import axiosInstance from '../utils/axiosInstance';
 import useFetchEmployeeDetails from './FetchEmployeeDetails';
-
-const { width } = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const CARD_WIDTH = 50;
 
 export default function MonthCalendarWithAgenda({
@@ -30,90 +29,95 @@ export default function MonthCalendarWithAgenda({
   // state
   const [currentMonth, setCurrentMonth] = useState(moment(initialDate));
   const [daysInMonth, setDaysInMonth] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(moment(initialDate).format('YYYY-MM-DD'));
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerYear, setPickerYear] = useState(moment(initialDate).year());
+  const [selectedDate, setSelectedDate] = useState(
+    moment(initialDate).format('YYYY-MM-DD'),
+  );
   const [attendanceData, setAttendanceData] = useState(null);
+  const [shiftData, setShiftData] = useState({});
   const [loading, setLoading] = useState(false);
-
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDateTime, setSelectedDateTime] = useState(new Date());
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
   const employeeDetails = useFetchEmployeeDetails();
-
-  // FlatList ref for safe scrolling
   const daysListRef = useRef(null);
 
   // Event type defaults (used for color/icon fallbacks)
   const eventTypes = {
-    present: { color: '#666666', icon: 'check', status: 'P' },
-    absent: { color: '#aeaeaeff', icon: 'close', status: 'A' },
-    holiday: { color: '#a80000ff', icon: 'celebration', status: 'H' },
+    present: {color: '#666666', icon: 'check', status: 'P'},
+    absent: {color: '#aeaeaeff', icon: 'close', status: 'A'},
+    holiday: {color: '#a80000ff', icon: 'celebration', status: 'H'},
   };
 
   // Leave/holiday mapping — normalized icons + colors. Keep keys as internal types.
   const leaveColors = {
-    'week-off': { color: '#3bba46', icon: 'weekend', label: 'Week Off' },
-    holiday: { color: '#FF9800', icon: 'celebration', label: 'Holiday' },
-    'national holiday': { color: '#ffab40', icon: 'flag', label: 'National Holiday' },
-    'casual leave': { color: '#a5d6a7', icon: 'beach-access', label: 'Casual Leave' },
+    'week-off': {color: '#3bba46', icon: 'weekend', label: 'Week Off'},
+    holiday: {color: '#FF9800', icon: 'celebration', label: 'Holiday'},
+    'national holiday': {
+      color: '#ffab40',
+      icon: 'flag',
+      label: 'National Holiday',
+    },
+    'casual leave': {
+      color: '#a5d6a7',
+      icon: 'beach-access',
+      label: 'Casual Leave',
+    },
   };
 
-  // Fetch attendance data from API (uses employeeDetails when available)
-  const fetchAttendanceData = async () => {
+  // Optimized fetchAttendanceData
+  const fetchAttendanceData = useCallback(async () => {
+    if (!employeeDetails && !employeeId) return;
+
+    setLoading(true);
     try {
-      if (!employeeDetails && !employeeId) {
-        console.log('Employee details not available yet');
-        return;
-      }
-
-      setLoading(true);
-
       const empId = employeeDetails?.id || employeeId;
-      const empChildCompanyId = employeeDetails?.childCompanyId || childCompanyId;
-      const empBranchId = employeeDetails?.branchId || branchId;
-      const empDepartmentId = employeeDetails?.departmentId || 0;
-      const empDesignationId = employeeDetails?.designtionId || 0;
-      const empEmployeeType = employeeDetails?.employeeType || 0;
-
-      const endpoint = `${BASE_URL}/BiomatricAttendance/GetCalendorForSingleEmployee`;
-
       const requestData = {
         EmployeeId: empId,
         Month: currentMonth.month() + 1,
         Year: currentMonth.year(),
-        ChildCompanyId: empChildCompanyId,
-        BranchId: empBranchId,
+        ChildCompanyId: employeeDetails?.childCompanyId || childCompanyId,
+        BranchId: employeeDetails?.branchId || branchId,
         FromDate: currentMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
         ToDate: currentMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
-        EmployeeTypeId: empEmployeeType,
-        DepartmentId: empDepartmentId,
-        DesignationId: empDesignationId,
-        UserType: 0,
-        CalculationType: 0,
-        hasAllReportAccess: false,
-        YearList: null,
-        BranchName: null,
-        Did: 0,
-        UserId: 0,
-        status: null,
-        Ids: null,
-        CoverLatter: null,
+       
       };
 
-      const response = await axiosInstance.post(endpoint, requestData);
+      const [response, shiftResponse] = await Promise.all([
+        axiosInstance.post(
+          `${BASE_URL}/BiomatricAttendance/GetCalendorForSingleEmployee`,
+          requestData,
+        ),
+        axiosInstance.post(
+          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
+          requestData,
+        ),
+      ]);
+
+      // Process shift data into a map keyed by date
+      const shiftMap = {};
+      shiftResponse.data.forEach(shift => {
+        const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
+        shiftMap[date] = {
+          shiftName: shift.shiftName,
+          shiftStartTime: moment(shift.shiftStartTime).format('HH:mm'),
+          shiftEndTime: moment(shift.shiftEndTime).format('HH:mm'),
+          loginTime: shift.loginTime,
+          logoutTime: shift.logoutTime
+        };
+      });
+
+      setShiftData(shiftMap);
       setAttendanceData(response.data);
     } catch (error) {
-      console.error('Error fetching attendance data:', error);
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-      }
+      console.error('Error fetching data:', error?.response?.data || error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth, employeeDetails, employeeId, childCompanyId, branchId]);
 
-  // When month or employee details change, refetch attendance
   useEffect(() => {
     if (employeeDetails || employeeId) fetchAttendanceData();
-  }, [currentMonth, employeeDetails, employeeId]);
+  }, [fetchAttendanceData]);
 
   // Recompute daysInMonth when currentMonth changes
   useEffect(() => {
@@ -121,7 +125,7 @@ export default function MonthCalendarWithAgenda({
     const end = currentMonth.clone().endOf('month');
     const days = [];
     for (let m = start.clone(); m.isSameOrBefore(end, 'day'); m.add(1, 'day')) {
-      days.push({ key: m.format('YYYY-MM-DD'), date: m.clone() });
+      days.push({key: m.format('YYYY-MM-DD'), date: m.clone()});
     }
     setDaysInMonth(days);
 
@@ -136,11 +140,38 @@ export default function MonthCalendarWithAgenda({
   // Helper to convert day number to object key text used by API response
   const getDayText = day => {
     const texts = [
-      '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
-      'eighteen', 'nineteen', 'twenty', 'twentyOne', 'twentyTwo', 'twentyThree',
-      'twentyFour', 'twentyFive', 'twentySix', 'twentySeven', 'twentyEight',
-      'twentyNine', 'thirty', 'thirtyOne',
+      '',
+      'one',
+      'two',
+      'three',
+      'four',
+      'five',
+      'six',
+      'seven',
+      'eight',
+      'nine',
+      'ten',
+      'eleven',
+      'twelve',
+      'thirteen',
+      'fourteen',
+      'fifteen',
+      'sixteen',
+      'seventeen',
+      'eighteen',
+      'nineteen',
+      'twenty',
+      'twentyOne',
+      'twentyTwo',
+      'twentyThree',
+      'twentyFour',
+      'twentyFive',
+      'twentySix',
+      'twentySeven',
+      'twentyEight',
+      'twentyNine',
+      'thirty',
+      'thirtyOne',
     ];
     return texts[day] || '';
   };
@@ -149,8 +180,9 @@ export default function MonthCalendarWithAgenda({
   const normalizeLeaveName = raw => {
     if (!raw) return 'holiday';
     const r = String(raw).trim().toLowerCase();
-    if (r === 'week-off' || r === 'week off' || r === 'weekoff') return 'week-off';
-    if (r === 'holiday') return 'holiday';
+    if (r === 'week-off' || r === 'week off' || r === 'weekoff')
+      return 'week-off';
+    if (r.includes('holiday')) return 'holiday';
     if (r.includes('national')) return 'national holiday';
     // fallback to lowercased name
     return r.replace(/\s+/g, ' ');
@@ -159,7 +191,12 @@ export default function MonthCalendarWithAgenda({
   // Compute month events from attendanceData (memoized)
   const monthEvents = useMemo(() => {
     const events = {};
-    if (!attendanceData || !attendanceData.calendarModels || !attendanceData.calendarModels[0]) return events;
+    if (
+      !attendanceData ||
+      !attendanceData.calendarModels ||
+      !attendanceData.calendarModels[0]
+    )
+      return events;
 
     const attendance = attendanceData.calendarModels[0]; // single employee model
     const holidays = attendanceData.holidays || [];
@@ -167,7 +204,11 @@ export default function MonthCalendarWithAgenda({
     const start = currentMonth.clone().startOf('month');
     const end = currentMonth.clone().endOf('month');
 
-    for (let date = start.clone(); date.isSameOrBefore(end); date.add(1, 'day')) {
+    for (
+      let date = start.clone();
+      date.isSameOrBefore(end);
+      date.add(1, 'day')
+    ) {
       const dateStr = date.format('YYYY-MM-DD');
       const dayOfMonth = parseInt(date.format('D'), 10);
       const evts = [];
@@ -233,6 +274,8 @@ export default function MonthCalendarWithAgenda({
   // Derived agenda for the selected date
   const agendaItems = monthEvents[selectedDate] || [];
 
+  // console.log(agendaItems , )
+
   // Helpers to change month
   const goMonth = dir => {
     setCurrentMonth(cm => cm.clone().add(dir === 'prev' ? -1 : 1, 'month'));
@@ -247,14 +290,19 @@ export default function MonthCalendarWithAgenda({
 
   // When daysInMonth changes, try to scroll FlatList to today's date index safely
   useEffect(() => {
-    if (!daysInMonth || daysInMonth.length === 0 || !daysListRef.current) return;
+    if (!daysInMonth || daysInMonth.length === 0 || !daysListRef.current)
+      return;
     const todayKey = moment().format('YYYY-MM-DD');
     const idx = daysInMonth.findIndex(d => d.key === todayKey);
     if (idx >= 0 && daysListRef.current?.scrollToIndex) {
       // Wrap in timeout to ensure FlatList layout measured
       setTimeout(() => {
         try {
-          daysListRef.current.scrollToIndex({ index: idx, animated: false, viewPosition: 0.5 });
+          daysListRef.current.scrollToIndex({
+            index: idx,
+            animated: false,
+            viewPosition: 0.5,
+          });
         } catch (err) {
           // ignore if out-of-range
         }
@@ -263,7 +311,7 @@ export default function MonthCalendarWithAgenda({
   }, [daysInMonth]);
 
   // Render a single day card in the horizontal month strip
-  const renderDay = ({ item }) => {
+  const renderDay = ({item}) => {
     const isSelected = item.key === selectedDate;
     // Use monthEvents (computed) rather than undefined 'events'
     const evts = monthEvents[item.key] || [];
@@ -287,10 +335,13 @@ export default function MonthCalendarWithAgenda({
           isPresent && styles.presentCard,
           isWeekOff && styles.weekOffCard,
           isSelected && styles.dayCardSelected,
-        ]}
-      >
-        <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>{dayName}</Text>
-        <Text style={[styles.dateLabel, isSelected && styles.dayLabelSelected]}>{dateNumber}</Text>
+        ]}>
+        <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
+          {dayName}
+        </Text>
+        <Text style={[styles.dateLabel, isSelected && styles.dayLabelSelected]}>
+          {dateNumber}
+        </Text>
 
         {/* show up to 2 small status items (icon + short text) */}
         {evts.slice(0, 2).map(e => {
@@ -298,32 +349,27 @@ export default function MonthCalendarWithAgenda({
           const iconName =
             e?.icon ||
             eventTypes[e.type]?.icon ||
-            (e.type === 'holiday' ? 'celebration' : e.type === 'week-off' ? 'weekend' : 'event');
+            (e.type === 'holiday'
+              ? 'celebration'
+              : e.type === 'week-off'
+              ? 'weekend'
+              : 'event');
           const iconColor = e?.color || eventTypes[e.type]?.color || '#777';
           return (
             <View key={e.id} style={styles.dotRow}>
-              {/* <MaterialIcons name={iconName} size={12} color={iconColor} style={{ marginRight: 6 }} /> */}
-
-              {/* Short label for small day tile */}
-              {/* {e.type === 'week-off' && <Text style={[styles.statusText, { color: leaveColors['week-off'].color }]}>WO</Text>} */}
-
               {e.type === 'holiday' && (
-                <Text style={[styles.statusText, { color: e.color || eventTypes['holiday']?.color }]}>
-                  {e.name ? (String(e.name).length > 8 ? String(e.name).slice(0, 8) + '...' : e.name) : 'Holiday'}
+                <Text
+                  style={[
+                    styles.statusText,
+                    {color: e.color || eventTypes['holiday']?.color},
+                  ]}>
+                  {e.name
+                    ? String(e.name).length > 8
+                      ? String(e.name).slice(0, 8) + '...'
+                      : e.name
+                    : 'Holiday'}
                 </Text>
               )}
-
-              {/* {e.type === 'present' && (
-                <Text style={[styles.statusText, { color: eventTypes['present'].color }]}>P</Text>
-              )} */}
-
-              {/* {e.type === 'absent' && (
-                <Text style={[styles.statusText, {
-                  color: eventTypes['absent'].color,
-                  backgroundColor: '#FFEBEE',
-                 
-                }]}>A</Text>
-              )} */}
             </View>
           );
         })}
@@ -331,115 +377,239 @@ export default function MonthCalendarWithAgenda({
     );
   };
 
+  // Update month selection handler
+  const handleDateSelect = date => {
+    setSelectedDateTime(date);
+    setCurrentMonth(moment(date));
+    setDatePickerOpen(false);
+  };
+
+  // Header with DatePicker
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => goMonth('prev')}>
+        <MaterialIcons name="chevron-left" size={28} color="#3F51B5" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => setDatePickerOpen(true)}
+        style={{flexDirection: 'row', alignItems: 'center'}}>
+        <Text style={styles.title}>{currentMonth.format('MMMM YYYY')}</Text>
+        <MaterialIcons name="arrow-drop-down" size={20} color="#3F51B5" />
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => goMonth('next')}>
+        <MaterialIcons name="chevron-right" size={28} color="#3F51B5" />
+      </TouchableOpacity>
+
+      <DatePicker
+        modal
+        open={datePickerOpen}
+        date={selectedDateTime}
+        mode="date"
+        onConfirm={handleDateSelect}
+        onCancel={() => setDatePickerOpen(false)}
+      />
+    </View>
+  );
+
+  // Optimized event rendering
+  const renderEvent = useCallback(
+    ({item: evt, showDate = false}) => {
+      const dateKey = showDate ? evt.date : selectedDate;
+      const dayShift = shiftData[dateKey];
+      const times = evt.time ? String(evt.time).split(' - ') : [];
+
+      const requiredHours = dayShift ? (() => {
+        const start = moment(dayShift.shiftStartTime, 'HH:mm');
+        const end = moment(dayShift.shiftEndTime, 'HH:mm');
+        return moment.duration(end.diff(start)).asHours().toFixed(1);
+      })() : 'N/A';
+
+      const workingHours = times.length === 2 ? (() => {
+        const checkIn = moment(times[0], 'HH:mm:ss');
+        const checkOut = moment(times[1], 'HH:mm:ss');
+        return moment.duration(checkOut.diff(checkIn)).asHours().toFixed(1);
+      })() : 'N/A';
+
+      return (
+        <View key={evt.id} style={[styles.eventCard, evt.type === 'present' && styles.presentCard]}>
+          {showDate && (
+            <Text style={styles.dateHeader}>
+              {moment(evt.date).format('DD MMM YYYY')}
+            </Text>
+          )}
+
+          <View style={styles.statusRow}>
+            <MaterialIcons name="radio-button-checked" size={16} 
+              color={evt.type === 'present' ? '#4CAF50' : '#FF5252'} />
+            <Text style={styles.statusText}>
+              {evt.name || leaveColors[evt.type]?.label || evt.type}
+            </Text>
+          </View>
+
+          {dayShift && (
+            <View style={styles.infoGrid}>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="schedule" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Shift</Text>
+                <Text style={styles.infoValue}>{dayShift.shiftName}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <MaterialIcons name="access-time" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Time</Text>
+                <Text style={styles.infoValue}>
+                  {dayShift.shiftStartTime} - {dayShift.shiftEndTime}
+                </Text>
+              </View>
+
+              {times.length >= 2 && (
+                <>
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="login" size={16} color="#666" />
+                    <Text style={styles.infoLabel}>Check In-Out</Text>
+                    <Text style={styles.infoValue}>{times[0]} - {times[1]}</Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="timer" size={16} color="#666" />
+                    <Text style={styles.infoLabel}>Working </Text>
+                    <Text style={[styles.infoValue]}>
+                      {workingHours} hours
+                    </Text>
+                  </View>
+
+                   <View style={styles.infoRow}>
+                    <MaterialIcons name="timer" size={16} color="#666" />
+                    <Text style={styles.infoLabel}>Required</Text>
+                    <Text style={[styles.infoValue]}>
+                    {requiredHours} hours
+                    </Text>
+                  </View>
+                </>
+              )}             
+            </View>
+          )}
+        </View>
+      );
+    },
+    [eventTypes, leaveColors, shiftData, selectedDate]
+  );
+
+  // Combined agenda/list view
+  const renderEvents = () => {
+    const data = viewMode === 'list' ? getAllMonthEvents : monthEvents[selectedDate] || [];
+
+    return (
+      <View style={styles.eventsContainer}>
+        {viewMode === 'calendar' && (
+          <Text style={styles.agendaHeader}>
+            {moment(selectedDate).format('dddd, MMMM D')}
+          </Text>
+        )}
+        <FlatList
+          data={data}
+          renderItem={props => renderEvent({ ...props, showDate: viewMode === 'list' })}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.eventsListContainer}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyAgenda}>
+              <MaterialIcons name="event-busy" size={48} color="#CCC" />
+              <Text style={styles.emptyText}>
+                {viewMode === 'calendar' ? 'No events' : 'No events this month'}
+              </Text>
+            </View>
+          )}
+        />
+      </View>
+    );
+  };
+
+  // Add this function to get all month events as array
+  const getAllMonthEvents = useMemo(() => {
+    const allEvents = [];
+    Object.entries(monthEvents).forEach(([date, events]) => {
+      events.forEach(evt => {
+        allEvents.push({
+          ...evt,
+          date,
+        });
+      });
+    });
+    return allEvents.sort((a, b) => moment(a.date).diff(moment(b.date)));
+  }, [monthEvents]);
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => goMonth('prev')}>
-          <MaterialIcons name="chevron-left" size={28} color="#3F51B5" />
-        </TouchableOpacity>
+      {renderHeader()}
 
-        <TouchableOpacity onPress={() => setShowPicker(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={styles.title}>{currentMonth.format('MMMM YYYY')}</Text>
-          <MaterialIcons name="arrow-drop-down" size={20} color="#3F51B5" />
+      {/* View Toggle */}
+      <View style={styles.viewToggle}>
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            viewMode === 'calendar' && styles.toggleButtonActive,
+          ]}
+          onPress={() => setViewMode('calendar')}>
+          <MaterialIcons
+            name="calendar-today"
+            size={20}
+            color={viewMode === 'calendar' ? '#3F51B5' : '#666'}
+          />
+          <Text
+            style={[
+              styles.toggleText,
+              viewMode === 'calendar' && styles.toggleTextActive,
+            ]}>
+            Calendar
+          </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => goMonth('next')}>
-          <MaterialIcons name="chevron-right" size={28} color="#3F51B5" />
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            viewMode === 'list' && styles.toggleButtonActive,
+          ]}
+          onPress={() => setViewMode('list')}>
+          <MaterialIcons
+            name="list"
+            size={20}
+            color={viewMode === 'list' ? '#3F51B5' : '#666'}
+          />
+          <Text
+            style={[
+              styles.toggleText,
+              viewMode === 'list' && styles.toggleTextActive,
+            ]}>
+            List
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal month days */}
-      <FlatList
-        ref={daysListRef}
-        data={daysInMonth}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={d => d.key}
-        renderItem={renderDay}
-        contentContainerStyle={styles.daysContainer}
-        initialNumToRender={31}
-        getItemLayout={(data, index) => ({
-          length: CARD_WIDTH + 8,
-          offset: (CARD_WIDTH + 8) * index,
-          index,
-        })}
-      />
+      {viewMode === 'calendar' && (
+        <FlatList
+          ref={daysListRef}
+          data={daysInMonth}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={d => d.key}
+          renderItem={renderDay}
+          contentContainerStyle={styles.daysContainer}
+          initialNumToRender={31}
+          getItemLayout={(data, index) => ({
+            length: CARD_WIDTH + 8,
+            offset: (CARD_WIDTH + 8) * index,
+            index,
+          })}
+        />
+      )}
 
-      {/* Agenda (selected date details) */}
-      <View style={styles.agenda}>
-        <Text style={styles.agendaHeader}>{moment(selectedDate).format('dddd, MMMM D')}</Text>
-
-        {agendaItems.length === 0 ? (
-          <View style={styles.emptyAgenda}>
-            <MaterialIcons name="event-busy" size={48} color="#CCC" />
-            <Text style={styles.emptyText}>No events</Text>
-          </View>
-        ) : (
-          agendaItems.map(evt => {
-            // Safe icon fallback for agenda card
-            const iconName = evt?.icon || eventTypes[evt.type]?.icon || (evt.type === 'holiday' ? 'celebration' : evt.type === 'week-off' ? 'weekend' : 'event');
-            const iconColor = evt?.color || eventTypes[evt.type]?.color || '#777';
-            // split time safely
-            const times = evt.time ? String(evt.time).split(' - ') : [];
-            return (
-              <View
-                key={evt.id}
-                style={[
-                  styles.eventCard,
-                  evt.type === 'absent' && { backgroundColor: '#FFEBEE', borderLeftColor: '#FF0000' },
-                  (evt.type === 'holiday' || evt.type === 'week-off') && { backgroundColor: evt.color ? `${evt.color}33` : '#fff3e0', borderLeftColor: evt.color || '#FF9800' },
-                  evt.type === 'present' && { borderLeftColor: '#666666' },
-                ]}
-              >
-                <View style={styles.dotRow}>
-                  <MaterialIcons name={iconName} size={16} color={iconColor} />
-                  <Text style={[styles.eventTitle, { color: evt.color || '#333' }]}>{evt.name || (leaveColors[evt.type]?.label || evt.type)}</Text>
-                </View>
-
-                {/* Show login/logout times, if present */}
-                {times.length >= 2 && (
-                  <View style={styles.timeDetails}>
-                    <Text style={styles.timeLabel}>Login: </Text>
-                    <Text style={styles.timeValue}>{times[0]}</Text>
-                    <Text style={styles.timeLabel}> Logout: </Text>
-                    <Text style={styles.timeValue}>{times[1]}</Text>
-                  </View>
-                )}
-
-                {/* Optional extra details */}
-                {evt.location && <Text style={styles.eventDetail}>{evt.location}</Text>}
-              </View>
-            );
-          })
-        )}
-      </View>
-
-      {/* Year Picker Modal */}
-      <Modal visible={showPicker} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerTitle}>Select Year</Text>
-            <RNPickerSelect
-              onValueChange={pickYear}
-              items={Array.from({ length: 11 }, (_, i) => {
-                const y = moment().year() - 5 + i;
-                return { label: `${y}`, value: y };
-              })}
-              value={pickerYear}
-            />
-            <TouchableOpacity onPress={() => setShowPicker(false)} style={styles.closePicker}>
-              <Text style={styles.closeText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {renderEvents()}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: {flex: 1, backgroundColor: '#F8F9FA'},
 
   header: {
     flexDirection: 'row',
@@ -449,14 +619,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  title: { fontSize: 18, fontWeight: '600', color: '#3F51B5', marginRight: 6 },
+  title: {fontSize: 18, fontWeight: '600', color: '#3F51B5', marginRight: 6},
 
   daysContainer: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 18,
     paddingVertical: 16,
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -471,12 +641,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: '#fff',
-    elevation: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   dayCardSelected: {
     backgroundColor: '#77d6f9',
     shadowColor: '#3F51B5',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -485,34 +659,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff3e0',
     borderColor: '#FF9800',
     borderWidth: 1,
+    shadowColor: '#FF9800',
   },
   weekOffCard: {
     backgroundColor: '#e8f5e9',
     borderColor: '#3bba46',
     borderWidth: 1,
+    shadowColor: '#3bba46',
   },
   absentCard: {
-    backgroundColor: '#f9f9f9ff',
-    borderColor: '#fcfcfcff',
+    backgroundColor: '#ffebee',
+    borderColor: '#ff5252',
     borderWidth: 1,
+    shadowColor: '#ff5252',
   },
   presentCard: {
-    backgroundColor: '#F5F5F5',
-    borderColor: '#E0E0E0',
+    backgroundColor: '#e3f2fd',
+    borderColor: '#6c6c6cff',
     borderWidth: 1,
+    shadowColor: '#a0a0a0ff',
   },
 
-  dayLabel: { fontSize: 14, fontWeight: '500', color: '#333' },
-  dateLabel: { fontSize: 14, fontWeight: '500', color: '#333' },
-  dayLabelSelected: { color: '#FFF' },
+  dayLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  dateLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  dayLabelSelected: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
 
-  dotRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center' },
-  statusText: { marginLeft: 4, fontSize: 12, fontWeight: 'bold' },
+  dotRow: {marginTop: 6, flexDirection: 'row', alignItems: 'center'},
+  statusText: {marginLeft: 4, fontSize: 12, fontWeight: 'bold'},
 
-  timeText: { marginLeft: 4, fontSize: 10, color: '#666' },
+  timeText: {marginLeft: 4, fontSize: 10, color: '#666'},
 
-  agenda: { flex: 1, padding: 12 },
-  agendaHeader: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#1F2937' },
+  agenda: {
+    flex: 1,
+    padding: 12,
+  },
+  agendaHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1F2937',
+  },
 
   emptyAgenda: {
     alignItems: 'center',
@@ -523,28 +722,174 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 32,
   },
-  emptyText: { color: '#CCC', marginTop: 8, fontSize: 14 },
-
+  emptyText: {color: '#CCC', marginTop: 8, fontSize: 14},
   eventCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#666666',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 6,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E0E0E0',
+  },
+  
+  dateHeader: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
   },
 
-  eventTitle: { marginLeft: 8, fontSize: 15, fontWeight: '600' },
-  eventDetail: { fontSize: 13, color: '#666' },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  pickerContainer: { width: width * 0.8, padding: 20, backgroundColor: '#FFF', borderRadius: 12 },
-  pickerTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
-  closePicker: { marginTop: 16, alignSelf: 'center' },
-  closeText: { color: '#3F51B5', fontSize: 16, fontWeight: '600' },
+  statusText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
 
-  timeDetails: { flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', backgroundColor: '#F8F9FA', padding: 8, borderRadius: 8 },
-  timeLabel: { fontSize: 13, color: '#4B5563', fontWeight: '600' },
-  timeValue: { fontSize: 13, color: '#1F2937', marginRight: 12, fontWeight: '500' },
+  infoGrid: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 6,
+    padding: 8,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+
+  infoLabel: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#666',
+    width: 100,
+  },
+
+  infoValue: {
+    flex: 1,
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+  },
+
+  presentCard: {
+    borderLeftColor: '#4CAF50',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerContainer: {
+    width: width * 0.8,
+    maxHeight: 350, // Adjusted height to show more years but not too tall
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F8F9FA',
+  },
+  yearHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  yearListContent: {
+    paddingVertical: 8,
+  },
+  yearItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    marginVertical: 2,
+    borderRadius: 8,
+  },
+  yearItemSelected: {
+    backgroundColor: '#3F51B5',
+  },
+  yearText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#333',
+  },
+  yearTextSelected: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+
+  timeDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    flexWrap: 'wrap',
+    backgroundColor: '#F8F9FA',
+    padding: 8,
+    borderRadius: 8,
+  },
+  timeLabel: {fontSize: 13, color: '#4B5563', fontWeight: '600'},
+  timeValue: {
+    fontSize: 13,
+    color: '#1F2937',
+    marginRight: 12,
+    fontWeight: '500',
+  },
+
+  viewToggle: {
+    flexDirection: 'row',
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    margin: 8,
+    elevation: 2,
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 6,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#E8EAF6',
+  },
+  toggleText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#666',
+  },
+  toggleTextActive: {
+    color: '#3F51B5',
+    fontWeight: '600',
+  },
+  eventsListContainer: {
+    padding: 12,
+    flexGrow: 1,
+  },
+  eventDate: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  eventsContainer: {
+    flex: 1,
+    padding: 12,
+  },
 });

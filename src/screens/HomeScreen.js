@@ -9,6 +9,7 @@ import {
   Platform,
   PermissionsAndroid,
   AppState,
+  Image,
   StatusBar,
 } from 'react-native';
 import styles from '../Stylesheet/dashboardcss';
@@ -614,8 +615,7 @@ const HomeScreen = () => {
             CompanyId: employeeDetails.childCompanyId,
           };
 
-
-          console.log()
+          console.log();
 
           const response = await axios.post(
             `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
@@ -652,7 +652,150 @@ const HomeScreen = () => {
     );
   };
   // debugger;
+  // const handleCheckIn = async () => {
+  //   if (!registeredFace) {
+  //     Alert.alert(
+  //       'Registration Required',
+  //       'Please register your face first to enable check-in.',
+  //     );
+  //     setShowRegistration(true);
+  //     return;
+  //   }
+
+  //   setIsLoading(true);
+  //   try {
+  //     const locationResult = await checkLocation();
+  //     if (!locationResult.inside) {
+  //       const nearest = locationResult.nearestFence
+  //         ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+  //             locationResult.nearestFence.distance,
+  //           )}m away)`
+  //         : 'Unknown area';
+  //       Alert.alert(
+  //         '❌ Location Check Failed',
+  //         `You are not within the required area.\nNearest: ${nearest}`,
+  //       );
+  //       return;
+  //     }
+
+  //     Alert.alert(
+  //       'Face Verification',
+  //       'Please capture your face for verification',
+  //       [
+  //         {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
+  //         {
+  //           text: 'Capture',
+  //           onPress: () => {
+  //             launchCamera(async res => {
+  //               try {
+  //                 if (!res.assets?.[0]?.base64) {
+  //                   Alert.alert('No Image Captured', 'Please try again.');
+  //                   return;
+  //                 }
+
+  //                 const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+  //                 setCapturedFace(capturedImage);
+
+  //                 const result = await matchFaces(
+  //                   registeredFace,
+  //                   capturedImage,
+  //                 );
+  //                 if (!result?.isMatch) {
+  //                   Alert.alert(
+  //                     '❌ Verification Failed',
+  //                     'Face does not match. Please try again.',
+  //                   );
+  //                   return;
+  //                 }
+
+  //                 const now = new Date();
+  //                 const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  //                 const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+  //                 // ✅ Build payload
+  //                 const attendancePayload = {
+  //                   EmployeeId: employeeDetails?.id || '9',
+  //                   EmployeeCode: employeeDetails?.companyUserId || '9',
+  //                   LogDateTime: now.toISOString(), // ✅ full timestamp
+  //                   LogDate: logDate, // ✅ only date
+  //                   LogTime: logTime, // ✅ matches LogDateTime
+  //                   Direction: 'in', // must be lowercase
+  //                   DeviceName: 'Bhubneswar',
+  //                   SerialNo: '1',
+  //                   VerificationCode: '1',
+  //                 };
+
+  //                 console.log('📤 Posting attendance:', attendancePayload);
+
+  //                 // ✅ Send to API
+  //                 const attendanceResponse = await axiosInstance.post(
+  //                   `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+  //                   attendancePayload,
+  //                 );
+
+  //                 if (!attendanceResponse.data?.isSuccess) {
+  //                   throw new Error(
+  //                     attendanceResponse.data?.message ||
+  //                       'Failed to save attendance',
+  //                   );
+  //                 }
+
+  //                 // ✅ If success
+  //                 setCheckedIn(true);
+  //                 const checkInMs = new Date().getTime();
+  //                 setCheckInTime(checkInMs);
+  //                 await saveCheckInState(true, checkInMs, capturedImage);
+  //                 await startBackgroundService();
+
+  //                 const formattedLogin = `${logDate} ${logTime}`;
+
+  //                 Alert.alert(
+  //                   '✅ Check-In Successful',
+  //                   `Login: ${formattedLogin}\nWelcome! Your shift has started.`,
+  //                 );
+  //                 startShiftProgress(0);
+  //               } catch (error) {
+  //                 console.error('Attendance API Error:', error);
+  //                 Alert.alert(
+  //                   '❌ Check-In Failed',
+  //                   'Failed to record attendance. Please try again.',
+  //                 );
+  //               } finally {
+  //                 setIsLoading(false);
+  //               }
+  //             });
+  //           },
+  //         },
+  //       ],
+  //     );
+  //   } catch (error) {
+  //     console.error('Check-in error:', error);
+  //     Alert.alert('Error', 'Something went wrong during check-in.');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleCheckIn = async () => {
+    // 👉 Helper function to format current date/time in local time (no UTC issues)
+    const getFormattedLocalDateTime = () => {
+      const now = new Date();
+      const pad = n => (n < 10 ? `0${n}` : n);
+
+      const year = now.getFullYear();
+      const month = pad(now.getMonth() + 1);
+      const day = pad(now.getDate());
+      const hours = pad(now.getHours());
+      const minutes = pad(now.getMinutes());
+      const seconds = pad(now.getSeconds());
+
+      const logDate = `${year}-${month}-${day}`;
+      const logTime = `${hours}:${minutes}:${seconds}`;
+      const logDateTime = `${logDate}T${logTime}`; // ✅ Local ISO (no milliseconds, no 'Z')
+
+      return {logDate, logTime, logDateTime};
+    };
+
     if (!registeredFace) {
       Alert.alert(
         'Registration Required',
@@ -663,6 +806,7 @@ const HomeScreen = () => {
     }
 
     setIsLoading(true);
+
     try {
       const locationResult = await checkLocation();
       if (!locationResult.inside) {
@@ -671,10 +815,12 @@ const HomeScreen = () => {
               locationResult.nearestFence.distance,
             )}m away)`
           : 'Unknown area';
+
         Alert.alert(
           '❌ Location Check Failed',
           `You are not within the required area.\nNearest: ${nearest}`,
         );
+        setIsLoading(false);
         return;
       }
 
@@ -708,17 +854,32 @@ const HomeScreen = () => {
                     return;
                   }
 
-                  const now = new Date();
-                  const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-                  const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+                  // ✅ Use our formatted local date/time helper
+                  const {logDate, logTime, logDateTime} =
+                    getFormattedLocalDateTime();
 
                   // ✅ Build payload
+                  // const attendancePayload = {
+                  //   EmployeeId: employeeDetails?.id || '9',
+                  //   EmployeeCode: employeeDetails?.companyUserId || '9',
+                  //   LogDateTime: logDateTime,
+                  //   LogDate: logDate,
+                  //   LogTime: logTime,
+                  //   Direction: 'In',
+                  //   DeviceName: 'Bhubneswar',
+                  //   SerialNo: '1',
+                  //   VerificationCode: '1'
+                  // };
+
                   const attendancePayload = {
-                    EmployeeCode: employeeDetails?.companyUserId || '29',
-                    LogDateTime: now.toISOString(), // ✅ full timestamp
-                    LogDate: logDate, // ✅ only date
-                    LogTime: logTime, // ✅ matches LogDateTime
-                    Direction: 'in', // must be lowercase
+                    EmployeeId: String(employeeDetails?.id),
+                    EmployeeCode: String(
+                      employeeDetails?.companyUserId || employeeDetails?.id,
+                    ),
+                    LogDateTime: logDateTime,
+                    LogDate: logDate,
+                    LogTime: logTime,
+                    Direction: 'In',
                     DeviceName: 'Bhubneswar',
                     SerialNo: '1',
                     VerificationCode: '1',
@@ -746,13 +907,11 @@ const HomeScreen = () => {
                   await saveCheckInState(true, checkInMs, capturedImage);
                   await startBackgroundService();
 
-                  const formattedLogin = `${logDate} ${logTime}`;
-
-
                   Alert.alert(
                     '✅ Check-In Successful',
-                    `Login: ${formattedLogin}\nWelcome! Your shift has started.`,
+                    `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
                   );
+
                   startShiftProgress(0);
                 } catch (error) {
                   console.error('Attendance API Error:', error);
@@ -777,25 +936,49 @@ const HomeScreen = () => {
   };
 
   const handleCheckOut = async () => {
-    setIsLoading(true);
-    try {
+    // 👉 Helper function for local time formatting (same as in Check-In)
+    const getFormattedLocalDateTime = () => {
       const now = new Date();
-      const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+      const pad = n => (n < 10 ? `0${n}` : n);
 
+      const year = now.getFullYear();
+      const month = pad(now.getMonth() + 1);
+      const day = pad(now.getDate());
+      const hours = pad(now.getHours());
+      const minutes = pad(now.getMinutes());
+      const seconds = pad(now.getSeconds());
+
+      const logDate = `${year}-${month}-${day}`;
+      const logTime = `${hours}:${minutes}:${seconds}`;
+      const logDateTime = `${logDate}T${logTime}`; // ✅ Local ISO, no 'Z'
+
+      return {logDate, logTime, logDateTime};
+    };
+
+    setIsLoading(true);
+
+    try {
+      // ✅ Get properly formatted local time
+      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+
+      // ✅ Build payload
       const attendancePayload = {
-        EmployeeCode: employeeDetails?.companyUserId || '29', // ✅ string
-        LogDateTime: now.toISOString(), // ✅ full timestamp
-        LogDate: logDate, // ✅ only date
-        LogTime: logTime, // ✅ matches LogDateTime
-        Direction: 'in', // ✅ correct for checkout
+        EmployeeId: String(employeeDetails?.id),
+        EmployeeCode: String(
+          employeeDetails?.companyUserId || employeeDetails?.id,
+        ),
+        LogDateTime: logDateTime,
+        LogDate: logDate,
+        LogTime: logTime,
+        Direction: 'In',
         DeviceName: 'Bhubneswar',
         SerialNo: '1',
         VerificationCode: '1',
       };
 
-      console.log('Posting check-out attendance:', attendancePayload);
+      console.log('📤 Posting check-out attendance:', attendancePayload);
 
+      // ✅ Send to API
       const attendanceResponse = await axiosInstance.post(
         `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
         attendancePayload,
@@ -807,7 +990,7 @@ const HomeScreen = () => {
         );
       }
 
-      // ✅ If successful, reset check-in state
+      // ✅ Reset check-in state after successful checkout
       await saveCheckInState(false);
       await stopBackgroundService();
 
@@ -823,7 +1006,7 @@ const HomeScreen = () => {
 
       Alert.alert(
         '✅ Check-Out Successful',
-        'Your shift has ended. Have a great day!',
+        `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`,
       );
     } catch (error) {
       console.error('Check-out error:', error);
@@ -835,6 +1018,66 @@ const HomeScreen = () => {
       setIsLoading(false);
     }
   };
+
+  // const handleCheckOut = async () => {
+  //   setIsLoading(true);
+  //   try {
+  //     const now = new Date();
+  //     const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  //     const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+  //     const attendancePayload = {
+  //       EmployeeCode: employeeDetails?.companyUserId || '29', // ✅ string
+  //       LogDateTime: now.toISOString(), // ✅ full timestamp
+  //       LogDate: logDate, // ✅ only date
+  //       LogTime: logTime, // ✅ matches LogDateTime
+  //       Direction: 'in', // ✅ correct for checkout
+  //       DeviceName: 'Bhubneswar',
+  //       SerialNo: '1',
+  //       VerificationCode: '1',
+  //     };
+
+  //     console.log('Posting check-out attendance:', attendancePayload);
+
+  //     const attendanceResponse = await axiosInstance.post(
+  //       `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+  //       attendancePayload,
+  //     );
+
+  //     if (!attendanceResponse.data?.isSuccess) {
+  //       throw new Error(
+  //         attendanceResponse.data?.message || 'Failed to save attendance',
+  //       );
+  //     }
+
+  //     // ✅ If successful, reset check-in state
+  //     await saveCheckInState(false);
+  //     await stopBackgroundService();
+
+  //     setCheckedIn(false);
+  //     setCheckInTime(null);
+  //     setProgressPercentage(0);
+  //     setMissedPercentage(0);
+  //     setElapsedTime('00:00:00');
+
+  //     if (progressIntervalRef.current) {
+  //       clearInterval(progressIntervalRef.current);
+  //     }
+
+  //     Alert.alert(
+  //       '✅ Check-Out Successful',
+  //       'Your shift has ended. Have a great day!',
+  //     );
+  //   } catch (error) {
+  //     console.error('Check-out error:', error);
+  //     Alert.alert(
+  //       '❌ Check-Out Failed',
+  //       'Failed to check out. Please try again.',
+  //     );
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   // Keep all your existing helper functions (normalize, preprocessImage, getEmbedding, matchFaces, etc.)
   const normalize = useCallback(vec => {
@@ -1213,7 +1456,6 @@ const HomeScreen = () => {
     fetchLeaveData();
   }, [user]);
 
-
   useEffect(() => {
     const fetchShiftDetails = async () => {
       if (!employeeDetails?.id || !user?.childCompanyId) return;
@@ -1262,6 +1504,8 @@ const HomeScreen = () => {
           `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
           payload,
         );
+
+        console.log(response.data, 'uicgiuogiudvgiudfgiu');
 
         if (response.data && Array.isArray(response.data)) {
           const todayDateStr =
@@ -1659,9 +1903,6 @@ const HomeScreen = () => {
       </ScrollView>
     </AppSafeArea>
   );
-
 };
 
 export default HomeScreen;
-
-

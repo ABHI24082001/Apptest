@@ -284,7 +284,7 @@ const LeaveReportScreen = ({ navigation }) => {
         <View style={styles.row}>
           <Chip style={styles.chip}>Paid: {item.approvedPaidLeave}</Chip>
           <Chip style={styles.chip}>Unpaid: {item.approvedUnpaidLeave}</Chip>
-          <Chip style={styles.chip}>Amount: {item.paidLeaveAmount ?? 0}</Chip>
+          {/* <Chip style={styles.chip}>Amount: {item.paidLeaveAmount ?? 0}</Chip> */}
         </View>
       </Card.Content>
     </Card>

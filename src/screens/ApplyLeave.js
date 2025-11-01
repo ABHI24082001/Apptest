@@ -4,28 +4,29 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Alert,
   ActionSheetIOS,
-  ActivityIndicator,
+  Platform,
 } from 'react-native';
+import {Appbar, Button} from 'react-native-paper';
+
+// Third-party components
 import DatePicker from 'react-native-date-picker';
 import {useForm, Controller} from 'react-hook-form';
-import axiosInstance from '../utils/axiosInstance';
-import AppSafeArea from '../component/AppSafeArea';
-import {Appbar, Button} from 'react-native-paper';
-import LeaveHeader from '../component/LeaveHeader';
-import LeaveBalanceCards from '../component/LeaveBalanceCards';
 import {Picker} from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
-import {Platform} from 'react-native';
-import styles from '../Stylesheet/Applyleave';
 
+// Custom components and utilities
+import AppSafeArea from '../component/AppSafeArea';
+import LeaveHeader from '../component/LeaveHeader';
+import LeaveBalanceCards from '../component/LeaveBalanceCards';
+import styles from '../Stylesheet/Applyleave';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
+import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 
 const ApplyLeaveScreen = ({navigation, route}) => {
@@ -93,39 +94,28 @@ const ApplyLeaveScreen = ({navigation, route}) => {
     }
   }, [fromLeaveDateValue, leaveNoValue, setValue]);
 
+  // Helper function to format date for backend
   function formatDateForBackend(date) {
     if (!date || isNaN(new Date(date).getTime())) return null;
     const d = new Date(date);
     const pad = n => String(n).padStart(2, '0');
-    return (
-      d.getFullYear() +
-      '-' +
-      pad(d.getMonth() + 1) +
-      '-' +
-      pad(d.getDate()) +
-      'T' +
-      pad(d.getHours()) +
-      ':' +
-      pad(d.getMinutes()) +
-      ':' +
-      pad(d.getSeconds())
-    );
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+      d.getHours(),
+    )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
+  // Fetch leave policies on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Validate employeeDetails and childCompanyId
         if (!employeeDetails?.childCompanyId) {
           throw new Error('Invalid employee details: Missing childCompanyId');
         }
 
-        // Fetch leave policies for Leave Name dropdown
         const policiesResponse = await axiosInstance.get(
           `${BASE_URL}/LeavePolicy/GetAllLeavePolicy/${employeeDetails?.childCompanyId}`,
         );
 
-        // Validate response data
         if (!Array.isArray(policiesResponse.data)) {
           throw new Error('Invalid response format: Expected an array');
         }
@@ -135,10 +125,9 @@ const ApplyLeaveScreen = ({navigation, route}) => {
           leaveName: policy.leaveName,
         }));
 
-        // console.log(policiesResponse.data, 'Leave Policies Fetched'); // Debugging: Check fetched policies
-
         setLeavePolicies(policies);
 
+        // Set default leave policy if data is passed
         if (passedLeaveData?.LeaveId || passedLeaveData?.leaveName) {
           const selectedPolicy = policies.find(
             policy =>
@@ -150,7 +139,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching leave policies:', error.message || error);
+        console.error('Error fetching leave policies:', error.message);
       }
     };
 
@@ -168,7 +157,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
     )}.pdf`;
   }
 
-  // Document picker handler
+  // Handle document selection
   const handleDocumentPick = async () => {
     try {
       const res = await pick({
@@ -177,7 +166,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
         type: ['application/pdf', 'image/jpeg', 'image/png'], // Support PDF and images
       });
 
-      if (res && res.length > 0) {
+      if (res?.[0]) {
         const file = res[0];
         if (file.size > 5 * 1024 * 1024) {
           Alert.alert('Error', 'File size should be less than 5MB');
@@ -188,7 +177,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
         setUploadedFile(file);
         setDocumentPath(fileName);
         setValue('DocumentPath', fileName);
-        Alert.alert('File Selected', `File will be saved as: ${fileName}`);
+        Alert.alert('Success', `File selected: ${fileName}`);
       }
     } catch (err) {
       if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
@@ -197,6 +186,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
     }
   };
 
+  // Handle form submission
   const onSubmit = async data => {
     const payload = {
       Id: data.ApplyLeaveId,
@@ -661,7 +651,5 @@ const ApplyLeaveScreen = ({navigation, route}) => {
     </AppSafeArea>
   );
 };
-
-
 
 export default ApplyLeaveScreen;

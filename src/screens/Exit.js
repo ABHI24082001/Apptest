@@ -2,7 +2,6 @@ import React, {useState, useEffect} from 'react';
 import {
   View,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   TextInput,
@@ -18,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm, Controller} from 'react-hook-form';
 import AppSafeArea from '../component/AppSafeArea';
 import axiosinstance from '../utils/axiosInstance';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect} from '@react-navigation/native';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
@@ -33,6 +32,7 @@ const ExitApplyScreen = ({navigation}) => {
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Calculate minimum allowed exit date (30 days from today)
   const minimumExitDate = new Date();
@@ -44,7 +44,6 @@ const ExitApplyScreen = ({navigation}) => {
     formState: {errors},
     setValue,
     watch,
-    reset,
   } = useForm({
     defaultValues: {
       EmployeeId: employeeDetails?.id ?? '',
@@ -126,9 +125,6 @@ const ExitApplyScreen = ({navigation}) => {
     }
   }, [employeeDetails, setValue]);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showAppliedDatePicker, setShowAppliedDatePicker] = useState(false);
-
   // Validate the selected exit date is at least 30 days in the future
   const validateExitDate = date => {
     const today = new Date();
@@ -153,6 +149,29 @@ const ExitApplyScreen = ({navigation}) => {
   };
 
   const onSubmit = async data => {
+    // Validate fields first
+    if (!data.exitDate) {
+      Alert.alert('Validation Error', 'Exit date is required');
+      return;
+    }
+    if (!data.reason) {
+      Alert.alert('Validation Error', 'Reason is required');
+      return;
+    }
+
+    // Validate exit date
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 30);
+
+    if (new Date(data.exitDate) < minDate) {
+      Alert.alert(
+        'Validation Error',
+        'Exit date must be at least 30 days from today as per company policy.',
+      );
+      return;
+    }
+
     // Double check for active requests before submission
     if (hasActiveRequest) {
       Alert.alert(
@@ -244,7 +263,6 @@ const ExitApplyScreen = ({navigation}) => {
   };
 
   const exitDate = watch('exitDate');
-  const appliedDate = watch('appliedDate');
 
   // Show loading indicator while checking for existing requests
   if (checkingStatus) {
@@ -342,10 +360,6 @@ const ExitApplyScreen = ({navigation}) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Exit Date <Text style={{color: 'red'}}>*</Text>
-                <Text style={styles.dateHintText}>
-                  {' '}
-                  (must be at least 30 days from today)
-                </Text>
               </Text>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -376,7 +390,13 @@ const ExitApplyScreen = ({navigation}) => {
               <Controller
                 control={control}
                 name="reason"
-                rules={{required: 'Reason is required', maxLength: 100}}
+                rules={{
+                  required: 'Reason is required',
+                  maxLength: {
+                    value: 100,
+                    message: 'Reason cannot exceed 100 characters',
+                  },
+                }}
                 render={({field: {onChange, value}}) => (
                   <TextInput
                     placeholder="Explain your reason for leaving....."
@@ -384,12 +404,21 @@ const ExitApplyScreen = ({navigation}) => {
                     multiline
                     numberOfLines={5}
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={text => {
+                      // Limit text to 100 characters
+                      if (text.length <= 100) {
+                        onChange(text);
+                      }
+                    }}
                     style={styles.textArea}
                   />
                 )}
               />
-              <Text style={styles.charCount}>
+              <Text
+                style={[
+                  styles.charCount,
+                  watch('reason')?.length >= 100 ? {color: 'red'} : {},
+                ]}>
                 {watch('reason')?.length || 0}/100 characters
               </Text>
               {errors.reason && (
@@ -435,20 +464,6 @@ const ExitApplyScreen = ({navigation}) => {
         theme="light"
       />
 
-      <DatePicker
-        modal
-        open={showAppliedDatePicker}
-        date={appliedDate || new Date()}
-        mode="date"
-        maximumDate={new Date()}
-        onConfirm={date => {
-          setShowAppliedDatePicker(false);
-          setValue('appliedDate', date, {shouldValidate: true});
-        }}
-        onCancel={() => setShowAppliedDatePicker(false)}
-        theme="light"
-      />
-
       {/* Feedback Modal */}
       <FeedbackModal
         visible={feedbackVisible}
@@ -464,6 +479,3 @@ const ExitApplyScreen = ({navigation}) => {
 };
 
 export default ExitApplyScreen;
-
-
-

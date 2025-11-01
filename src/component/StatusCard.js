@@ -88,6 +88,13 @@ const StatusCard = ({
     ).join(' ');
   };
 
+  // Helper function to check if status is any form of approved
+  const isApproved = (status) => {
+    if (!status) return false;
+    const statusLower = status.toLowerCase();
+    return statusLower.includes('approved');
+  };
+
   if (empty) {
     // Improved empty state with Card
     return (
@@ -138,28 +145,31 @@ const StatusCard = ({
           </Card.Content>
         </Card>
       </Card.Content>
-      <Card.Actions style={styles.cardFooter}>
-        <Button
-          mode="contained"
-          icon="pencil-outline"
-          onPress={onEdit}
-          style={styles.editButton}
-          labelStyle={styles.actionText}
-          compact
-        >
-          Update
-        </Button>
-        <Button
-          mode="contained"
-          icon="trash-can-outline"
-          onPress={onDelete}
-          style={styles.deleteButton}
-          labelStyle={styles.actionText}
-          compact
-        >
-          Remove
-        </Button>
-      </Card.Actions>
+      {/* Only show Card.Actions if status is not approved */}
+      {!isApproved(status) && (
+        <Card.Actions style={styles.cardFooter}>
+          <Button
+            mode="contained"
+            icon="pencil-outline"
+            onPress={onEdit}
+            style={styles.editButton}
+            labelStyle={styles.actionText}
+            compact
+          >
+            Update
+          </Button>
+          <Button
+            mode="contained"
+            icon="trash-can-outline"
+            onPress={onDelete}
+            style={styles.deleteButton}
+            labelStyle={styles.actionText}
+            compact
+          >
+            Remove
+          </Button>
+        </Card.Actions>
+      )}
 
       <Card.Content style={styles.statusFooter}>
         <Text style={styles.statusLabel}>Status</Text>
