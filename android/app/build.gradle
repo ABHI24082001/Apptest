@@ -116,7 +116,7 @@ android {
     buildTypes {
         debug {
 
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
 
         }
         release {
@@ -144,18 +144,7 @@ dependencies {
 }
 
 
-// afterEvaluate {
-//     tasks.matching { it.name == "generateDebugLintReportModel" }.all {
-//         dependsOn("copyReactNativeVectorIconFonts")
-//     }
-// }
 
-// afterEvaluate {
-//     tasks.named("lintAnalyzeDebug").configure {
-//         dependsOn tasks.named("copyReactNativeVectorIconFonts")
-//     }
-// }
-// apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 
 afterEvaluate {
