@@ -116,15 +116,29 @@ android {
     buildTypes {
         debug {
 
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
 
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.release
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+          // ✅ Use your own keystore here for Play Store signing
+            signingConfig signingConfigs.debug
+
+            // ✅ Enable ProGuard + Resource shrinking for smaller bundle
+            minifyEnabled true
+            shrinkResources true
+
+            debuggable false
+            jniDebuggable false
+            renderscriptDebuggable false
+            
+            // Optimize for production
+            zipAlignEnabled true
+            crunchPngs true
+
+            // ✅ Use optimized default ProGuard config + your custom rules
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

@@ -93,6 +93,9 @@ const HomeScreen = () => {
 
 const backgroundTask = async (taskData) => {
   const delay = taskData?.delay ?? 1000;
+  let consecutiveErrors = 0;
+  const maxConsecutiveErrors = 5;
+  
   try {
     while (BackgroundService.isRunning()) {
       try {
@@ -102,23 +105,39 @@ const backgroundTask = async (taskData) => {
         
         await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, elapsedSeconds.toString());
         
-        // Use Promise-based timeout instead of vibe
+        // Reset error counter on success
+        consecutiveErrors = 0;
+        
         await new Promise(resolve => setTimeout(resolve, delay));
       } catch (innerError) {
-        console.error('Background task inner error:', innerError);
-        break;
+        consecutiveErrors++;
+        console.error(`Background task error ${consecutiveErrors}:`, innerError);
+        
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          console.error('Too many consecutive errors, stopping background task');
+          break;
+        }
+        
+        // Exponential backoff on errors
+        await new Promise(resolve => 
+          setTimeout(resolve, Math.min(delay * Math.pow(2, consecutiveErrors), 10000))
+        );
       }
     }
   } catch (err) {
-    console.error('Background task error:', err);
+    console.error('Fatal background task error:', err);
   }
 };
 
 const startBackgroundService = async () => {
   try {
+    // Check if already running
     const isRunning = BackgroundService.isRunning();
     if (isRunning) {
+      console.log('Background service already running, stopping first...');
       await BackgroundService.stop();
+      // Wait a bit before restarting
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     await BackgroundService.start(bgOptions);
@@ -126,13 +145,22 @@ const startBackgroundService = async () => {
       taskDesc: 'Shift in progress...',
     });
     
-    // Start the background task with proper error handling
+    // Start the background task with enhanced error handling
     backgroundTask(bgOptions.parameters).catch(error => {
-      console.error('Background task failed:', error);
+      console.error('Background task failed to start:', error);
+      // Try to restart once
+      setTimeout(() => {
+        if (BackgroundService.isRunning()) {
+          backgroundTask(bgOptions.parameters).catch(console.error);
+        }
+      }, 5000);
     });
+    
+    console.log('✅ Background service started successfully');
     
   } catch (e) {
     console.error('Failed to start background service:', e);
+    // Don't throw, as this shouldn't fail check-in
   }
 };
 
@@ -364,27 +392,43 @@ const stopBackgroundService = async () => {
 };
   
 
-
-  useEffect(() => {
+// Replace your current useEffect with this enhanced version
+useEffect(() => {
+  let isMounted = true; // Track component mount status
+  
   const initializeApp = async () => {
     try {
+      if (!isMounted) return;
+      
       await loadCheckInState();
+      
+      if (!isMounted) return;
+      
       const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-      if (checkInData) {
+      if (checkInData && isMounted) {
         const parsedData = JSON.parse(checkInData);
         if (parsedData.checkedIn && parsedData.checkInTime) {
-          await startBackgroundService();
+          await startBackgroundService().catch(error => {
+            console.error('Background service initialization failed:', error);
+          });
         }
       }
     } catch (e) {
       console.error('Failed to initialize app:', e);
+      if (isMounted) {
+        // Show user-friendly error only if component is still mounted
+        Alert.alert('Initialization Error', 'Please restart the app');
+      }
     }
   };
 
   initializeApp();
 
+  // Enhanced cleanup
   return () => {
-    // Cleanup all intervals and timeouts
+    isMounted = false; // Prevent state updates after unmount
+    
+    // Clear all intervals and timeouts
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
@@ -393,6 +437,9 @@ const stopBackgroundService = async () => {
       clearTimeout(imageProcessingTimeoutRef.current);
       imageProcessingTimeoutRef.current = null;
     }
+    
+    // Stop background service safely
+    stopBackgroundService().catch(console.error);
   };
 }, []);
 
@@ -593,31 +640,39 @@ const handleReregisterFace = async () => {
   // Add memory cleanup in your camera functions
 // Replace the existing launchCamera function with this fixed version:
 
+// Replace launchCamera function with production-safe version
 const launchCamera = async (callback) => {
   try {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required');
-      return Promise.reject(new Error('Camera permission denied'));
+      throw new Error('Camera permission denied');
     }
 
-    // Clear any existing timeouts before launching camera
+    // Clear any existing timeouts
     if (imageProcessingTimeoutRef.current) {
       clearTimeout(imageProcessingTimeoutRef.current);
       imageProcessingTimeoutRef.current = null;
     }
 
     return new Promise((resolve, reject) => {
+      // Set timeout for camera operation
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Camera operation timed out'));
+      }, 30000);
+
       ImagePicker.launchCamera(
         {
           mediaType: 'photo',
           includeBase64: true,
           cameraType: 'front',
-          maxWidth: 500,
-          maxHeight: 500,
+          maxWidth: 800,
+          maxHeight: 800,
           quality: 0.8,
+          saveToPhotos: false, // Important for production
         },
         (response) => {
+          clearTimeout(timeoutId);
+          
           try {
             if (response.didCancel) {
               reject(new Error('Camera cancelled by user'));
@@ -634,6 +689,13 @@ const launchCamera = async (callback) => {
               return;
             }
 
+            // Validate image size (prevent memory issues)
+            const imageSize = response.assets[0].base64.length;
+            if (imageSize > 5000000) { // 5MB limit
+              reject(new Error('Image too large. Please try again.'));
+              return;
+            }
+
             const result = callback(response);
             resolve(result);
           } catch (error) {
@@ -645,7 +707,7 @@ const launchCamera = async (callback) => {
     });
   } catch (error) {
     console.error('Launch camera error:', error);
-    return Promise.reject(error);
+    throw error;
   }
 };
 
@@ -668,9 +730,6 @@ const launchCamera = async (callback) => {
       return {logDate, logTime, logDateTime};
 };
 
-
-    // Replace handleCheckIn function:
-// debugger;
 const handleCheckIn = async () => {
   if (!registeredFace) {
     Alert.alert(
@@ -822,6 +881,7 @@ const handleCheckIn = async () => {
     setIsLoading(false);
   }
 };
+
 
 const handleCheckOut = async () => { 
     setIsLoading(true);

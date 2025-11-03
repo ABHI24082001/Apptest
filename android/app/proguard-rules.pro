@@ -1,46 +1,59 @@
-# Add project specific ProGuard rules here.
-# By default, the flags in this file are appended to flags specified
-# in /usr/local/Cellar/android-sdk/24.3.3/tools/proguard/proguard-android.txt
-# You can edit the include path and order by changing the proguardFiles
-# directive in build.gradle.
-# Keep React Native classes
+############################################################
+# ⚙️ React Native + VisionCamera + Reanimated (Optimized)
+############################################################
+
+# ===== Core React Native =====
 -keep class com.facebook.react.** { *; }
 -keep class com.facebook.hermes.** { *; }
+-keep class com.facebook.jni.** { *; }
+-keep class com.facebook.soloader.** { *; }
+-dontwarn com.facebook.react.**
 
-# Keep ONNX Runtime classes
+# ===== Reanimated & Gesture Handler =====
+-keep class com.swmansion.reanimated.** { *; }
+-keep class com.swmansion.gesturehandler.** { *; }
+
+# ===== VisionCamera =====
+-keep class com.mrousavy.camera.** { *; }
+-keep class com.mrousavy.** { *; }
+-dontwarn com.mrousavy.**
+
+# ===== ONNX Runtime (for AI / Face detection) =====
 -keep class ai.onnxruntime.** { *; }
 
-# Keep ImagePicker classes
--keep class com.imagepicker.** { *; }
-
-# Keep ImagePicker classes
--keep class com.imagepicker.** { *; }
-
-# Keep AsyncStorage classes
+# ===== Async Storage =====
 -keep class com.reactnativecommunity.asyncstorage.** { *; }
 
-# Keep Geolocation classes
+# ===== Geolocation =====
 -keep class com.reactnativecommunity.geolocation.** { *; }
 
-# Keep Background Service classes
+# ===== Background Service (React Native BGService) =====
 -keep class com.asterinet.react.bgservice.** { *; }
 
-# Keep Promise-related classes
+# ===== Image Picker =====
+-keep class com.imagepicker.** { *; }
+
+# ===== OkHttp / Axios =====
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+
+# ===== JS Bridge / View Manager =====
+-keepattributes *Annotation*
+-keep class * extends com.facebook.react.bridge.JavaScriptModule { *; }
+-keep class * extends com.facebook.react.bridge.NativeModule { *; }
+-keep class * extends com.facebook.react.uimanager.ViewManager { *; }
+
+# ===== Promise / Async Handling =====
 -keep class java.util.concurrent.** { *; }
 -keep class java.util.function.** { *; }
 
-# Prevent obfuscation of native methods
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-# Keep all enum classes
+# ===== Enums =====
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
 
-# Keep Serializable classes
+# ===== Serializable Classes =====
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -51,15 +64,25 @@
     java.lang.Object readResolve();
 }
 
-# Don't warn about missing classes
+# ===== Native Methods =====
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# ===== Suppress Warnings =====
 -dontwarn java.util.concurrent.**
 -dontwarn java.util.function.**
 -dontwarn javax.annotation.**
+-dontwarn com.facebook.react.**
+-dontwarn com.mrousavy.**
+-dontwarn com.swmansion.**
+-dontwarn okhttp3.**
 
-# Keep your model classes
+# ===== Keep All App Models (Safe) =====
 -keep class ** { *; }
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Add any project specific keep options here:
+############################################################
+# ✅ Notes:
+# - Do not enable "minifyEnabled true" without this file.
+# - Always rebuild with: ./gradlew clean && ./gradlew assembleRelease
+############################################################
