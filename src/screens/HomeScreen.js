@@ -9,6 +9,7 @@ import {
   Platform,
   PermissionsAndroid,
   AppState,
+  Image,
   StatusBar,
 } from 'react-native';
 import styles from '../Stylesheet/dashboardcss';
@@ -88,83 +89,63 @@ const HomeScreen = () => {
     parameters: {delay: 1000},
   };
 
-  const backgroundTask = async taskData => {
-    const delay = taskData?.delay ?? 1000;
-    try {
-      while (BackgroundService.isRunning()) {
-        try {
-          const raw = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-          let checkInTime = null;
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            checkInTime = parsed?.checkInTime || null;
-          }
+// Replace background service functions:
 
-          if (!checkInTime) {
-            await AsyncStorage.setItem(
-              BG_LAST_ELAPSED_KEY,
-              JSON.stringify({
-                elapsedSeconds: 0,
-                progressPercentage: 0,
-                timestamp: Date.now(),
-              }),
-            );
-          } else {
-            const now = Date.now();
-            const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
-            // Use dynamic totalShiftSeconds instead of hardcoded 28800
-            const clamped = Math.min(
-              totalShiftSeconds,
-              Math.max(0, elapsedSeconds),
-            );
-            const progressPercentage = Math.floor(
-              (clamped / totalShiftSeconds) * 100,
-            );
-
-            await AsyncStorage.setItem(
-              BG_LAST_ELAPSED_KEY,
-              JSON.stringify({
-                elapsedSeconds: clamped,
-                progressPercentage,
-                timestamp: now,
-              }),
-            );
-
-            await BackgroundService.updateNotification({
-              taskDesc: `${new Date(clamped * 1000)
-                .toISOString()
-                .substr(11, 8)} — ${progressPercentage}%`,
-            });
-          }
-        } catch (innerErr) {
-          console.error('[BackgroundTask] tick error', innerErr);
-        }
+const backgroundTask = async (taskData) => {
+  const delay = taskData?.delay ?? 1000;
+  try {
+    while (BackgroundService.isRunning()) {
+      try {
+        const elapsedData = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
+        let elapsedSeconds = elapsedData ? parseInt(elapsedData, 10) : 0;
+        elapsedSeconds += 1;
+        
+        await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, elapsedSeconds.toString());
+        
+        // Use Promise-based timeout instead of vibe
         await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (innerError) {
+        console.error('Background task inner error:', innerError);
+        break;
       }
-    } catch (err) {
-      console.error('[BackgroundTask] error', err);
     }
-  };
+  } catch (err) {
+    console.error('Background task error:', err);
+  }
+};
 
-  const startBackgroundService = async () => {
-    try {
-      if (await BackgroundService.isRunning()) return;
-      await BackgroundService.start(backgroundTask, bgOptions);
-    } catch (e) {
-      console.error('[BGHelper] failed to start', e);
+const startBackgroundService = async () => {
+  try {
+    const isRunning = BackgroundService.isRunning();
+    if (isRunning) {
+      await BackgroundService.stop();
     }
-  };
+    
+    await BackgroundService.start(bgOptions);
+    await BackgroundService.updateNotification({
+      taskDesc: 'Shift in progress...',
+    });
+    
+    // Start the background task with proper error handling
+    backgroundTask(bgOptions.parameters).catch(error => {
+      console.error('Background task failed:', error);
+    });
+    
+  } catch (e) {
+    console.error('Failed to start background service:', e);
+  }
+};
 
-  const stopBackgroundService = async () => {
-    try {
-      if (await BackgroundService.isRunning()) {
-        await BackgroundService.stop();
-        await AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY);
-      }
-    } catch (e) {
-      console.error('[BGHelper] failed to stop', e);
+const stopBackgroundService = async () => {
+  try {
+    const isRunning = BackgroundService.isRunning();
+    if (isRunning) {
+      await BackgroundService.stop();
     }
-  };
+  } catch (e) {
+    console.error('Failed to stop background service:', e);
+  }
+};
 
   // Format time in Indian format
   const formatIndianTime = (date = new Date()) => {
@@ -317,100 +298,103 @@ const HomeScreen = () => {
   };
 
   const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
-    // Use dynamic totalShiftSeconds instead of hardcoded 28800
+  try {
     let elapsedSeconds = startSeconds;
     let missedSeconds = 0;
     let missedPercent = 0;
 
-    // If shift start and check-in available, calculate missed time
+    // Clear any existing interval first
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    // Calculate missed time if shift start time is available
     if (shiftStartTime && checkInTime) {
       const shiftStart = new Date(shiftStartTime);
       const actualCheckIn = new Date(checkInTime);
-
       missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
       missedPercent = Math.min(100, (missedSeconds / totalShiftSeconds) * 100);
-
-      console.log('🕒 Missed Time:', {
-        shiftStart: shiftStart.toLocaleString(),
-        checkIn: actualCheckIn.toLocaleString(),
-        missedSeconds,
-        missedPercent: missedPercent.toFixed(2) + '%',
-        totalShiftSeconds, // Log the current totalShiftSeconds value
-      });
-
-      // Show red portion in UI
       setMissedPercentage(missedPercent);
     }
 
-    // 🧭 Clear any existing interval
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-
-    // ⏱️ Helper to compute visible (blue) progress
+    // Helper to compute progress
     const computeProgress = elapsedSec => {
-      // Effective working duration = total shift - missed time
       const effectiveDuration = totalShiftSeconds - missedSeconds;
       if (effectiveDuration <= 0) return 0;
-
-      // Blue progress (excluding missed part)
-      const workProgress =
-        (elapsedSec / effectiveDuration) * (100 - missedPercent);
-
-      // Clamp between 0 and (100 - missed%)
+      const workProgress = (elapsedSec / effectiveDuration) * (100 - missedPercent);
       return Math.min(100 - missedPercent, Math.max(0, workProgress));
     };
 
-    // ⏳ Set initial state
+    // Set initial state
     setElapsedTime(formatTime(elapsedSeconds));
     setProgressPercentage(computeProgress(elapsedSeconds));
 
-    // If already full
+    // Check if already complete
     if (elapsedSeconds >= totalShiftSeconds) {
       setElapsedTime(formatTime(totalShiftSeconds));
       setProgressPercentage(100);
       return;
     }
 
-    // ▶️ Start interval
+    // Start interval with error handling
     progressIntervalRef.current = setInterval(() => {
-      elapsedSeconds++;
+      try {
+        elapsedSeconds++;
 
-      if (elapsedSeconds >= totalShiftSeconds) {
+        if (elapsedSeconds >= totalShiftSeconds) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+          setElapsedTime(formatTime(totalShiftSeconds));
+          setProgressPercentage(100);
+          return;
+        }
+
+        setElapsedTime(formatTime(elapsedSeconds));
+        setProgressPercentage(computeProgress(elapsedSeconds));
+      } catch (intervalError) {
+        console.error('Progress interval error:', intervalError);
         clearInterval(progressIntervalRef.current);
-        setElapsedTime(formatTime(totalShiftSeconds));
-        setProgressPercentage(100);
-        return;
+        progressIntervalRef.current = null;
       }
-
-      setElapsedTime(formatTime(elapsedSeconds));
-      setProgressPercentage(computeProgress(elapsedSeconds));
     }, 1000);
-  };
+  } catch (error) {
+    console.error('Error starting shift progress:', error);
+  }
+};
+  
+
 
   useEffect(() => {
-    const initializeApp = async () => {
+  const initializeApp = async () => {
+    try {
       await loadCheckInState();
-      try {
-        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-        if (checkInData) {
-          const parsedData = JSON.parse(checkInData);
-          if (parsedData.checkedIn && parsedData.checkInTime) {
-            await startBackgroundService();
-          }
+      const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+      if (checkInData) {
+        const parsedData = JSON.parse(checkInData);
+        if (parsedData.checkedIn && parsedData.checkInTime) {
+          await startBackgroundService();
         }
-      } catch (e) {
-        console.error('Failed to check background service status:', e);
       }
-    };
+    } catch (e) {
+      console.error('Failed to initialize app:', e);
+    }
+  };
 
-    initializeApp();
+  initializeApp();
 
-    return () => {
-      if (progressIntervalRef.current)
-        clearInterval(progressIntervalRef.current);
-      if (imageProcessingTimeoutRef.current)
-        clearTimeout(imageProcessingTimeoutRef.current);
-    };
-  }, []);
+  return () => {
+    // Cleanup all intervals and timeouts
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    if (imageProcessingTimeoutRef.current) {
+      clearTimeout(imageProcessingTimeoutRef.current);
+      imageProcessingTimeoutRef.current = null;
+    }
+  };
+}, []);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -535,267 +519,332 @@ const HomeScreen = () => {
   }, [showRegistration, registeredFace, isFaceLoading, initialLoadComplete]);
 
   // Face registration handler
-  const handleReregisterFace = async () => {
-    if (!session) {
-      Alert.alert('Error', 'Model not loaded yet');
-      return;
-    }
+ // Replace handleReregisterFace function:
 
+const handleReregisterFace = async () => {
+  if (!session) {
+    Alert.alert('Error', 'Face recognition model not loaded');
+    return;
+  }
+
+  try {
+    setIsRegistering(true);
+    
+    await launchCamera(async (res) => {
+      try {
+        if (!res.assets?.[0]?.base64) {
+          throw new Error('No image captured');
+        }
+
+        const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+        
+        // Process face embedding with timeout
+        const embeddingPromise = getEmbedding(base64Image);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Face processing timeout')), 15000)
+        );
+
+        const embedding = await Promise.race([embeddingPromise, timeoutPromise]);
+        
+        if (!embedding) {
+          throw new Error('Failed to process face');
+        }
+
+        // Save to server
+        const payload = {
+          EmployeeId: employeeDetails?.id,
+          BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
+        };
+
+        const response = await axiosInstance.post(
+          `${BASE_URL}/Employee/SaveEmployeeBiometric`,
+          payload
+        );
+
+        if (!response.data?.isSuccess) {
+          throw new Error(response.data?.message || 'Failed to save biometric data');
+        }
+
+        // Update local state
+        setRegisteredFace(base64Image);
+        setCachedFaceImage(base64Image);
+        setShowRegistration(false);
+        
+        // Cache locally
+        await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
+
+        Alert.alert('✅ Success', 'Face registered successfully!');
+        
+      } catch (error) {
+        console.error('Face registration error:', error);
+        Alert.alert('❌ Registration Failed', error.message || 'Please try again');
+      }
+    });
+    
+  } catch (error) {
+    console.error('Registration process error:', error);
+    Alert.alert('Error', 'Failed to start camera');
+  } finally {
+    setIsRegistering(false);
+  }
+};
+  
+
+  // Add memory cleanup in your camera functions
+// Replace the existing launchCamera function with this fixed version:
+
+const launchCamera = async (callback) => {
+  try {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera access required');
-      return;
+      Alert.alert('Permission Denied', 'Camera permission is required');
+      return Promise.reject(new Error('Camera permission denied'));
     }
 
-    setIsRegistering(true);
+    // Clear any existing timeouts before launching camera
+    if (imageProcessingTimeoutRef.current) {
+      clearTimeout(imageProcessingTimeoutRef.current);
+      imageProcessingTimeoutRef.current = null;
+    }
 
-    ImagePicker.launchCamera(
-      {
-        mediaType: 'photo',
-        includeBase64: true,
-        cameraType: 'front',
-        quality: 0.7,
-        maxWidth: 500,
-        maxHeight: 500,
-      },
-      async res => {
-        if (res.didCancel) {
-          setIsRegistering(false);
-          return;
-        }
-
-        if (!res.assets?.[0]?.base64) {
-          Alert.alert('Error', 'No image captured');
-          setIsRegistering(false);
-          return;
-        }
-
-        try {
-          setIsProcessing(true);
-          const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
-
-          let embeddingComplete = false;
-          imageProcessingTimeoutRef.current = setTimeout(() => {
-            if (!embeddingComplete) {
-              setIsProcessing(false);
-              setIsRegistering(false);
-              Alert.alert(
-                'Processing Error',
-                'Face processing took too long. Please try again.',
-              );
+    return new Promise((resolve, reject) => {
+      ImagePicker.launchCamera(
+        {
+          mediaType: 'photo',
+          includeBase64: true,
+          cameraType: 'front',
+          maxWidth: 500,
+          maxHeight: 500,
+          quality: 0.8,
+        },
+        (response) => {
+          try {
+            if (response.didCancel) {
+              reject(new Error('Camera cancelled by user'));
+              return;
             }
-          }, 15000);
+            
+            if (response.errorCode || response.errorMessage) {
+              reject(new Error(response.errorMessage || 'Camera error'));
+              return;
+            }
 
-          const emb = await getEmbedding(base64Image);
-          embeddingComplete = true;
+            if (!response.assets?.[0]?.base64) {
+              reject(new Error('No image captured'));
+              return;
+            }
 
-          if (!emb) throw new Error('Failed to get embedding');
-
-          const buffer = Buffer.from(new Float32Array(emb).buffer);
-          const embeddingBase64 = buffer.toString('base64');
-          const pureBase64 = base64Image.replace(
-            /^data:image\/\w+;base64,/,
-            '',
-          );
-
-          const payload = {
-            EmployeeId: employeeDetails.id,
-            FaceImage: pureBase64,
-            FaceEmbeding: embeddingBase64,
-            FingerImage: null,
-            FingerEmbeding: null,
-            RetinaImage: null,
-            RetinaEmbeding: null,
-            VoiceRecord: null,
-            VoiceRecordEmbeding: null,
-            CreatedDate: new Date().toISOString(),
-            ModifiedBy: employeeDetails.id,
-            IsDelete: 0,
-            CompanyId: employeeDetails.childCompanyId,
-          };
-
-
-          console.log()
-
-          const response = await axios.post(
-            `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
-            payload,
-          );
-
-          if (response.data?.isSuccess) {
-            console.log('✅ Face registration successful');
-            // Set all states together
-            setRegisteredFace(base64Image);
-            setCachedFaceImage(base64Image);
-            setShowRegistration(false); // IMPORTANT: Hide registration after success
-            Alert.alert(
-              '✅ Success',
-              'Face registered successfully! You can now check in.',
-            );
-          } else {
-            Alert.alert(
-              'Error',
-              response.data?.message || 'Failed to save face',
-            );
+            const result = callback(response);
+            resolve(result);
+          } catch (error) {
+            console.error('Camera callback error:', error);
+            reject(error);
           }
-        } catch (err) {
-          console.error('Re-Register Error:', err);
-          Alert.alert('Error', err.message);
-        } finally {
-          if (imageProcessingTimeoutRef.current) {
-            clearTimeout(imageProcessingTimeoutRef.current);
-          }
-          setIsProcessing(false);
-          setIsRegistering(false);
         }
-      },
-    );
-  };
-  // debugger;
-  const handleCheckIn = async () => {
-    if (!registeredFace) {
-      Alert.alert(
-        'Registration Required',
-        'Please register your face first to enable check-in.',
       );
-      setShowRegistration(true);
+    });
+  } catch (error) {
+    console.error('Launch camera error:', error);
+    return Promise.reject(error);
+  }
+};
+
+
+ const getFormattedLocalDateTime = () => {
+      const now = new Date();
+      const pad = n => (n < 10 ? `0${n}` : n);
+
+      const year = now.getFullYear();
+      const month = pad(now.getMonth() + 1);
+      const day = pad(now.getDate());
+      const hours = pad(now.getHours());
+      const minutes = pad(now.getMinutes());
+      const seconds = pad(now.getSeconds());
+
+      const logDate = `${year}-${month}-${day}`;
+      const logTime = `${hours}:${minutes}:${seconds}`;
+      const logDateTime = `${logDate}T${logTime}`; // ✅ Local ISO (no milliseconds, no 'Z')
+
+      return {logDate, logTime, logDateTime};
+};
+
+
+    // Replace handleCheckIn function:
+// debugger;
+const handleCheckIn = async () => {
+  if (!registeredFace) {
+    Alert.alert(
+      'Registration Required',
+      'Please register your face first to enable check-in.',
+    );
+    setShowRegistration(true);
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    // Step 1: Check location with timeout
+    const locationPromise = checkLocation();
+    const locationTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Location check timeout')), 20000)
+    );
+    
+    const locationResult = await Promise.race([locationPromise, locationTimeout]);
+    
+    if (!locationResult.inside) {
+      const nearest = locationResult.nearestFence
+        ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+            locationResult.nearestFence.distance,
+          )}m away)`
+        : 'Unknown area';
+
+      Alert.alert(
+        '❌ Location Failed',
+        `You are not within the required area.\nNearest: ${nearest}`,
+      );
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const locationResult = await checkLocation();
-      if (!locationResult.inside) {
-        const nearest = locationResult.nearestFence
-          ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
-              locationResult.nearestFence.distance,
-            )}m away)`
-          : 'Unknown area';
-        Alert.alert(
-          '❌ Location Check Failed',
-          `You are not within the required area.\nNearest: ${nearest}`,
-        );
-        return;
-      }
-
+    // Step 2: Face verification with proper Promise handling
+    const faceVerificationResult = await new Promise((resolve, reject) => {
       Alert.alert(
         'Face Verification',
         'Please capture your face for verification',
         [
-          {text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false)},
+          { 
+            text: 'Cancel', 
+            style: 'cancel', 
+            onPress: () => reject(new Error('User cancelled verification'))
+          },
           {
             text: 'Capture',
-            onPress: () => {
-              launchCamera(async res => {
-                try {
-                  if (!res.assets?.[0]?.base64) {
-                    Alert.alert('No Image Captured', 'Please try again.');
-                    return;
-                  }
+            onPress: async () => {
+              try {
+                await launchCamera(async (res) => {
+                  try {
+                    const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+                    setCapturedFace(capturedImage);
 
-                  const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
-                  setCapturedFace(capturedImage);
-
-                  const result = await matchFaces(
-                    registeredFace,
-                    capturedImage,
-                  );
-                  if (!result?.isMatch) {
-                    Alert.alert(
-                      '❌ Verification Failed',
-                      'Face does not match. Please try again.',
+                    // Match faces with timeout
+                    const matchPromise = matchFaces(registeredFace, capturedImage);
+                    const matchTimeout = new Promise((_, reject) => 
+                      setTimeout(() => reject(new Error('Face matching timeout')), 20000)
                     );
-                    return;
+
+                    const result = await Promise.race([matchPromise, matchTimeout]);
+                    
+                    if (!result?.isMatch) {
+                      throw new Error('Face verification failed');
+                    }
+
+                    resolve({ capturedImage, matchResult: result });
+                  } catch (error) {
+                    reject(error);
                   }
-
-                  const now = new Date();
-                  const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-                  const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
-
-                  // ✅ Build payload
-                  const attendancePayload = {
-                    EmployeeCode: employeeDetails?.companyUserId || '9',
-                    LogDateTime: now.toISOString(), // ✅ full timestamp
-                    LogDate: logDate, // ✅ only date
-                    LogTime: logTime, // ✅ matches LogDateTime
-                    Direction: 'in', // must be lowercase
-                    DeviceName: 'Bhubneswar',
-                    SerialNo: '1',
-                    VerificationCode: '1',
-                  };
-
-                  console.log('📤 Posting attendance:', attendancePayload);
-
-                  // ✅ Send to API
-                  const attendanceResponse = await axiosInstance.post(
-                    `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
-                    attendancePayload,
-                  );
-
-                  if (!attendanceResponse.data?.isSuccess) {
-                    throw new Error(
-                      attendanceResponse.data?.message ||
-                        'Failed to save attendance',
-                    );
-                  }
-
-                  // ✅ If success
-                  setCheckedIn(true);
-                  const checkInMs = new Date().getTime();
-                  setCheckInTime(checkInMs);
-                  await saveCheckInState(true, checkInMs, capturedImage);
-                  await startBackgroundService();
-
-                  const formattedLogin = `${logDate} ${logTime}`;
-
-
-                  Alert.alert(
-                    '✅ Check-In Successful',
-                    `Login: ${formattedLogin}\nWelcome! Your shift has started.`,
-                  );
-                  startShiftProgress(0);
-                } catch (error) {
-                  console.error('Attendance API Error:', error);
-                  Alert.alert(
-                    '❌ Check-In Failed',
-                    'Failed to record attendance. Please try again.',
-                  );
-                } finally {
-                  setIsLoading(false);
-                }
-              });
+                });
+              } catch (error) {
+                reject(error);
+              }
             },
           },
         ],
       );
-    } catch (error) {
-      console.error('Check-in error:', error);
-      Alert.alert('Error', 'Something went wrong during check-in.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    });
 
-  const handleCheckOut = async () => {
+    // Step 3: Save attendance with proper error handling
+    const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
+
+    const attendancePayload = {
+      EmployeeId: String(employeeDetails?.id || '29'),
+      EmployeeCode: String(employeeDetails?.id || '29'),
+      LogDateTime: logDateTime,
+      LogDate: logDate,
+      LogTime: logTime,
+      Direction: 'In',
+      DeviceName: 'Bhubneswar',
+      SerialNo: '1',
+      VerificationCode: '1',
+    };
+
+    const attendancePromise = axiosInstance.post(
+      `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+      attendancePayload,
+    );
+    
+    console.log('📤 Posting check-in attendance:', attendancePayload);
+
+
+    const attendanceTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Attendance save timeout')), 15000)
+    );
+
+    const attendanceResponse = await Promise.race([attendancePromise, attendanceTimeout]);
+
+    if (!attendanceResponse.data?.isSuccess) {
+      throw new Error(
+        attendanceResponse.data?.message || 'Failed to save attendance',
+      );
+    }
+
+    // Step 4: Update state and start services
+    const checkInMs = new Date().getTime();
+    setCheckedIn(true);
+    setCheckInTime(checkInMs);
+    
+    await Promise.all([
+      saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
+      startBackgroundService()
+    ]);
+
+    Alert.alert(
+      '✅ Check-In Successful',
+      `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
+    );
+
+    // Start progress tracking
+    startShiftProgress(0);
+
+  } catch (error) {
+    console.error('Check-in error:', error);
+    let errorMessage = 'Something went wrong during check-in.';
+    
+    if (error.message?.includes('timeout')) {
+      errorMessage = 'Request timed out. Please check your connection and try again.';
+    } else if (error.message?.includes('cancelled')) {
+      errorMessage = 'Check-in was cancelled.';
+    } else if (error.message?.includes('verification failed')) {
+      errorMessage = 'Face verification failed. Please try again.';
+    }
+    
+    Alert.alert('❌ Check-In Failed', errorMessage);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const handleCheckOut = async () => { 
     setIsLoading(true);
     try {
-      const now = new Date();
-      const logDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const logTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+      // ✅ Get properly formatted local time
+      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
 
+      // ✅ Build payload
       const attendancePayload = {
-        EmployeeCode: employeeDetails?.companyUserId || '9', // ✅ string
-        LogDateTime: now.toISOString(), // ✅ full timestamp
-        LogDate: logDate, // ✅ only date
-        LogTime: logTime, // ✅ matches LogDateTime
-        Direction: 'in', // ✅ correct for checkout
+        EmployeeId: String(employeeDetails?.id || '29'),
+        EmployeeCode: String(employeeDetails?.id || '29'),
+        LogDateTime: logDateTime,
+        LogDate: logDate,
+        LogTime: logTime,
+        Direction: 'In',
         DeviceName: 'Bhubneswar',
         SerialNo: '1',
         VerificationCode: '1',
       };
 
-      console.log('Posting check-out attendance:', attendancePayload);
+      console.log('📤 Posting check-out attendance:', attendancePayload);
 
+      // ✅ Send to API
       const attendanceResponse = await axiosInstance.post(
         `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
         attendancePayload,
@@ -807,7 +856,7 @@ const HomeScreen = () => {
         );
       }
 
-      // ✅ If successful, reset check-in state
+      // ✅ Reset check-in state after successful checkout
       await saveCheckInState(false);
       await stopBackgroundService();
 
@@ -823,7 +872,7 @@ const HomeScreen = () => {
 
       Alert.alert(
         '✅ Check-Out Successful',
-        'Your shift has ended. Have a great day!',
+        `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`,
       );
     } catch (error) {
       console.error('Check-out error:', error);
@@ -834,9 +883,9 @@ const HomeScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+};
 
-  // Keep all your existing helper functions (normalize, preprocessImage, getEmbedding, matchFaces, etc.)
+
   const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
     if (norm === 0) return vec;
@@ -953,53 +1002,59 @@ const HomeScreen = () => {
     return Math.sqrt(sum);
   }, []);
 
-  const matchFaces = async (face1, face2) => {
-    if (!session) {
-      Alert.alert('Error', 'Model not loaded yet');
-      return null;
+  // Replace matchFaces function:
+
+const matchFaces = async (face1, face2) => {
+  if (!session) {
+    throw new Error('Model not loaded yet');
+  }
+  if (!face1 || !face2) {
+    throw new Error('Both images are required for matching');
+  }
+
+  setIsProcessing(true);
+  setMatchResult(null);
+
+  try {
+    // Create timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Face processing timeout')), 30000);
+    });
+
+    // Create embedding promises
+    const embeddingPromise = Promise.all([
+      getEmbedding(face1),
+      getEmbedding(face2),
+    ]);
+
+    // Race against timeout
+    const [emb1, emb2] = await Promise.race([embeddingPromise, timeoutPromise]);
+
+    if (!emb1 || !emb2) {
+      throw new Error('Failed to generate face embeddings');
     }
-    if (!face1 || !face2) {
-      Alert.alert('Error', 'Both images are required for matching');
-      return null;
-    }
 
-    setIsProcessing(true);
-    setMatchResult(null);
+    // Calculate similarity synchronously (no await needed)
+    const similarity = cosineSimilarity(emb1, emb2);
+    const distance = euclideanDistance(emb1, emb2);
 
-    try {
-      const [emb1, emb2] = await Promise.all([
-        getEmbedding(face1),
-        getEmbedding(face2),
-      ]);
+    const isMatch = similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
 
-      if (!emb1 || !emb2) {
-        Alert.alert('Error', 'Failed to generate face embeddings');
-        return null;
-      }
+    let confidence = 'LOW';
+    if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
+    else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
 
-      const similarity = cosineSimilarity(emb1, emb2);
-      const distance = euclideanDistance(emb1, emb2);
+    const result = { isMatch, similarity, distance, confidence };
+    setMatchResult(result);
 
-      const isMatch =
-        similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
-
-      let confidence = 'LOW';
-      if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
-      else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
-
-      const result = {isMatch, similarity, distance, confidence};
-      setMatchResult(result);
-
-      return result;
-    } catch (error) {
-      console.error('Matching error:', error);
-      Alert.alert('Error', 'Face matching failed');
-      return null;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
+    return result;
+  } catch (error) {
+    console.error('Matching error:', error);
+    throw error; // Re-throw to be handled by caller
+  } finally {
+    setIsProcessing(false);
+  }
+};
   const requestCameraPermission = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -1023,25 +1078,7 @@ const HomeScreen = () => {
     }
   };
 
-  const launchCamera = async callback => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required');
-      return;
-    }
 
-    ImagePicker.launchCamera(
-      {
-        mediaType: 'photo',
-        includeBase64: true,
-        cameraType: 'front',
-        maxWidth: 500,
-        maxHeight: 500,
-        quality: 0.8,
-      },
-      callback,
-    );
-  };
 
   const requestLocationPermission = async () => {
     try {
@@ -1213,7 +1250,6 @@ const HomeScreen = () => {
     fetchLeaveData();
   }, [user]);
 
-
   useEffect(() => {
     const fetchShiftDetails = async () => {
       if (!employeeDetails?.id || !user?.childCompanyId) return;
@@ -1262,6 +1298,8 @@ const HomeScreen = () => {
           `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
           payload,
         );
+
+        console.log(response.data, 'uicgiuogiudvgiudfgiu');
 
         if (response.data && Array.isArray(response.data)) {
           const todayDateStr =
@@ -1659,8 +1697,6 @@ const HomeScreen = () => {
       </ScrollView>
     </AppSafeArea>
   );
-
 };
 
 export default HomeScreen;
-
