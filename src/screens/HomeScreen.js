@@ -89,91 +89,101 @@ const HomeScreen = () => {
     parameters: {delay: 1000},
   };
 
-// Replace background service functions:
+  // Replace background service functions:
 
-const backgroundTask = async (taskData) => {
-  const delay = taskData?.delay ?? 1000;
-  let consecutiveErrors = 0;
-  const maxConsecutiveErrors = 5;
-  
-  try {
-    while (BackgroundService.isRunning()) {
-      try {
-        const elapsedData = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
-        let elapsedSeconds = elapsedData ? parseInt(elapsedData, 10) : 0;
-        elapsedSeconds += 1;
-        
-        await AsyncStorage.setItem(BG_LAST_ELAPSED_KEY, elapsedSeconds.toString());
-        
-        // Reset error counter on success
-        consecutiveErrors = 0;
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } catch (innerError) {
-        consecutiveErrors++;
-        console.error(`Background task error ${consecutiveErrors}:`, innerError);
-        
-        if (consecutiveErrors >= maxConsecutiveErrors) {
-          console.error('Too many consecutive errors, stopping background task');
-          break;
+  const backgroundTask = async taskData => {
+    const delay = taskData?.delay ?? 1000;
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
+
+    try {
+      while (BackgroundService.isRunning()) {
+        try {
+          const elapsedData = await AsyncStorage.getItem(BG_LAST_ELAPSED_KEY);
+          let elapsedSeconds = elapsedData ? parseInt(elapsedData, 10) : 0;
+          elapsedSeconds += 1;
+
+          await AsyncStorage.setItem(
+            BG_LAST_ELAPSED_KEY,
+            elapsedSeconds.toString(),
+          );
+
+          // Reset error counter on success
+          consecutiveErrors = 0;
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } catch (innerError) {
+          consecutiveErrors++;
+          console.error(
+            `Background task error ${consecutiveErrors}:`,
+            innerError,
+          );
+
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            console.error(
+              'Too many consecutive errors, stopping background task',
+            );
+            break;
+          }
+
+          // Exponential backoff on errors
+          await new Promise(resolve =>
+            setTimeout(
+              resolve,
+              Math.min(delay * Math.pow(2, consecutiveErrors), 10000),
+            ),
+          );
         }
-        
-        // Exponential backoff on errors
-        await new Promise(resolve => 
-          setTimeout(resolve, Math.min(delay * Math.pow(2, consecutiveErrors), 10000))
-        );
       }
+    } catch (err) {
+      console.error('Fatal background task error:', err);
     }
-  } catch (err) {
-    console.error('Fatal background task error:', err);
-  }
-};
+  };
 
-const startBackgroundService = async () => {
-  try {
-    // Check if already running
-    const isRunning = BackgroundService.isRunning();
-    if (isRunning) {
-      console.log('Background service already running, stopping first...');
-      await BackgroundService.stop();
-      // Wait a bit before restarting
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    await BackgroundService.start(bgOptions);
-    await BackgroundService.updateNotification({
-      taskDesc: 'Shift in progress...',
-    });
-    
-    // Start the background task with enhanced error handling
-    backgroundTask(bgOptions.parameters).catch(error => {
-      console.error('Background task failed to start:', error);
-      // Try to restart once
-      setTimeout(() => {
-        if (BackgroundService.isRunning()) {
-          backgroundTask(bgOptions.parameters).catch(console.error);
-        }
-      }, 5000);
-    });
-    
-    console.log('✅ Background service started successfully');
-    
-  } catch (e) {
-    console.error('Failed to start background service:', e);
-    // Don't throw, as this shouldn't fail check-in
-  }
-};
+  const startBackgroundService = async () => {
+    try {
+      // Check if already running
+      const isRunning = BackgroundService.isRunning();
+      if (isRunning) {
+        console.log('Background service already running, stopping first...');
+        await BackgroundService.stop();
+        // Wait a bit before restarting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-const stopBackgroundService = async () => {
-  try {
-    const isRunning = BackgroundService.isRunning();
-    if (isRunning) {
-      await BackgroundService.stop();
+      await BackgroundService.start(bgOptions);
+      await BackgroundService.updateNotification({
+        taskDesc: 'Shift in progress...',
+      });
+
+      // Start the background task with enhanced error handling
+      backgroundTask(bgOptions.parameters).catch(error => {
+        console.error('Background task failed to start:', error);
+        // Try to restart once
+        setTimeout(() => {
+          if (BackgroundService.isRunning()) {
+            backgroundTask(bgOptions.parameters).catch(console.error);
+          }
+        }, 5000);
+      });
+
+      console.log('✅ Background service started successfully');
+    } catch (e) {
+      console.error('Failed to start background service:', e);
+      // Don't throw, as this shouldn't fail check-in
     }
-  } catch (e) {
-    console.error('Failed to stop background service:', e);
-  }
-};
+  };
+
+  const stopBackgroundService = async () => {
+    try {
+      const isRunning = BackgroundService.isRunning();
+      if (isRunning) {
+        await BackgroundService.stop();
+      }
+    } catch (e) {
+      console.error('Failed to stop background service:', e);
+    }
+  };
 
   // Format time in Indian format
   const formatIndianTime = (date = new Date()) => {
@@ -326,122 +336,125 @@ const stopBackgroundService = async () => {
   };
 
   const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
-  try {
-    let elapsedSeconds = startSeconds;
-    let missedSeconds = 0;
-    let missedPercent = 0;
+    try {
+      let elapsedSeconds = startSeconds;
+      let missedSeconds = 0;
+      let missedPercent = 0;
 
-    // Clear any existing interval first
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-
-    // Calculate missed time if shift start time is available
-    if (shiftStartTime && checkInTime) {
-      const shiftStart = new Date(shiftStartTime);
-      const actualCheckIn = new Date(checkInTime);
-      missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
-      missedPercent = Math.min(100, (missedSeconds / totalShiftSeconds) * 100);
-      setMissedPercentage(missedPercent);
-    }
-
-    // Helper to compute progress
-    const computeProgress = elapsedSec => {
-      const effectiveDuration = totalShiftSeconds - missedSeconds;
-      if (effectiveDuration <= 0) return 0;
-      const workProgress = (elapsedSec / effectiveDuration) * (100 - missedPercent);
-      return Math.min(100 - missedPercent, Math.max(0, workProgress));
-    };
-
-    // Set initial state
-    setElapsedTime(formatTime(elapsedSeconds));
-    setProgressPercentage(computeProgress(elapsedSeconds));
-
-    // Check if already complete
-    if (elapsedSeconds >= totalShiftSeconds) {
-      setElapsedTime(formatTime(totalShiftSeconds));
-      setProgressPercentage(100);
-      return;
-    }
-
-    // Start interval with error handling
-    progressIntervalRef.current = setInterval(() => {
-      try {
-        elapsedSeconds++;
-
-        if (elapsedSeconds >= totalShiftSeconds) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-          setElapsedTime(formatTime(totalShiftSeconds));
-          setProgressPercentage(100);
-          return;
-        }
-
-        setElapsedTime(formatTime(elapsedSeconds));
-        setProgressPercentage(computeProgress(elapsedSeconds));
-      } catch (intervalError) {
-        console.error('Progress interval error:', intervalError);
+      // Clear any existing interval first
+      if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
-    }, 1000);
-  } catch (error) {
-    console.error('Error starting shift progress:', error);
-  }
-};
-  
 
-// Replace your current useEffect with this enhanced version
-useEffect(() => {
-  let isMounted = true; // Track component mount status
-  
-  const initializeApp = async () => {
-    try {
-      if (!isMounted) return;
-      
-      await loadCheckInState();
-      
-      if (!isMounted) return;
-      
-      const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-      if (checkInData && isMounted) {
-        const parsedData = JSON.parse(checkInData);
-        if (parsedData.checkedIn && parsedData.checkInTime) {
-          await startBackgroundService().catch(error => {
-            console.error('Background service initialization failed:', error);
-          });
+      // Calculate missed time if shift start time is available
+      if (shiftStartTime && checkInTime) {
+        const shiftStart = new Date(shiftStartTime);
+        const actualCheckIn = new Date(checkInTime);
+        missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+        missedPercent = Math.min(
+          100,
+          (missedSeconds / totalShiftSeconds) * 100,
+        );
+        setMissedPercentage(missedPercent);
+      }
+
+      // Helper to compute progress
+      const computeProgress = elapsedSec => {
+        const effectiveDuration = totalShiftSeconds - missedSeconds;
+        if (effectiveDuration <= 0) return 0;
+        const workProgress =
+          (elapsedSec / effectiveDuration) * (100 - missedPercent);
+        return Math.min(100 - missedPercent, Math.max(0, workProgress));
+      };
+
+      // Set initial state
+      setElapsedTime(formatTime(elapsedSeconds));
+      setProgressPercentage(computeProgress(elapsedSeconds));
+
+      // Check if already complete
+      if (elapsedSeconds >= totalShiftSeconds) {
+        setElapsedTime(formatTime(totalShiftSeconds));
+        setProgressPercentage(100);
+        return;
+      }
+
+      // Start interval with error handling
+      progressIntervalRef.current = setInterval(() => {
+        try {
+          elapsedSeconds++;
+
+          if (elapsedSeconds >= totalShiftSeconds) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+            setElapsedTime(formatTime(totalShiftSeconds));
+            setProgressPercentage(100);
+            return;
+          }
+
+          setElapsedTime(formatTime(elapsedSeconds));
+          setProgressPercentage(computeProgress(elapsedSeconds));
+        } catch (intervalError) {
+          console.error('Progress interval error:', intervalError);
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting shift progress:', error);
+    }
+  };
+
+  // Replace your current useEffect with this enhanced version
+  useEffect(() => {
+    let isMounted = true; // Track component mount status
+
+    const initializeApp = async () => {
+      try {
+        if (!isMounted) return;
+
+        await loadCheckInState();
+
+        if (!isMounted) return;
+
+        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+        if (checkInData && isMounted) {
+          const parsedData = JSON.parse(checkInData);
+          if (parsedData.checkedIn && parsedData.checkInTime) {
+            await startBackgroundService().catch(error => {
+              console.error('Background service initialization failed:', error);
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to initialize app:', e);
+        if (isMounted) {
+          // Show user-friendly error only if component is still mounted
+          Alert.alert('Initialization Error', 'Please restart the app');
         }
       }
-    } catch (e) {
-      console.error('Failed to initialize app:', e);
-      if (isMounted) {
-        // Show user-friendly error only if component is still mounted
-        Alert.alert('Initialization Error', 'Please restart the app');
+    };
+
+    initializeApp();
+
+    // Enhanced cleanup
+    return () => {
+      isMounted = false; // Prevent state updates after unmount
+
+      // Clear all intervals and timeouts
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
       }
-    }
-  };
+      if (imageProcessingTimeoutRef.current) {
+        clearTimeout(imageProcessingTimeoutRef.current);
+        imageProcessingTimeoutRef.current = null;
+      }
 
-  initializeApp();
-
-  // Enhanced cleanup
-  return () => {
-    isMounted = false; // Prevent state updates after unmount
-    
-    // Clear all intervals and timeouts
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-    if (imageProcessingTimeoutRef.current) {
-      clearTimeout(imageProcessingTimeoutRef.current);
-      imageProcessingTimeoutRef.current = null;
-    }
-    
-    // Stop background service safely
-    stopBackgroundService().catch(console.error);
-  };
-}, []);
+      // Stop background service safely
+      stopBackgroundService().catch(console.error);
+    };
+  }, []);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -566,324 +579,341 @@ useEffect(() => {
   }, [showRegistration, registeredFace, isFaceLoading, initialLoadComplete]);
 
   // Face registration handler
- // Replace handleReregisterFace function:
+  // Replace handleReregisterFace function:
 
-const handleReregisterFace = async () => {
-  if (!session) {
-    Alert.alert('Error', 'Face recognition model not loaded');
-    return;
-  }
-
-  try {
-    setIsRegistering(true);
-    
-    await launchCamera(async (res) => {
-      try {
-        if (!res.assets?.[0]?.base64) {
-          throw new Error('No image captured');
-        }
-
-        const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
-        
-        // Process face embedding with timeout
-        const embeddingPromise = getEmbedding(base64Image);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Face processing timeout')), 15000)
-        );
-
-        const embedding = await Promise.race([embeddingPromise, timeoutPromise]);
-        
-        if (!embedding) {
-          throw new Error('Failed to process face');
-        }
-
-        // Save to server
-        const payload = {
-          EmployeeId: employeeDetails?.id,
-          BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
-        };
-
-        const response = await axiosInstance.post(
-          `${BASE_URL}/Employee/SaveEmployeeBiometric`,
-          payload
-        );
-
-        if (!response.data?.isSuccess) {
-          throw new Error(response.data?.message || 'Failed to save biometric data');
-        }
-
-        // Update local state
-        setRegisteredFace(base64Image);
-        setCachedFaceImage(base64Image);
-        setShowRegistration(false);
-        
-        // Cache locally
-        await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
-
-        Alert.alert('✅ Success', 'Face registered successfully!');
-        
-      } catch (error) {
-        console.error('Face registration error:', error);
-        Alert.alert('❌ Registration Failed', error.message || 'Please try again');
-      }
-    });
-    
-  } catch (error) {
-    console.error('Registration process error:', error);
-    Alert.alert('Error', 'Failed to start camera');
-  } finally {
-    setIsRegistering(false);
-  }
-};
-  
-
-  // Add memory cleanup in your camera functions
-// Replace the existing launchCamera function with this fixed version:
-
-// Replace launchCamera function with production-safe version
-const launchCamera = async (callback) => {
-  try {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      throw new Error('Camera permission denied');
-    }
-
-    // Clear any existing timeouts
-    if (imageProcessingTimeoutRef.current) {
-      clearTimeout(imageProcessingTimeoutRef.current);
-      imageProcessingTimeoutRef.current = null;
-    }
-
-    return new Promise((resolve, reject) => {
-      // Set timeout for camera operation
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Camera operation timed out'));
-      }, 30000);
-
-      ImagePicker.launchCamera(
-        {
-          mediaType: 'photo',
-          includeBase64: true,
-          cameraType: 'front',
-          maxWidth: 800,
-          maxHeight: 800,
-          quality: 0.8,
-          saveToPhotos: false, // Important for production
-        },
-        (response) => {
-          clearTimeout(timeoutId);
-          
-          try {
-            if (response.didCancel) {
-              reject(new Error('Camera cancelled by user'));
-              return;
-            }
-            
-            if (response.errorCode || response.errorMessage) {
-              reject(new Error(response.errorMessage || 'Camera error'));
-              return;
-            }
-
-            if (!response.assets?.[0]?.base64) {
-              reject(new Error('No image captured'));
-              return;
-            }
-
-            // Validate image size (prevent memory issues)
-            const imageSize = response.assets[0].base64.length;
-            if (imageSize > 5000000) { // 5MB limit
-              reject(new Error('Image too large. Please try again.'));
-              return;
-            }
-
-            const result = callback(response);
-            resolve(result);
-          } catch (error) {
-            console.error('Camera callback error:', error);
-            reject(error);
-          }
-        }
-      );
-    });
-  } catch (error) {
-    console.error('Launch camera error:', error);
-    throw error;
-  }
-};
-
-
- const getFormattedLocalDateTime = () => {
-      const now = new Date();
-      const pad = n => (n < 10 ? `0${n}` : n);
-
-      const year = now.getFullYear();
-      const month = pad(now.getMonth() + 1);
-      const day = pad(now.getDate());
-      const hours = pad(now.getHours());
-      const minutes = pad(now.getMinutes());
-      const seconds = pad(now.getSeconds());
-
-      const logDate = `${year}-${month}-${day}`;
-      const logTime = `${hours}:${minutes}:${seconds}`;
-      const logDateTime = `${logDate}T${logTime}`; // ✅ Local ISO (no milliseconds, no 'Z')
-
-      return {logDate, logTime, logDateTime};
-};
-
-const handleCheckIn = async () => {
-  if (!registeredFace) {
-    Alert.alert(
-      'Registration Required',
-      'Please register your face first to enable check-in.',
-    );
-    setShowRegistration(true);
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    // Step 1: Check location with timeout
-    const locationPromise = checkLocation();
-    const locationTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Location check timeout')), 20000)
-    );
-    
-    const locationResult = await Promise.race([locationPromise, locationTimeout]);
-    
-    if (!locationResult.inside) {
-      const nearest = locationResult.nearestFence
-        ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
-            locationResult.nearestFence.distance,
-          )}m away)`
-        : 'Unknown area';
-
-      Alert.alert(
-        '❌ Location Failed',
-        `You are not within the required area.\nNearest: ${nearest}`,
-      );
+  const handleReregisterFace = async () => {
+    if (!session) {
+      Alert.alert('Error', 'Face recognition model not loaded');
       return;
     }
 
-    // Step 2: Face verification with proper Promise handling
-    const faceVerificationResult = await new Promise((resolve, reject) => {
-      Alert.alert(
-        'Face Verification',
-        'Please capture your face for verification',
-        [
-          { 
-            text: 'Cancel', 
-            style: 'cancel', 
-            onPress: () => reject(new Error('User cancelled verification'))
-          },
+    try {
+      setIsRegistering(true);
+
+      await launchCamera(async res => {
+        try {
+          if (!res.assets?.[0]?.base64) {
+            throw new Error('No image captured');
+          }
+
+          const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+
+          // Process face embedding with timeout
+          const embeddingPromise = getEmbedding(base64Image);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Face processing timeout')),
+              15000,
+            ),
+          );
+
+          const embedding = await Promise.race([
+            embeddingPromise,
+            timeoutPromise,
+          ]);
+
+          if (!embedding) {
+            throw new Error('Failed to process face');
+          }
+
+          // Save to server
+          const payload = {
+            EmployeeId: employeeDetails?.id,
+            BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
+          };
+
+          const response = await axiosInstance.post(
+            `${BASE_URL}/Employee/SaveEmployeeBiometric`,
+            payload,
+          );
+
+          if (!response.data?.isSuccess) {
+            throw new Error(
+              response.data?.message || 'Failed to save biometric data',
+            );
+          }
+
+          // Update local state
+          setRegisteredFace(base64Image);
+          setCachedFaceImage(base64Image);
+          setShowRegistration(false);
+
+          // Cache locally
+          await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
+
+          Alert.alert('✅ Success', 'Face registered successfully!');
+        } catch (error) {
+          console.error('Face registration error:', error);
+          Alert.alert(
+            '❌ Registration Failed',
+            error.message || 'Please try again',
+          );
+        }
+      });
+    } catch (error) {
+      console.error('Registration process error:', error);
+      Alert.alert('Error', 'Failed to start camera');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const launchCamera = async callback => {
+    try {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        throw new Error('Camera permission denied');
+      }
+
+      // Clear any existing timeouts
+      if (imageProcessingTimeoutRef.current) {
+        clearTimeout(imageProcessingTimeoutRef.current);
+        imageProcessingTimeoutRef.current = null;
+      }
+
+      return new Promise((resolve, reject) => {
+        // Set timeout for camera operation
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Camera operation timed out'));
+        }, 30000);
+
+        ImagePicker.launchCamera(
           {
-            text: 'Capture',
-            onPress: async () => {
-              try {
-                await launchCamera(async (res) => {
-                  try {
-                    const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
-                    setCapturedFace(capturedImage);
-
-                    // Match faces with timeout
-                    const matchPromise = matchFaces(registeredFace, capturedImage);
-                    const matchTimeout = new Promise((_, reject) => 
-                      setTimeout(() => reject(new Error('Face matching timeout')), 20000)
-                    );
-
-                    const result = await Promise.race([matchPromise, matchTimeout]);
-                    
-                    if (!result?.isMatch) {
-                      throw new Error('Face verification failed');
-                    }
-
-                    resolve({ capturedImage, matchResult: result });
-                  } catch (error) {
-                    reject(error);
-                  }
-                });
-              } catch (error) {
-                reject(error);
-              }
-            },
+            mediaType: 'photo',
+            includeBase64: true,
+            cameraType: 'front',
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 0.8,
+            saveToPhotos: false, // Important for production
           },
-        ],
+          response => {
+            clearTimeout(timeoutId);
+
+            try {
+              if (response.didCancel) {
+                reject(new Error('Camera cancelled by user'));
+                return;
+              }
+
+              if (response.errorCode || response.errorMessage) {
+                reject(new Error(response.errorMessage || 'Camera error'));
+                return;
+              }
+
+              if (!response.assets?.[0]?.base64) {
+                reject(new Error('No image captured'));
+                return;
+              }
+
+              // Validate image size (prevent memory issues)
+              const imageSize = response.assets[0].base64.length;
+              if (imageSize > 5000000) {
+                // 5MB limit
+                reject(new Error('Image too large. Please try again.'));
+                return;
+              }
+
+              const result = callback(response);
+              resolve(result);
+            } catch (error) {
+              console.error('Camera callback error:', error);
+              reject(error);
+            }
+          },
+        );
+      });
+    } catch (error) {
+      console.error('Launch camera error:', error);
+      throw error;
+    }
+  };
+
+  const getFormattedLocalDateTime = () => {
+    const now = new Date();
+    const pad = n => (n < 10 ? `0${n}` : n);
+
+    const year = now.getFullYear();
+    const month = pad(now.getMonth() + 1);
+    const day = pad(now.getDate());
+    const hours = pad(now.getHours());
+    const minutes = pad(now.getMinutes());
+    const seconds = pad(now.getSeconds());
+
+    const logDate = `${year}-${month}-${day}`;
+    const logTime = `${hours}:${minutes}:${seconds}`;
+    const logDateTime = `${logDate}T${logTime}`; // ✅ Local ISO (no milliseconds, no 'Z')
+
+    return {logDate, logTime, logDateTime};
+  };
+
+  const handleCheckIn = async () => {
+    if (!registeredFace) {
+      Alert.alert(
+        'Registration Required',
+        'Please register your face first to enable check-in.',
       );
-    });
-
-    // Step 3: Save attendance with proper error handling
-    const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
-
-    const attendancePayload = {
-      EmployeeId: String(employeeDetails?.id || '29'),
-      EmployeeCode: String(employeeDetails?.id || '29'),
-      LogDateTime: logDateTime,
-      LogDate: logDate,
-      LogTime: logTime,
-      Direction: 'In',
-      DeviceName: 'Bhubneswar',
-      SerialNo: '1',
-      VerificationCode: '1',
-    };
-
-    const attendancePromise = axiosInstance.post(
-      `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
-      attendancePayload,
-    );
-    
-    console.log('📤 Posting check-in attendance:', attendancePayload);
-
-
-    const attendanceTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Attendance save timeout')), 15000)
-    );
-
-    const attendanceResponse = await Promise.race([attendancePromise, attendanceTimeout]);
-
-    if (!attendanceResponse.data?.isSuccess) {
-      throw new Error(
-        attendanceResponse.data?.message || 'Failed to save attendance',
-      );
+      setShowRegistration(true);
+      return;
     }
 
-    // Step 4: Update state and start services
-    const checkInMs = new Date().getTime();
-    setCheckedIn(true);
-    setCheckInTime(checkInMs);
-    
-    await Promise.all([
-      saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
-      startBackgroundService()
-    ]);
+    setIsLoading(true);
 
-    Alert.alert(
-      '✅ Check-In Successful',
-      `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
-    );
+    try {
+      // Step 1: Check location with timeout
+      const locationPromise = checkLocation();
+      const locationTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Location check timeout')), 20000),
+      );
 
-    // Start progress tracking
-    startShiftProgress(0);
+      const locationResult = await Promise.race([
+        locationPromise,
+        locationTimeout,
+      ]);
 
-  } catch (error) {
-    console.error('Check-in error:', error);
-    let errorMessage = 'Something went wrong during check-in.';
-    
-    if (error.message?.includes('timeout')) {
-      errorMessage = 'Request timed out. Please check your connection and try again.';
-    } else if (error.message?.includes('cancelled')) {
-      errorMessage = 'Check-in was cancelled.';
-    } else if (error.message?.includes('verification failed')) {
-      errorMessage = 'Face verification failed. Please try again.';
+      if (!locationResult.inside) {
+        const nearest = locationResult.nearestFence
+          ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+              locationResult.nearestFence.distance,
+            )}m away)`
+          : 'Unknown area';
+
+        Alert.alert(
+          '❌ Location Failed',
+          `You are not within the required area.\nNearest: ${nearest}`,
+        );
+        return;
+      }
+
+      // Step 2: Face verification with proper Promise handling
+      const faceVerificationResult = await new Promise((resolve, reject) => {
+        Alert.alert(
+          'Face Verification',
+          'Please capture your face for verification',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => reject(new Error('User cancelled verification')),
+            },
+            {
+              text: 'Capture',
+              onPress: async () => {
+                try {
+                  await launchCamera(async res => {
+                    try {
+                      const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+                      setCapturedFace(capturedImage);
+
+                      // Match faces with timeout
+                      const matchPromise = matchFaces(
+                        registeredFace,
+                        capturedImage,
+                      );
+                      const matchTimeout = new Promise((_, reject) =>
+                        setTimeout(
+                          () => reject(new Error('Face matching timeout')),
+                          20000,
+                        ),
+                      );
+
+                      const result = await Promise.race([
+                        matchPromise,
+                        matchTimeout,
+                      ]);
+
+                      if (!result?.isMatch) {
+                        throw new Error('Face verification failed');
+                      }
+
+                      resolve({capturedImage, matchResult: result});
+                    } catch (error) {
+                      reject(error);
+                    }
+                  });
+                } catch (error) {
+                  reject(error);
+                }
+              },
+            },
+          ],
+        );
+      });
+
+      // Step 3: Save attendance with proper error handling
+      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+
+      const attendancePayload = {
+        EmployeeId: String(employeeDetails?.id || '29'),
+        EmployeeCode: String(employeeDetails?.id || '29'),
+        LogDateTime: logDateTime,
+        LogDate: logDate,
+        LogTime: logTime,
+        Direction: 'In',
+        DeviceName: 'Bhubneswar',
+        SerialNo: '1',
+        VerificationCode: '1',
+      };
+
+      const attendancePromise = axiosInstance.post(
+        `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+        attendancePayload,
+      );
+
+      console.log('📤 Posting check-in attendance:', attendancePayload);
+
+      const attendanceTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Attendance save timeout')), 15000),
+      );
+
+      const attendanceResponse = await Promise.race([
+        attendancePromise,
+        attendanceTimeout,
+      ]);
+
+      if (!attendanceResponse.data?.isSuccess) {
+        throw new Error(
+          attendanceResponse.data?.message || 'Failed to save attendance',
+        );
+      }
+
+      // Step 4: Update state and start services
+      const checkInMs = new Date().getTime();
+      setCheckedIn(true);
+      setCheckInTime(checkInMs);
+
+      await Promise.all([
+        saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
+        startBackgroundService(),
+      ]);
+
+      Alert.alert(
+        '✅ Check-In Successful',
+        `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
+      );
+
+      // Start progress tracking
+      startShiftProgress(0);
+    } catch (error) {
+      console.error('Check-in error:', error);
+      let errorMessage = 'Something went wrong during check-in.';
+
+      if (error.message?.includes('timeout')) {
+        errorMessage =
+          'Request timed out. Please check your connection and try again.';
+      } else if (error.message?.includes('cancelled')) {
+        errorMessage = 'Check-in was cancelled.';
+      } else if (error.message?.includes('verification failed')) {
+        errorMessage = 'Face verification failed. Please try again.';
+      }
+
+      Alert.alert('❌ Check-In Failed', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-    
-    Alert.alert('❌ Check-In Failed', errorMessage);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-
-const handleCheckOut = async () => { 
+  const handleCheckOut = async () => {
     setIsLoading(true);
     try {
       // ✅ Get properly formatted local time
@@ -943,8 +973,7 @@ const handleCheckOut = async () => {
     } finally {
       setIsLoading(false);
     }
-};
-
+  };
 
   const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
@@ -1064,57 +1093,61 @@ const handleCheckOut = async () => {
 
   // Replace matchFaces function:
 
-const matchFaces = async (face1, face2) => {
-  if (!session) {
-    throw new Error('Model not loaded yet');
-  }
-  if (!face1 || !face2) {
-    throw new Error('Both images are required for matching');
-  }
-
-  setIsProcessing(true);
-  setMatchResult(null);
-
-  try {
-    // Create timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Face processing timeout')), 30000);
-    });
-
-    // Create embedding promises
-    const embeddingPromise = Promise.all([
-      getEmbedding(face1),
-      getEmbedding(face2),
-    ]);
-
-    // Race against timeout
-    const [emb1, emb2] = await Promise.race([embeddingPromise, timeoutPromise]);
-
-    if (!emb1 || !emb2) {
-      throw new Error('Failed to generate face embeddings');
+  const matchFaces = async (face1, face2) => {
+    if (!session) {
+      throw new Error('Model not loaded yet');
+    }
+    if (!face1 || !face2) {
+      throw new Error('Both images are required for matching');
     }
 
-    // Calculate similarity synchronously (no await needed)
-    const similarity = cosineSimilarity(emb1, emb2);
-    const distance = euclideanDistance(emb1, emb2);
+    setIsProcessing(true);
+    setMatchResult(null);
 
-    const isMatch = similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
+    try {
+      // Create timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Face processing timeout')), 30000);
+      });
 
-    let confidence = 'LOW';
-    if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
-    else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
+      // Create embedding promises
+      const embeddingPromise = Promise.all([
+        getEmbedding(face1),
+        getEmbedding(face2),
+      ]);
 
-    const result = { isMatch, similarity, distance, confidence };
-    setMatchResult(result);
+      // Race against timeout
+      const [emb1, emb2] = await Promise.race([
+        embeddingPromise,
+        timeoutPromise,
+      ]);
 
-    return result;
-  } catch (error) {
-    console.error('Matching error:', error);
-    throw error; // Re-throw to be handled by caller
-  } finally {
-    setIsProcessing(false);
-  }
-};
+      if (!emb1 || !emb2) {
+        throw new Error('Failed to generate face embeddings');
+      }
+
+      // Calculate similarity synchronously (no await needed)
+      const similarity = cosineSimilarity(emb1, emb2);
+      const distance = euclideanDistance(emb1, emb2);
+
+      const isMatch =
+        similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
+
+      let confidence = 'LOW';
+      if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
+      else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
+
+      const result = {isMatch, similarity, distance, confidence};
+      setMatchResult(result);
+
+      return result;
+    } catch (error) {
+      console.error('Matching error:', error);
+      throw error; // Re-throw to be handled by caller
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   const requestCameraPermission = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -1137,8 +1170,6 @@ const matchFaces = async (face1, face2) => {
       return false;
     }
   };
-
-
 
   const requestLocationPermission = async () => {
     try {
@@ -1540,147 +1571,276 @@ const matchFaces = async (face1, face2) => {
       <>
         {/* Progress Card */}
         <View style={styles.progressCard}>
+          {/* Progress Header */}
           <View style={styles.progressHeader}>
             <View style={styles.progressTitleRow}>
-              <ClockIcon />
-              <Text style={styles.progressTitle}>Today's Progress</Text>
-            </View>
-          </View>
-
-          <View style={styles.progressBarContainer}>
-            <View style={styles.progressBarBg}>
-              {/* Red portion for missed time */}
-              <View
-                style={[
-                  styles.missedTimeFill,
-                  {
-                    width: `${missedPercentage}%`,
-                    backgroundColor: '#EF4444', // Red color
-                    left: 0,
-                  },
-                ]}
-              />
-              {/* Blue portion for active work time */}
-              <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${progressPercentage}%`,
-                    left: `${missedPercentage}%`,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.progressRow}>
-              <Text style={styles.missesPercentageText}>
-                Missed:{' '}
-                {formatHoursMinutes(
-                  Math.floor((missedPercentage / 100) * totalShiftSeconds),
-                )}
-              </Text>
-              <Text style={styles.progressPercentageText}>
-                Worked:{' '}
-                {formatHoursMinutes(
-                  Math.floor((progressPercentage / 100) * totalShiftSeconds),
-                )}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.progressDetails}>
-            <View style={styles.progressDetailItem}>
-              <Text style={styles.progressDetailLabel}>Working Time</Text>
-              <View style={{flexDirection: 'row', gap: 5}}>
-                <Text style={styles.progressDetailValue}>
-                  {elapsedTime.split(':')[0]}h
-                </Text>
-                <Text style={styles.progressDetailValue}>
-                  {elapsedTime.split(':')[1]}m
-                </Text>
-                <Text style={styles.progressDetailValue}>
-                  {elapsedTime.split(':')[2]}s
+              <View style={styles.headerIconContainer}>
+                <ClockIcon />
+              </View>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.progressTitle}>Today's Progress</Text>
+                <Text style={styles.progressSubtitle}>
+                  Track your daily performance
                 </Text>
               </View>
             </View>
+          </View>
 
-            <View style={styles.progressDivider} />
-            <View style={styles.progressDetailItem}>
-              <Text style={styles.progressDetailLabel}>Shift Hours</Text>
-              <Text style={styles.progressDetailValue}>
-                {shiftHours || 'No shift'}
-              </Text>
+          {/* Progress Bar */}
+
+          <View style={styles.progressBarContainer}>
+            {/* Progress Bar Header with Percentage */}
+            <View style={styles.progressBarHeader}>
+              <Text style={styles.progressBarTitle}>Daily Progress</Text>
+            </View>
+
+            {/* Enhanced Progress Bar */}
+            <View style={styles.progressBarWrapper}>
+              <View style={styles.progressBarBg}>
+                {/* Missed time portion with gradient */}
+                <LinearGradient
+                  colors={['#FCA5A5', '#EF4444']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={[
+                    styles.missedTimeFill,
+                    {
+                      width: `${missedPercentage}%`,
+                    },
+                  ]}
+                />
+                {/* Active work time portion */}
+                <LinearGradient
+                  colors={['#60A5FA', '#3B82F6', '#2563EB']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${progressPercentage}%`,
+                      left: `${missedPercentage}%`,
+                    },
+                  ]}
+                />
+                {/* Progress indicator dot */}
+                <View
+                  style={[
+                    styles.progressIndicator,
+                    {
+                      left: `${Math.min(
+                        progressPercentage + missedPercentage,
+                        95,
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
+            {/* Progress Stats */}
+            <View style={styles.progressStatsContainer}>
+              <View style={styles.progressStatItem}>
+                <View style={styles.statIndicatorRow}>
+                  <View
+                    style={[styles.statDot, {backgroundColor: '#EF4444'}]}
+                  />
+                  <Text style={styles.statLabel}>Missed</Text>
+                </View>
+                <Text style={styles.missedTimeText}>
+                  {formatHoursMinutes(
+                    Math.floor((missedPercentage / 100) * totalShiftSeconds),
+                  )}
+                </Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.progressStatItem}>
+                <View style={styles.statIndicatorRow}>
+                  <View
+                    style={[styles.statDot, {backgroundColor: '#3B82F6'}]}
+                  />
+                  <Text style={styles.statLabel}>Worked</Text>
+                </View>
+                <Text style={styles.workedTimeText}>
+                  {formatHoursMinutes(
+                    Math.floor((progressPercentage / 100) * totalShiftSeconds),
+                  )}
+                </Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.progressStatItem}>
+                <View style={styles.statIndicatorRow}>
+                  <View
+                    style={[styles.statDot, {backgroundColor: '#E5E7EB'}]}
+                  />
+                  <Text style={styles.statLabel}>Remaining</Text>
+                </View>
+                <Text style={styles.remainingTimeText}>
+                  {formatHoursMinutes(
+                    Math.floor(
+                      ((100 - progressPercentage - missedPercentage) / 100) *
+                        totalShiftSeconds,
+                    ),
+                  )}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {shiftName ? (
-            <View style={styles.shiftNameContainer}>
-              <Text style={styles.shiftDetailLabel}>Shift Name :</Text>
-              <Text style={styles.shiftNameValue}>{shiftName}</Text>
+          {/* Progress Details */}
+          <View style={styles.progressDetailsContainer}>
+            <View style={styles.progressDetailCard}>
+              <View style={styles.detailContent}>
+                <Text style={styles.progressDetailLabel}>Working Time</Text>
+                <View style={styles.timeDisplayRow}>
+                  {elapsedTime.split(':').map((time, index) => (
+                    <View key={index} style={styles.timeSegment}>
+                      <Text style={styles.timeValue}>{time}</Text>
+                      <Text style={styles.timeUnit}>
+                        {index === 0 ? 'HRS' : index === 1 ? 'MIN' : 'SEC'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
-          ) : (
-            <View style={styles.shiftNameContainer}>
-              <Text style={styles.shiftDetailLabel}>Shift Name:</Text>
-              <Text style={styles.shiftNameValue}>N/A</Text>
+
+            <View style={styles.progressDetailCard}>
+              <View style={styles.detailContent}>
+                <Text style={styles.progressDetailLabel}>Shift Hours</Text>
+                <Text style={styles.progressDetailValue}>
+                  {shiftHours || 'No shift assigned'}
+                </Text>
+              </View>
             </View>
-          )}
-        </View>
+          </View>
 
-        {/* Check In/Out Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              !checkedIn ? styles.checkInButton : styles.disabledButton,
-            ]}
-            onPress={handleCheckIn}
-            disabled={checkedIn || isLoading}
-            activeOpacity={0.8}>
+          {/* Shift Name */}
+          <View style={styles.shiftInfoCard}>
             <LinearGradient
-              colors={
-                !checkedIn ? ['#10B981', '#059669'] : ['#D1D5DB', '#9CA3AF']
-              }
-              style={styles.actionButtonGradient}>
-              {isLoading && !checkedIn ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.actionButtonIcon}>→</Text>
-                  <Text style={styles.actionButtonText}>Check In</Text>
-                </>
-              )}
+              colors={['#EFF6FF', '#DBEAFE']}
+              style={styles.shiftInfoGradient}>
+              <View style={styles.shiftInfoHeader}>
+                <View style={styles.shiftIconContainer}>
+                  <Text style={styles.shiftIcon}>🏢</Text>
+                </View>
+                <View style={styles.shiftTextContainer}>
+                  <Text style={styles.shiftLabel}>Current Shift</Text>
+                  <Text style={styles.shiftValue}>
+                    {shiftName || 'Not Assigned'}
+                  </Text>
+                </View>
+              </View>
             </LinearGradient>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              checkedIn ? styles.checkOutButton : styles.disabledButton,
-            ]}
-            onPress={handleCheckOut}
-            disabled={!checkedIn || isLoading}
-            activeOpacity={0.8}>
-            <LinearGradient
-              colors={
-                checkedIn ? ['#EF4444', '#DC2626'] : ['#D1D5DB', '#9CA3AF']
-              }
-              style={styles.actionButtonGradient}>
-              {isLoading && checkedIn ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.actionButtonIcon}>←</Text>
-                  <Text style={styles.actionButtonText}>Check Out</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+          {/* Check In/Out Buttons */}
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.modernActionButton,
+                !checkedIn
+                  ? styles.checkInButtonActive
+                  : styles.actionButtonDisabled,
+              ]}
+              onPress={handleCheckIn}
+              disabled={checkedIn || isLoading}
+              activeOpacity={0.8}>
+              <LinearGradient
+                colors={
+                  !checkedIn
+                    ? ['#10B981', '#059669', '#047857']
+                    : ['#F3F4F6', '#E5E7EB']
+                }
+                style={styles.actionButtonGradient}>
+                <View style={styles.buttonContent}>
+                  {isLoading && !checkedIn ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      {/* <View style={styles.buttonIconContainer}>
+                      <Text style={styles.actionButtonIcon}>📥</Text>
+                    </View> */}
+                      <View style={styles.buttonTextContainer}>
+                        <Text
+                          style={[
+                            styles.actionButtonText,
+                            !checkedIn
+                              ? styles.activeButtonText
+                              : styles.disabledButtonText,
+                          ]}>
+                          Check In
+                        </Text>
+                        <Text
+                          style={[
+                            styles.actionButtonSubtext,
+                            !checkedIn
+                              ? styles.activeButtonSubtext
+                              : styles.disabledButtonSubtext,
+                          ]}>
+                          Start your shift
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
 
-        {/* Face Preview Section */}
-        {/* <View style={styles.facePreviewCard}>
+            <TouchableOpacity
+              style={[
+                styles.modernActionButton,
+                checkedIn
+                  ? styles.checkOutButtonActive
+                  : styles.actionButtonDisabled,
+              ]}
+              onPress={handleCheckOut}
+              disabled={!checkedIn || isLoading}
+              activeOpacity={0.8}>
+              <LinearGradient
+                colors={
+                  checkedIn
+                    ? ['#EF4444', '#DC2626', '#B91C1C']
+                    : ['#F3F4F6', '#E5E7EB']
+                }
+                style={styles.actionButtonGradient}>
+                <View style={styles.buttonContent}>
+                  {isLoading && checkedIn ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <View style={styles.buttonTextContainer}>
+                        <Text
+                          style={[
+                            styles.actionButtonText,
+                            checkedIn
+                              ? styles.activeButtonText
+                              : styles.disabledButtonText,
+                          ]}>
+                          Check Out
+                        </Text>
+                        <Text
+                          style={[
+                            styles.actionButtonSubtext,
+                            checkedIn
+                              ? styles.activeButtonSubtext
+                              : styles.disabledButtonSubtext,
+                          ]}>
+                          End your shift
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          {/* Face Preview Section */}
+          {/* <View style={styles.facePreviewCard}>
           <Text style={styles.facePreviewTitle}>Biometric Verification</Text>
           <View style={styles.facePreviewItem}>
             <Text style={styles.facePreviewLabel}>Registered Face</Text>
@@ -1701,21 +1861,20 @@ const matchFaces = async (face1, face2) => {
             </View>
           </View>
         </View> */}
+        </View>
         <LeaveStatus leaveData={leaveData} />
 
         <OnLeaveUsers leaveUsers={leaveUsers} />
       </>
     );
   };
-
+  // Main HomeScreen Header and Content
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
-        <LinearGradient
-          colors={['#1E40AF', '#2563EB', '#3B82F6']}
-          style={styles.header}>
+        <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
           <View style={styles.headerContent}>
             <View>
               <Text style={styles.headerGreeting}>Welcome back!</Text>
@@ -1732,23 +1891,26 @@ const matchFaces = async (face1, face2) => {
           </View>
 
           {/* Status Badge */}
+
           <View style={styles.statusBadge}>
-            <View
-              style={[
-                styles.statusDot,
-                checkedIn ? styles.statusActive : styles.statusInactive,
-              ]}
-            />
-            {checkedIn && checkInTime ? (
-              <View style={{flexDirection: 'column'}}>
-                <Text style={styles.statusText}>Checked In</Text>
-                <Text style={[styles.statusText, {fontSize: 12, marginTop: 4}]}>
-                  Login : {formatLoginTime(checkInTime)}
+            <View style={styles.statusContent}>
+              <View
+                style={[
+                  styles.statusDot,
+                  checkedIn ? styles.statusActive : styles.statusInactive,
+                ]}
+              />
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusText}>
+                  {checkedIn ? 'Checked In' : 'Not Checked In'}
                 </Text>
+                {checkedIn && checkInTime && (
+                  <Text style={styles.statusTime}>
+                    {formatLoginTime(checkInTime)}
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text style={styles.statusText}>Not Checked In</Text>
-            )}
+            </View>
           </View>
         </LinearGradient>
 

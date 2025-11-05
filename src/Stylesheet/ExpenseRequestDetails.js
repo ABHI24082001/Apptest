@@ -26,6 +26,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     elevation: 2,
+    backgroundColor: '#FFFFFF',
   },
   expandedCard: {
     elevation: 4,

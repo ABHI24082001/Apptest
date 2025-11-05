@@ -16,7 +16,8 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import LinearGradient from 'react-native-linear-gradient';
+
 import {useAuth} from '../constants/AuthContext';
 import AppSafeArea from '../component/AppSafeArea';
 
@@ -63,33 +64,33 @@ const CustomDrawer = ({navigation}) => {
   const menuItems = [
     {
       label: 'Dashboard',
-      icon: 'home-outline',
-      activeIcon: 'home',
+      icon: 'view-dashboard-outline',
+      activeIcon: 'view-dashboard',
       screen: 'Tabs',
       params: {screen: 'Home'},
     },
     {
       label: 'Apply Leave',
-      icon: 'calendar-outline',
-      activeIcon: 'calendar-check',
+      icon: 'calendar-plus',
+      activeIcon: 'calendar-plus',
       screen: 'ApplyLeave',
     },
     {
       label: 'My Payslip',
-      icon: 'file-certificate-outline',
-      activeIcon: 'file-document',
+      icon: 'receipt',
+      activeIcon: 'receipt',
       screen: 'MyPayslip',
     },
     {
       label: 'Payment Request',
-      icon: 'credit-card-outline',
-      activeIcon: 'credit-card',
+      icon: 'bank-outline',
+      activeIcon: 'bank',
       screen: 'PaymentRequest',
     },
     {
       label: 'Exit Apply',
-      icon: 'exit-run',
-      activeIcon: 'exit-run',
+      icon: 'location-exit',
+      activeIcon: 'location-exit',
       screen: 'Exit',
     },
   ];
@@ -119,6 +120,7 @@ const CustomDrawer = ({navigation}) => {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
+        style={styles.menuItemContainer}
         onPress={() => {
           setSelectedScreen(screen);
           navigation.navigate(screen, params);
@@ -146,7 +148,6 @@ const CustomDrawer = ({navigation}) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
-
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -178,8 +179,6 @@ const CustomDrawer = ({navigation}) => {
     }
   }, [user?.empImage]);
 
-
-
   return (
     <AppSafeArea style={styles.container}>
       <View style={styles.contentContainer}>
@@ -187,29 +186,36 @@ const CustomDrawer = ({navigation}) => {
           visible={visible}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <Animated.View style={[styles.profile, avatarStyle]}>
-            <TouchableOpacity
-              onPress={() => setVisible(true)}
-              activeOpacity={0.9}>
-              <Image
-                source={
-                  imageUrl
-                    ? {uri: imageUrl}
-                    : require('../assets/image/boy.png')
-                }
-                style={styles.avatar}
-              />
-            </TouchableOpacity>
-
-            {employeeData && (
-              <>
-                <Text style={styles.name}>{employeeData?.employeeName}</Text>
-                <Text style={styles.subText}>
-                  {employeeData.designationName}
-                </Text>
-              </>
-            )}
-          </Animated.View>
+          <LinearGradient
+            colors={['#1E40AF', '#2563EB', '#3B82F6']}
+            style={[styles.profile]}>
+            <Animated.View style={[avatarStyle, styles.profileContainer]}>
+              <View style={styles.avatarContainer}>
+                <TouchableOpacity
+                  onPress={() => setVisible(true)}
+                  activeOpacity={0.9}>
+                  <Image
+                    source={
+                      imageUrl
+                        ? {uri: imageUrl}
+                        : require('../assets/image/boy.png')
+                    }
+                    style={styles.avatar}
+                  />
+                </TouchableOpacity>
+              </View>
+              {employeeData && (
+                <View style={styles.employeeInfo}>
+                  <Text style={styles.employeeName} numberOfLines={1}>
+                    {employeeData?.employeeName || 'Employee Name'}
+                  </Text>
+                  <Text style={styles.designation} numberOfLines={1}>
+                    {employeeData?.designationName || 'Designation'}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          </LinearGradient>
 
           <View style={styles.menuList}>
             {menuItems.map((item, index) => (
@@ -224,7 +230,7 @@ const CustomDrawer = ({navigation}) => {
               style={[styles.menuItem, {justifyContent: 'space-between'}]}>
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <MaterialCommunityIcons
-                  name="chart-box-outline"
+                  name="chart-line"
                   size={26}
                   color={ICON_COLOR}
                   style={styles.menuIcon}
@@ -259,7 +265,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="file-chart-outline"
+                    name="file-chart"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -285,7 +291,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="wallet-outline"
+                    name="credit-card-multiple"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -311,7 +317,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="calendar-range"
+                    name="calendar-clock"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -330,7 +336,7 @@ const CustomDrawer = ({navigation}) => {
               style={[styles.menuItem, {justifyContent: 'space-between'}]}>
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <MaterialCommunityIcons
-                  name="file-multiple-outline"
+                  name="clipboard-list"
                   size={26}
                   color={ICON_COLOR}
                   style={styles.menuIcon}
@@ -364,7 +370,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="calendar"
+                    name="calendar-check"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -390,7 +396,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="cash"
+                    name="cash-multiple"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -416,7 +422,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="exit-run"
+                    name="exit-to-app"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -437,7 +443,7 @@ const CustomDrawer = ({navigation}) => {
               style={[styles.menuItem, {justifyContent: 'space-between'}]}>
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <MaterialCommunityIcons
-                  name="file-eye-outline"
+                  name="account-group"
                   size={26}
                   color={ICON_COLOR}
                   style={styles.menuIcon}
@@ -472,7 +478,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="calendar"
+                    name="calendar-search"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -497,7 +503,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="cash"
+                    name="cash-check"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -522,7 +528,7 @@ const CustomDrawer = ({navigation}) => {
                     },
                   ]}>
                   <MaterialCommunityIcons
-                    name="exit-run"
+                    name="door-open"
                     size={24}
                     color={ICON_COLOR}
                     style={styles.menuIcon}
@@ -541,7 +547,7 @@ const CustomDrawer = ({navigation}) => {
           activeOpacity={0.7}
           onPress={handleLogout}>
           <MaterialCommunityIcons
-            name="logout-variant"
+            name="power"
             size={24}
             color={ICON_COLOR}
             style={styles.menuIcon}
@@ -556,7 +562,6 @@ const CustomDrawer = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFC',
   },
   contentContainer: {
     flex: 1,
@@ -567,10 +572,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  profile: {
+   profile: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 30,
-    backgroundColor: '#fff',
+    paddingHorizontal: 20,
     marginBottom: 10,
     ...Platform.select({
       android: {
@@ -587,14 +593,26 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 25,
   },
 
+   profileContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+   avatarContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  
   avatar: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: ICON_COLOR,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#f0f0f0',
   },
+  
   name: {
     fontSize: 18,
     fontWeight: '700',
@@ -624,6 +642,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#37474F',
+  },
+employeeInfo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  
+  employeeName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2,
+  },
+  
+  designation: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#E5E7EB',
+    textAlign: 'center',
+    marginBottom: 12,
+    opacity: 0.9,
+  },
+
+  employeeIdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+
+  employeeId: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#E5E7EB',
+    marginLeft: 6,
+    letterSpacing: 0.5,
   },
   logoutButton: {
     flexDirection: 'row',

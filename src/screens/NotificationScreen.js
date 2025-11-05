@@ -29,7 +29,7 @@ const RequestCard = ({ item, onPress }) => {
     <TouchableOpacity 
       activeOpacity={0.9} 
       onPress={onPress}
-      style={[styles.card, { borderLeftColor: color }]}
+      style={[styles.card, { borderLeftColor: color  }]}
     >
       <View style={styles.row}>
         <View style={styles.textContent}>

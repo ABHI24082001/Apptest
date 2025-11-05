@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Platform,
   Image,
-  Text,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {Menu, Provider} from 'react-native-paper';
@@ -16,7 +15,8 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'; // <- ADD THIS
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import CustomDrawer from '../component/CustomDrawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
@@ -76,8 +76,8 @@ const NotificationButton = ({navigation}) => {
   return (
     <TouchableOpacity
       onPress={() => navigation.navigate('Notifications')}
-      style={{marginRight: 10}}>
-      <MaterialIcons name="notifications" size={30} color="#4b8ee1ff" />
+      style={{marginRight: 10 ,  backgroundColor: 'rgba(255, 255, 255, 1)'  , borderRadius: 15 , padding:2}}>
+      <MaterialIcons name="notifications" size={30} color="rgba(75, 142, 225, 1)" />
       {/* Red Dot + Animated Wave */}
       {hasNotification && (
         <View style={styles.dotContainer}>
@@ -155,7 +155,7 @@ const handleLogout = async () => {
       anchor={
         <TouchableOpacity
           onPress={() => setVisible(true)}
-          style={{marginRight: 10}}>
+          style={{marginRight: 10 , backgroundColor: 'rgba(255, 255, 255, 1)'  , borderRadius: 15 , padding:2}}>
           {imageUrl ? (
             <Image
               source={{uri: imageUrl}}
@@ -175,7 +175,7 @@ const handleLogout = async () => {
             <MaterialCommunityIcons
               name="account-circle"
               size={30}
-              color="#4b8ee1ff"
+              color="rgba(75, 142, 225, 1)"
             />
           )}
         </TouchableOpacity>
@@ -195,7 +195,7 @@ const handleLogout = async () => {
         }}
         leadingIcon={() => (
           <View style={styles.menuIconContainer}>
-            <MaterialIcons name="person" size={24} color="#4b8ee1ff" />
+            <MaterialIcons name="person" size={24} color="rgba(75, 142, 225, 1)" />
           </View>
         )}
         style={styles.menuItem}
@@ -203,7 +203,7 @@ const handleLogout = async () => {
         title="My Profile"
       />
       
-      {/* <Menu.Item
+      <Menu.Item
         onPress={() => {
           setVisible(false);
           navigation.navigate('Setting');
@@ -216,7 +216,7 @@ const handleLogout = async () => {
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="Setting"
-      /> */}
+      />
       
       <Menu.Item
         onPress={() => {
@@ -236,6 +236,17 @@ const handleLogout = async () => {
   );
 };
 
+// Create a custom header component with gradient
+const GradientHeader = ({children, style}) => (
+  <LinearGradient
+    colors={['#1E40AF', '#2563EB']}
+    style={[{flex: 1}, style]}
+    start={{x: 0, y: 0}}
+    end={{x: 0, y: 1}}>
+    {children}
+  </LinearGradient>
+);
+
 // ---------------- Drawer Navigator ----------------
 export default function DrawerNavigator() {
   return (
@@ -244,6 +255,14 @@ export default function DrawerNavigator() {
         drawerContent={props => <CustomDrawer {...props} />}
         screenOptions={({navigation}) => ({
           headerShown: true,
+          headerBackground: () => (
+            <GradientHeader style={{borderBottomLeftRadius: 0, borderBottomRightRadius: 0}} />
+          ),
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: {
+            color: '#FFFFFF',
+            fontWeight: '600',
+          },
           drawerStyle: {
             width: 300,
             backgroundColor: '#fff',
@@ -261,6 +280,19 @@ export default function DrawerNavigator() {
               },
             }),
           },
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.openDrawer()}
+              style={{
+                marginLeft: 25,
+                marginRight: 10,
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: 12,
+                padding: 7,
+              }}>
+              <MaterialIcons name="grid-view" size={23} color="#FFFFFF" />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <View
               style={{

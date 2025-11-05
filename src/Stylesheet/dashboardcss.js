@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingTop: Platform.OS === 'ios' ? 44 : 0,
-    // marginBottom: 20, // Added bottom padding to prevent content from being cut off
+    marginBottom: -20, // Added bottom padding to prevent content from being cut off
   },
   header: {
     paddingHorizontal: 20,
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headerGreeting: {
-    fontSize: 14,
+    fontSize: 20,
     color: '#DBEAFE',
     fontWeight: '500',
   },
@@ -59,32 +59,87 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  statusActive: {
-    backgroundColor: '#10B981',
-  },
-  statusInactive: {
-    backgroundColor: '#F59E0B',
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
+
+statusBadge: {
+  backgroundColor: '#FFFFFF',
+  borderRadius: 12,
+  padding: 12,
+  marginTop: 16,
+  width: '50%',
+  shadowColor: '#000',
+  shadowOffset: {width: 0, height: 2},
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+
+statusContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+statusDot: {
+  width: 12,
+  height: 12,
+  borderRadius: 6,
+},
+
+statusActive: {
+  backgroundColor: '#10B981', // Green for checked in
+},
+
+statusInactive: {
+  backgroundColor: '#EF4444', // Red for not checked in
+},
+
+statusTextContainer: {
+  flex: 1,
+},
+
+statusText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#374151',
+},
+
+statusTime: {
+  fontSize: 12,
+  fontWeight: '500',
+  color: '#6B7280',
+  marginTop: 2,
+},
+
+// Hide the old complex status badge styles
+statusBadgeContent: {
+  display: 'none',
+},
+statusIndicatorContainer: {
+  display: 'none',
+},
+modernStatusDot: {
+  display: 'none',
+},
+statusActiveModern: {
+  display: 'none',
+},
+statusInactiveModern: {
+  display: 'none',
+},
+statusDotInner: {
+  display: 'none',
+},
+statusPulse: {
+  display: 'none',
+},
+modernStatusText: {
+  display: 'none',
+},
+statusTimeText: {
+  display: 'none',
+},
+
   content: {
     padding: 20,
     paddingTop: 10,
@@ -176,6 +231,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+
+  // Progress card 
+
   progressCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -197,24 +255,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   progressTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    flex: 1,
   },
-   progressRow: {
+  headerIconContainer: {
+    backgroundColor: '#EEF2FF',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  progressSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  // progressBadge: {
+  //   backgroundColor: '#10B981',
+  //   paddingHorizontal: 12,
+  //   paddingVertical: 6,
+  //   borderRadius: 16,
+  //   minWidth: 50,
+  //   alignItems: 'center',
+  //   ...Platform.select({
+  //     ios: {
+  //       shadowColor: '#10B981',
+  //       shadowOffset: { width: 0, height: 2 },
+  //       shadowOpacity: 0.2,
+  //       shadowRadius: 4,
+  //     },
+  //     android: {
+  //       elevation: 3,
+  //     },
+  //   }),
+  // },
+  // progressBadgeText: {
+  //   fontSize: 13,
+  //   fontWeight: '700',
+  //   color: '#FFFFFF',
+  // },
+  progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
    justifyContent: 'space-evenly',
    marginTop: 5,
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
   },
   missesPercentageText: {
     fontSize: 15,
@@ -227,162 +341,169 @@ const styles = StyleSheet.create({
     color: '#2563EB',
   },
   progressBarContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
+  },
+  progressBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressBarTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  percentageBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  percentageText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3B82F6',
+  },
+  progressBarWrapper: {
+    marginBottom: 16,
   },
   progressBarBg: {
-    height: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  missedTimeFill: {
-    backgroundColor: '#EF4444', // Red color for missed time
-    height: '100%',
-    borderRadius: 6,
-    position: 'absolute',
-  },
-  progressDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  progressDetailItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  progressDetailLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  progressDetailValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  progressDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#E5E7EB',
-  },
-  shiftNameContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    textAlign: 'center',
-  },
-  shiftNameValue: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#3B82F6',
-    // marginTop: 4,
-  },
-  shiftDetailLabel: {
-    fontSize: 15,
-    color: '#3d4554ff',
-    fontWeight: '500',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  actionButton: {
-    flex: 1,
+    height: 16,
+    backgroundColor: '#F1F5F9',
     borderRadius: 12,
     overflow: 'hidden',
+    position: 'relative',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 12,
+    position: 'absolute',
+  },
+  missedTimeFill: {
+    height: '100%',
+    borderRadius: 12,
+    position: 'absolute',
+    left: 0,
+  },
+  progressIndicator: {
+    position: 'absolute',
+    top: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#3B82F6',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
       },
       android: {
         elevation: 4,
       },
     }),
   },
-  checkInButton: {},
-  checkOutButton: {},
-  disabledButton: {
-    opacity: 0.6,
-  },
-  actionButtonGradient: {
+  progressStatsContainer: {
     flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    gap: 10,
   },
-  actionButtonIcon: {
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: '700',
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  facePreviewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  facePreviewTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  facePreviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  facePreviewItem: {
+  progressStatItem: {
     flex: 1,
     alignItems: 'center',
   },
-  facePreviewLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 12,
-    fontWeight: '500',
+  statIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
   },
-  faceImageContainer: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
+  },
+  missedTimeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  workedTimeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3B82F6',
+  },
+  remainingTimeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+
+  // Remove old styles that are no longer needed
+  // progressRow: { ... } - removed
+  // missesPercentageText: { ... } - removed  
+  // progressPercentageText: { ... } - removed
+
+  contentContainer: {
+    paddingBottom: 30, // Add extra padding at the bottom of scrollable content
+  },
+  safeAreaBottom: {
+    height: 20,
+  },
+
+  // Enhanced Progress Details
+  progressDetailsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  progressDetailCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
         shadowRadius: 4,
       },
       android: {
@@ -390,139 +511,240 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  faceImage: {
-    width: '100%',
-    height: '100%',
-  },
-  faceImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  faceImagePlaceholderText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: '#10B981',
-    width: 24,
-    height: 24,
+  detailIconWrapper: {
+    backgroundColor: '#FFFFFF',
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
-  facePreviewDivider: {
-    width: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 16,
+  detailIcon: {
+    fontSize: 18,
   },
-  reregisterButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
+  detailContent: {
+    flex: 1,
+  },
+  progressDetailLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  progressDetailValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 18,
+  },
+  timeDisplayRow: {
+    flexDirection: 'row',
+    gap: 3,
     alignItems: 'center',
+    marginLeft: -4,
   },
-  reregisterButtonText: {
-    fontSize: 13,
+  timeSegment: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 6,
+    alignItems: 'center',
+    minWidth: 40,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timeValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3B82F6',
+    lineHeight: 16,
+  },
+  timeUnit: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 2,
+  },
+
+  // Enhanced Shift Info
+  shiftInfoCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  shiftInfoGradient: {
+    padding: 16,
+  },
+  shiftInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shiftIconContainer: {
+    backgroundColor: '#3B82F6',
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  shiftIcon: {
+    fontSize: 20,
+  },
+  shiftTextContainer: {
+    flex: 1,
+  },
+  shiftLabel: {
+    fontSize: 12,
     color: '#3B82F6',
     fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  matchResultCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 20,
-    borderWidth: 2,
-  },
-  matchSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#10B981',
-  },
-  matchFailure: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#EF4444',
-  },
-  matchResultTitle: {
+  shiftValue: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 12,
-    color: '#1F2937',
+    color: '#1E40AF',
   },
-  matchResultDetails: {
+
+  // Enhanced Action Buttons
+  actionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 16,
+    marginTop: 8,
   },
-  matchResultItem: {
-    alignItems: 'center',
-  },
-  matchResultLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  matchResultValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  infoCardsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  infoCard: {
+  modernActionButton: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 2,
+        elevation: 6,
       },
     }),
   },
-  infoCardGradient: {
-    padding: 16,
+  checkInButtonActive: {
+    transform: [{ scale: 1 }],
+  },
+  checkOutButtonActive: {
+    transform: [{ scale: 1 }],
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+    transform: [{ scale: 0.98 }],
+  },
+  actionButtonGradient: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  buttonIconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  infoCardIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+  buttonTextContainer: {
+    alignItems: 'center',
   },
-  infoCardLabel: {
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  actionButtonSubtext: {
     fontSize: 12,
+    fontWeight: '500',
+  },
+  activeButtonText: {
+    color: '#FFFFFF',
+  },
+  disabledButtonText: {
+    color: '#9CA3AF',
+  },
+  activeButtonSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  disabledButtonSubtext: {
     color: '#6B7280',
-    marginBottom: 4,
   },
-  infoCardValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+  actionButtonIcon: {
+    fontSize: 20,
   },
-  icon: {
-    fontSize: 18,
-    color: '#fff',
+
+  // Remove old styles
+  progressDetails: {
+    display: 'none', // Hide old style
   },
-  contentContainer: {
-    paddingBottom: 30, // Add extra padding at the bottom of scrollable content
+  progressDetailItem: {
+    display: 'none', // Hide old style
   },
-  safeAreaBottom: {
-    height: 20,
-  }
+  progressDivider: {
+    display: 'none', // Hide old style
+  },
+  shiftNameContainer: {
+    display: 'none', // Hide old style
+  },
+  shiftNameValue: {
+    display: 'none', // Hide old style
+  },
+  shiftDetailLabel: {
+    display: 'none', // Hide old style
+  },
+  actionButtons: {
+    display: 'none', // Hide old style
+  },
+  actionButton: {
+    display: 'none', // Hide old style
+  },
 });
 
 export default styles;
