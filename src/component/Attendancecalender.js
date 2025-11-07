@@ -93,6 +93,7 @@ export default function MonthCalendarWithAgenda({
         ),
       ]);
 
+      console.log('📅 Attendance data=============== fetched:', response.data, shiftResponse);
       // Process shift data into a map keyed by date
       const shiftMap = {};
       shiftResponse.data.forEach(shift => {
@@ -101,6 +102,8 @@ export default function MonthCalendarWithAgenda({
           shiftName: shift.shiftName,
           shiftStartTime: moment(shift.shiftStartTime).format('HH:mm'),
           shiftEndTime: moment(shift.shiftEndTime).format('HH:mm'),
+          halfDayStartTime: moment(shift.halfDayStartTime).format('HH:mm'),
+          halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
           loginTime: shift.loginTime,
           logoutTime: shift.logoutTime
         };
@@ -423,14 +426,70 @@ export default function MonthCalendarWithAgenda({
       const requiredHours = dayShift ? (() => {
         const start = moment(dayShift.shiftStartTime, 'HH:mm');
         const end = moment(dayShift.shiftEndTime, 'HH:mm');
-        return moment.duration(end.diff(start)).asHours().toFixed(1);
-      })() : 'N/A';
+        return moment.duration(end.diff(start)).asHours();
+      })() : 0;
 
       const workingHours = times.length === 2 ? (() => {
         const checkIn = moment(times[0], 'HH:mm:ss');
         const checkOut = moment(times[1], 'HH:mm:ss');
-        return moment.duration(checkOut.diff(checkIn)).asHours().toFixed(1);
-      })() : 'N/A';
+        return moment.duration(checkOut.diff(checkIn)).asHours();
+      })() : 0;
+
+      // Helper function to convert decimal hours to HH:MM format
+      const formatHoursToHHMM = (decimalHours) => {
+        if (!decimalHours || decimalHours <= 0) return '00:00';
+        const hours = Math.floor(decimalHours);
+        const minutes = Math.round((decimalHours - hours) * 60);
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      };
+
+      // Helper function to format time from HH:mm:ss to HH:mm
+      const formatTimeToHHMM = (timeString) => {
+        if (!timeString) return '';
+        return moment(timeString, 'HH:mm:ss').format('HH:mm');
+      };
+
+      // Helper function to determine which shift time to display
+      const getShiftTimeDisplay = () => {
+        if (!dayShift) return { startTime: '', endTime: '', isHalfDay: false };
+        
+        // Check if half day times are available and not 00:00
+        const hasValidHalfDayTimes = dayShift.halfDayStartTime && 
+                                   dayShift.halfDayEndTime && 
+                                   dayShift.halfDayStartTime !== '00:00' && 
+                                   dayShift.halfDayEndTime !== '00:00';
+        
+        if (hasValidHalfDayTimes) {
+          // Use half day times if they are available and valid
+          return {
+            startTime: dayShift.halfDayStartTime,
+            endTime: dayShift.halfDayEndTime,
+            isHalfDay: true
+          };
+        } else {
+          // Use full day times as fallback
+          return {
+            startTime: dayShift.shiftStartTime,
+            endTime: dayShift.shiftEndTime,
+            isHalfDay: false
+          };
+        }
+      };
+
+      // Determine working type based on hours worked vs required
+      const getWorkingType = () => {
+        if (!dayShift || times.length < 2 || requiredHours <= 0) {
+          return 'N/A';
+        }
+        
+        const completionPercentage = (workingHours / requiredHours) * 100;
+        const FULL_DAY_THRESHOLD = 80; // 80% threshold for full day
+        
+        return completionPercentage >= FULL_DAY_THRESHOLD ? 'Full Day' : 'Half Day';
+      };
+
+      const workingType = getWorkingType();
+      const shiftTimeDisplay = getShiftTimeDisplay();
 
       return (
         <View key={evt.id} style={[styles.eventCard, evt.type === 'present' && styles.presentCard]}>
@@ -460,7 +519,10 @@ export default function MonthCalendarWithAgenda({
                 <MaterialIcons name="access-time" size={16} color="#666" />
                 <Text style={styles.infoLabel}>Time</Text>
                 <Text style={styles.infoValue}>
-                  {dayShift.shiftStartTime} - {dayShift.shiftEndTime}
+                  {shiftTimeDisplay.startTime} - {shiftTimeDisplay.endTime}
+                  {shiftTimeDisplay.isHalfDay && (    
+                    <Text style={styles.halfDayIndicator}> (Half Day)</Text>
+                  )}
                 </Text>
               </View>
 
@@ -469,14 +531,27 @@ export default function MonthCalendarWithAgenda({
                   <View style={styles.infoRow}>
                     <MaterialIcons name="login" size={16} color="#666" />
                     <Text style={styles.infoLabel}>Check In-Out</Text>
-                    <Text style={styles.infoValue}>{times[0]} - {times[1]}</Text>
+                    <Text style={styles.infoValue}>
+                      {formatTimeToHHMM(times[0])} - {formatTimeToHHMM(times[1])}
+                    </Text>
                   </View>
 
                   <View style={styles.infoRow}>
                     <MaterialIcons name="timer" size={16} color="#666" />
                     <Text style={styles.infoLabel}>Working </Text>
                     <Text style={[styles.infoValue]}>
-                      {workingHours} hours
+                      {formatHoursToHHMM(workingHours) || '00:00'} hrs
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="work" size={16} color="#666" />
+                    <Text style={styles.infoLabel}>Working Type</Text>
+                    <Text style={[
+                      styles.infoValue,
+                      workingType === 'Full Day' ? styles.fullDayText : styles.halfDayText
+                    ]}>
+                      {workingType}
                     </Text>
                   </View>
 
@@ -484,7 +559,7 @@ export default function MonthCalendarWithAgenda({
                     <MaterialIcons name="timer" size={16} color="#666" />
                     <Text style={styles.infoLabel}>Required</Text>
                     <Text style={[styles.infoValue]}>
-                    {requiredHours} hours
+                      {formatHoursToHHMM(requiredHours) || '00:00'} hrs
                     </Text>
                   </View>
                 </>
@@ -891,5 +966,19 @@ const styles = StyleSheet.create({
   eventsContainer: {
     flex: 1,
     padding: 12,
+  },
+  fullDayText: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  halfDayText: {
+    color: '#FF9800',
+    fontWeight: '600',
+  },
+  halfDayIndicator: {
+    fontSize: 11,
+    color: '#FF9800',
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
 });

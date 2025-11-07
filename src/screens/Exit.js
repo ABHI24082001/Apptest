@@ -261,6 +261,9 @@ const ExitApplyScreen = ({navigation}) => {
       setIsSubmitting(false);
     }
   };
+   
+  
+
 
   const exitDate = watch('exitDate');
 
@@ -479,3 +482,5 @@ const ExitApplyScreen = ({navigation}) => {
 };
 
 export default ExitApplyScreen;
+
+

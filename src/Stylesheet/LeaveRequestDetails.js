@@ -280,6 +280,13 @@ const styles = StyleSheet.create({
   approveButton: {
     backgroundColor: '#10B981',
   },
+  approveButto:{
+    backgroundColor: '#10B981',
+    width:'48%',
+    marginRight:8,
+    borderRadius: 8,
+    paddingVertical: 8,
+  },
   rejectButton: {
     backgroundColor: '#EF4444',
   },

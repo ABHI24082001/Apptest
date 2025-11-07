@@ -1,8 +1,7 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo, useCallback} from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TextInput as RNTextInput,
   TouchableOpacity,
@@ -48,6 +47,8 @@ const LeaveTypeColors = {
 const LeaveRequestDetails = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
   const {user} = useAuth();
+  const [loading, setLoading] = useState(false);
+  // Remove the hardcoded apiUrl, use BASE_URL instead
 
   // console.log('First ======================================', user);
   // console.log('Employee Details:', employeeDetails);
@@ -103,12 +104,54 @@ const LeaveRequestDetails = ({navigation}) => {
   useEffect(() => {
     if (employeeDetails) {
       fetchLeaveApprovalData();
-      fetchTaskAssignmentEmployees(); // Fetch employees for task assignment
+      // Remove fetchTaskAssignmentEmployees() from here since it depends on leaveDetails
     }
   }, [employeeDetails]);
 
+  // Optimize pagination updates with useMemo
+  const paginatedItems = useMemo(() => {
+    if (!Array.isArray(approvalList) || approvalList.length === 0) {
+      return [];
+    }
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return approvalList.slice(startIndex, endIndex);
+  }, [approvalList, currentPage, itemsPerPage]);
+
+  // Update paginated data only when needed
+  useEffect(() => {
+    console.log('=== PAGINATION UPDATE ===');
+    console.log('Paginated items length:', paginatedItems.length);
+    console.log('Paginated items:', paginatedItems.map(item => ({
+      id: item.id || item.applyLeaveId,
+      employeeName: item.employeeName
+    })));
+    setPaginatedData(paginatedItems);
+  }, [paginatedItems]);
+
+  // Remove the separate pagination update useEffect and updatePaginatedData function
+
+  // Memoize total pages calculation
+  const totalPages = useMemo(() => {
+    return Math.ceil(approvalList.length / itemsPerPage);
+  }, [approvalList.length, itemsPerPage]);
+
+  // Memoize whether to show pagination
+  const shouldShowPagination = useMemo(() => {
+    return approvalList.length > itemsPerPage; // Changed from >= 3 to > itemsPerPage for better logic
+  }, [approvalList.length, itemsPerPage]);
+
   // Add another useEffect to initialize approvedLeaveCount and unapprovedLeaveCount when approvalList changes
   useEffect(() => {
+    console.log('=== APPROVAL LIST CHANGE EFFECT ===');
+    console.log('Approval list length:', approvalList.length);
+    console.log('Approval list items:', approvalList.map(item => ({
+      id: item.id || item.applyLeaveId,
+      employeeName: item.employeeName,
+      status: item.status
+    })));
+    
     if (Array.isArray(approvalList) && approvalList.length > 0) {
       const initialCounts = {};
       const initialUnapprovedCounts = {};
@@ -116,47 +159,14 @@ const LeaveRequestDetails = ({navigation}) => {
       approvalList.forEach(item => {
         const id = item.id || item.applyLeaveId;
         initialCounts[id] = item.leaveNo || 0;
-        initialUnapprovedCounts[id] = 0; // Initialize unapproved count with 0
+        initialUnapprovedCounts[id] = 0;
       });
 
       setApprovedLeaveCount(initialCounts);
       setUnapprovedLeaveCount(initialUnapprovedCounts);
-
-      // Reset to first page when approval list changes
       setCurrentPage(1);
-
-      // Update paginated data
-      updatePaginatedData(approvalList, 1);
-    } else {
-      setPaginatedData([]);
     }
   }, [approvalList]);
-
-  // Update paginated data whenever current page changes
-  useEffect(() => {
-    updatePaginatedData(approvalList, currentPage);
-  }, [currentPage]);
-
-  // Function to paginate data
-  const updatePaginatedData = (data, page) => {
-    if (!Array.isArray(data) || data.length === 0) {
-      setPaginatedData([]);
-      return;
-    }
-
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedItems = data.slice(startIndex, endIndex);
-
-    console.log(
-      `Paginating: Page ${page}, showing items ${startIndex + 1}-${Math.min(
-        endIndex,
-        data.length,
-      )} of ${data.length}`,
-    );
-
-    setPaginatedData(paginatedItems);
-  };
 
   // Handle page change
   const handlePageChange = newPage => {
@@ -165,13 +175,16 @@ const LeaveRequestDetails = ({navigation}) => {
   };
 
   const fetchLeaveApprovalData = async () => {
+    console.log('=== FETCH LEAVE APPROVAL DATA START ===');
     const accessData = await fetchFunctionalAccessMenus();
     setLeaveApprovalAccess(accessData);
-    // console.log('Leave approval access data set:', accessData);
+    console.log('Leave approval access data set:', accessData);
 
-    const userType = user?.userType; // static as per requirement
+    const userType = user?.userType;
     const employeeId = user?.id;
     const companyId = user?.childCompanyId;
+    console.log('User context:', { userType, employeeId, companyId });
+    
     let hasAccess = false;
 
     if (Array.isArray(accessData)) {
@@ -179,6 +192,7 @@ const LeaveRequestDetails = ({navigation}) => {
         item => item.employeeId === employeeId || userType === 2,
       );
     }
+    console.log('Has access:', hasAccess);
 
     let ApprovalList;
     try {
@@ -188,60 +202,91 @@ const LeaveRequestDetails = ({navigation}) => {
       } else {
         apiUrl = `${BASE_URL}/ApplyLeave/GetApplyLeaveListForApproval/${companyId}/${employeeId}`;
       }
-      // debugger;;
+      console.log('API URL:', apiUrl);
+      
       ApprovalList = await axiosinstance.get(apiUrl);
-      ApprovalList.data = ApprovalList.data.filter(
+      console.log('Raw API response:', JSON.stringify(ApprovalList.data, null, 2));
+      console.log('Raw approval list length:', ApprovalList.data?.length || 0);
+      
+      // Filter out current user's requests
+      const beforeFilter = ApprovalList.data || [];
+      ApprovalList.data = beforeFilter.filter(
         item => item.employeeId != employeeDetails?.id,
       );
+      
+      console.log('After filtering current user:', {
+        beforeFilter: beforeFilter.length,
+        afterFilter: ApprovalList.data.length,
+        currentEmployeeId: employeeDetails?.id,
+        filteredItems: ApprovalList.data.map(item => ({
+          id: item.id || item.applyLeaveId,
+          employeeId: item.employeeId,
+          employeeName: item.employeeName,
+          status: item.status
+        }))
+      });
 
       // Get the pending request count
       if (Array.isArray(ApprovalList.data)) {
         setPendingRequestsCount(ApprovalList.data.length);
+        console.log('Setting pending requests count to:', ApprovalList.data.length);
       }
 
-      // console.log('Leave =================list:', ApprovalList.data);
     } catch (err) {
       console.error('Error fetching leave list:', err);
+      console.error('Error details:', err.response?.data || err.message);
     }
 
     let roleurl = '';
     roleurl = `${BASE_URL}/RoleConfiguration/getAllRoleDetailsCompanyWise/${companyId}`;
     const response = await axiosinstance.get(roleurl);
     let roleData = null;
-    // console.log('Role Details========:', response.data);
+    console.log('Role Details response:', response.data);
 
     // Check if current user is authorized for final approval
     if (Array.isArray(response.data)) {
-      // Check if employee ID exists in role details
       const isAuthorized = response.data.some(
         role => role.employeeId === employeeDetails?.id,
-        // (role.roleId === 1 || role.branchId === 0)
       );
       setIsAuthorizedForFinalApproval(isAuthorized);
+      console.log('Is authorized for final approval:', isAuthorized);
 
-      // Determine if the user is a reporting manager
-      // Check if user is a reporting manager (not an HR/final approver)
       const isManager = hasAccess && !isAuthorized;
       setIsReportingManager(isManager);
+      console.log('Is reporting manager:', isManager);
 
-      // If employeeId matches, get that role data, else get the first role as fallback
       roleData =
         response.data.find(item => item.employeeId === employeeDetails?.id) ||
         response.data[0] ||
         null;
     }
-    // console.log('Role Data==============================', roleData);
+    console.log('Role Data:', roleData);
 
-    if (roleData.branchId != 0) {
-      ApprovalList = ApprovalList.data.some(
+    if (roleData?.branchId != 0) {
+      const beforeBranchFilter = ApprovalList.data || [];
+      ApprovalList.data = beforeBranchFilter.filter(
         item => item.branchId === roleData.branchId,
       );
+      console.log('After branch filtering:', {
+        beforeBranchFilter: beforeBranchFilter.length,
+        afterBranchFilter: ApprovalList.data?.length || 0,
+        branchId: roleData.branchId
+      });
     }
-    // console.log('Filtered fffffffApproval List:', ApprovalList.data);
 
-    // Integrate the filtered approval list into the UI
-    // Set the approval list state for FlatList rendering
-    setApprovalList(Array.isArray(ApprovalList.data) ? ApprovalList.data : []);
+    const finalApprovalList = Array.isArray(ApprovalList.data) ? ApprovalList.data : [];
+    console.log('=== FINAL APPROVAL LIST ===');
+    console.log('Final list length:', finalApprovalList.length);
+    console.log('Final list items:', finalApprovalList.map(item => ({
+      id: item.id || item.applyLeaveId,
+      employeeName: item.employeeName,
+      status: item.status,
+      fromDate: item.fromLeaveDate,
+      toDate: item.toLeaveDate
+    })));
+    
+    setApprovalList(finalApprovalList);
+    console.log('=== FETCH LEAVE APPROVAL DATA END ===');
   };
 
   // debugger
@@ -310,212 +355,93 @@ const LeaveRequestDetails = ({navigation}) => {
   // Add validation state for the leave count inputs
   const [leaveCountErrors, setLeaveCountErrors] = useState({});
 
-  // debugger;
-  const handleApprove = async id => {
+  // === Date Sanitization Helper ===
+  const sanitizeDate = date => {
+    if (!date || date === '0001-01-01T00:00:00') return null;
+
+    const parsed = new Date(date);
+    // Check if it's invalid or before SQL min date
+    if (isNaN(parsed.getTime()) || parsed.getFullYear() < 1753) return null;
+
+    return parsed.toISOString();
+  };
+
+  const handleFinalApproval = async leaveDetails => {
     try {
-      // First fetch the detailed leave data directly from API
-      const leaveDetails = await fetchLeaveDetailsById(id);
+      setLoading(true);
 
-      if (!leaveDetails) {
-        showFeedbackModal('fail', 'Cannot fetch leave request details');
-        return;
-      }
-
-      // Find matching item in approval list for UI display purposes
-      const leaveItem = approvalList.find(
-        item => (item.id || item.applyLeaveId) === id,
-      );
-
-      if (!leaveItem) {
-        showFeedbackModal('fail', 'Cannot find leave request details');
-        return;
-      }
-
-      // Validate required remarks for final approval
-      if (
-        isAuthorizedForFinalApproval &&
-        (!rmRemarks[id] || !rmRemarks[id].trim())
-      ) {
-        setRemarkErrors(prev => ({
-          ...prev,
-          [id]: 'Final approval remarks are required',
-        }));
-        showFeedbackModal('fail', 'Please provide remarks for final approval');
-        return;
-      }
-
-      const leaveNo = leaveDetails.leaveNo || leaveItem.leaveNo || 0;
-
-      if (leaveNo === 0) {
-        showFeedbackModal('fail', 'Leave days (leaveNo) cannot be zero');
-        return;
-      }
-
-      const approvedCount = Number(approvedLeaveCount[id]) || 0;
-      const unapprovedCount = Number(unapprovedLeaveCount[id]) || 0;
-      const totalCount = approvedCount + unapprovedCount;
-
-      // Validate leave counts before proceeding
-      const isValid = validateLeaveCounts(
-        id,
-        approvedCount.toString(),
-        unapprovedCount.toString(),
-        leaveNo,
-      );
-
-      if (!isValid) {
-        // Get the error message to display
-        const errors = leaveCountErrors[id] || {};
-        showFeedbackModal(
-          'fail',
-          errors.total || 'Please enter valid values for leave days',
-        );
-        return;
-      }
-
-      // Step 1: Check if payroll already generated
-      const payrollCheckBody = {
-        EmployeeId: leaveDetails.employeeId,
-        CompanyId: leaveDetails.companyId,
-        BranchId: leaveDetails.branchId || 0,
-        fromLeaveDate: formatDateForBackend(leaveDetails.fromLeaveDate),
-      };
-
-      const payrollRes = await axiosinstance.post(
-        `${BASE_URL}/PayRollRun/CheckPayRollCreationForLeaveApproval`,
-        payrollCheckBody,
-      );
-
-      if (payrollRes?.data?.isSuccess) {
-        showFeedbackModal(
-          'fail',
-          'Payroll already generated for this employee. Leave cannot be approved.',
-        );
-        return;
-      }
-
-      // Step 2: Check if current user is in authorization list
-      const currentUserId = employeeDetails?.id;
-      console.log('Current user ID:', currentUserId);
-      console.log('Cached approval access data:', leaveApprovalAccess);
-
-      // First check if we have cached access data
-      let accessData = leaveApprovalAccess;
-
-      // If not cached, fetch it
-      if (!Array.isArray(accessData) || accessData.length === 0) {
-        console.log('No cached approval data, fetching fresh data...');
-        accessData = await fetchFunctionalAccessMenus();
-        console.log('Freshly fetched approval data:', accessData);
-      }
-
-      // Check if current user is an authorization person
-      let isAuthorizationPerson = false;
-
-      if (Array.isArray(accessData)) {
-        // Log each entry to debug
-        accessData.forEach((person, index) => {
-          console.log(`Authorization person ${index}:`, person);
-        });
-
-        // Match by employeeId
-        isAuthorizationPerson = accessData.some(person => {
-          const match = person.employeeId === currentUserId;
-          if (match) {
-            console.log('Found matching authorization person:', person);
-          }
-          return match;
-        });
-      }
-
-      console.log('Is authorization person:', isAuthorizationPerson);
-
-      // Step 3: Construct payload using the detailed data from API
-      const taskAssignment = selectedTaskAssignee[id] || {};
-
-      const approvalPayload = {
-        CompanyId: leaveDetails.companyId,
-        Id: leaveDetails.id,
-        Visible: false,
-        EmployeeId: leaveDetails.id,
-        ReportingId: leaveDetails.reportingId,
-        DocumentPath: leaveDetails.documentPath || '',
-        EmployeeEmail: leaveDetails.employeeEmail || '',
-        ApplyLeaveId: leaveDetails.applyLeaveId || 0,
-        DepartmentId: leaveDetails.departmentId,
-        ReportingMgerEmail: leaveDetails.reportingMgerEmail || '',
-        ReportTaskEmail: leaveDetails.reportTaskEmail || '',
-        ToLeaveDate: leaveDetails.toLeaveDate,
-        FromLeaveDate: leaveDetails.fromLeaveDate,
-        EmployeeName: leaveDetails.employeeName,
-        EmployeeCode: leaveDetails.employeeCode,
-        Designation: leaveDetails.designation,
-        Department: leaveDetails.department,
-        Remarks: rmRemarks[id] || leaveDetails.remarks || '',
-        LeaveNo: leaveNo,
-        ApprovedPaidLeave: approvedCount,
-        ApprovedUnpaidLeave: unapprovedCount,
-        ApprovalStatus: 1, // 1 means approved
+      // ✅ Step 1: Sanitize all payload fields
+      const sanitizedPayload = {
+        CompanyId: leaveDetails.CompanyId ?? user?.childCompanyId ?? 1,
+        Id: leaveDetails.Id ?? leaveDetails.EmployeeId,
+        Visible: leaveDetails.Visible ?? false,
+        EmployeeId: leaveDetails.EmployeeId,
+        ReportingId: leaveDetails.ReportingId ?? user?.id,
+        DocumentPath: leaveDetails.DocumentPath ?? '',
+        EmployeeEmail: leaveDetails.EmployeeEmail ?? '',
+        ApplyLeaveId: leaveDetails.ApplyLeaveId ?? 0,
+        DepartmentId: leaveDetails.DepartmentId ?? 0,
+        ReportingMgerEmail:
+          leaveDetails.ReportingMgerEmail ?? user?.email ?? '',
+        ReportTaskEmail:
+          leaveDetails.ReportTaskEmail ?? leaveDetails.EmployeeEmail,
+        ToLeaveDate: leaveDetails.ToLeaveDate ?? new Date().toISOString(),
+        FromLeaveDate: leaveDetails.FromLeaveDate ?? new Date().toISOString(),
+        EmployeeName: leaveDetails.EmployeeName ?? '',
+        EmployeeCode: leaveDetails.EmployeeCode ?? '',
+        Designation: leaveDetails.Designation ?? '',
+        Department: leaveDetails.Department ?? '',
+        Remarks: leaveDetails.Remarks ?? 'Approved by Manager',
+        LeaveNo: leaveDetails.LeaveNo ?? 1,
+        ApprovedPaidLeave: leaveDetails.ApprovedPaidLeave ?? 0,
+        ApprovedUnpaidLeave: leaveDetails.ApprovedUnpaidLeave ?? 0,
+        ApprovalStatus: leaveDetails.ApprovalStatus ?? 1,
         taskAssignmentEmpId:
-          taskAssignment.employeeId || leaveDetails.taskAssignmentEmpId || 0,
-        taskAssignEmployeeCode:
-          taskAssignment.employeeCode ||
-          leaveDetails.taskAssignEmployeeCode ||
-          '',
-        ReportingRemarks: rmRemarks[id] || '',
-        leaveType: leaveDetails.leaveType,
-        status: 'Approved',
-        flag: 1,
+          leaveDetails.taskAssignmentEmpId ?? leaveDetails.ReportingId ?? 0,
+        taskAssignEmployeeCode: leaveDetails.taskAssignEmployeeCode ?? '',
+        ReportingRemarks:
+          leaveDetails.ReportingRemarks ?? leaveDetails.Remarks ?? '',
+        leaveType: leaveDetails.leaveType ?? 1,
+        status: leaveDetails.status ?? 'Approved',
+        flag: leaveDetails.flag ?? 1,
         isDelete: 0,
-        createdBy: employeeDetails?.id || 0,
+        createdBy: leaveDetails.createdBy ?? user?.id ?? 0,
         createdDate: new Date().toISOString(),
-        modifiedBy: employeeDetails?.id || 0,
+        modifiedBy: leaveDetails.modifiedBy ?? user?.id ?? 0,
         modifiedDate: new Date().toISOString(),
       };
 
-      // Debug the exact payload being sent
-      console.log(
-        'Final approval payload using detailed data:',
-        JSON.stringify(approvalPayload, null, 2),
-      );
+      console.log('✅ Sanitized Approval Payload:', sanitizedPayload);
 
-      const endpoint = isAuthorizationPerson
-        ? `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`
-        : `${BASE_URL}/LeaveApproval/SaveLeaveApproval`;
+      // ✅ Step 2: Submit to backend using axiosinstance and BASE_URL
+      const endpoint = `${BASE_URL}/LeaveApproval/SaveLeaveFinalApproval`;
+      const response = await axiosinstance.post(endpoint, sanitizedPayload);
 
-      console.log('Submitting leave approval to:', endpoint);
+      console.log('🛰️ Final approval payload sent to:', endpoint);
+      console.log('📦 Backend Response:', response.data);
 
-      const approvalRes = await axiosinstance.post(endpoint, approvalPayload);
-      const {data} = approvalRes;
-
-      // Log the full backend response for debugging
-      console.log('Backend response:', {
-        status: approvalRes.status,
-        statusText: approvalRes.statusText,
-        headers: approvalRes.headers,
-        data: data,
-      });
-
-      if (data?.isSuccess) {
-        // Simplified success message without employee details
+      // ✅ Step 3: Handle response
+      if (response.data?.isSuccess) {
         showFeedbackModal('success', 'Leave Approved Successfully!');
 
-        // After successful approval, refresh the list
-        fetchLeaveApprovalData();
+        // Clear form data and refresh
+        setExpandedCard(null);
+        await fetchLeaveApprovalData();
       } else {
-        console.error('Backend returned error:', data);
         showFeedbackModal(
           'fail',
-          `Approval Failed: ${data?.message || 'Unknown error'}`,
+          response.data?.message ||
+            'Failed to approve leave. Please try again.',
         );
       }
     } catch (error) {
-      console.error('Exception during approval:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      console.error('Network or unexpected error:', error);
       showFeedbackModal(
         'fail',
-        'An unexpected error occurred during leave approval. Please try again.',
+        error.message || 'Something went wrong while approving leave.',
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -769,194 +695,113 @@ const LeaveRequestDetails = ({navigation}) => {
     }
   };
 
-  // Toggle card expansion
-  const toggleCardExpansion = async id => {
-    // If we're expanding a card, fetch its details
-    if (expandedCard !== id) {
-      const details = await fetchLeaveDetailsById(id);
-      console.log('Expanded Leave Details:', JSON.stringify(details, null, 2));
-    }
-    setExpandedCard(expandedCard === id ? null : id);
-  };
-
-  const fetchTaskAssignmentEmployees = async (filterEmployeeId = null) => {
-    try {
-      const companyId = user?.childCompanyId;
-      const departmentId = leaveDetails?.departmentId;
-      const requestEmployeeId = leaveDetails?.employeeId;
-
-      if (!companyId) {
-        console.log('Missing company ID, cannot fetch employees');
-        return;
-      }
-
-      // First API call - Get employees by department
-      const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${departmentId}`;
-      console.log('Fetching employees from:', apiUrl);
-
-      const response = await axiosinstance.get(apiUrl);
-
-      if (!response.data || !Array.isArray(response.data)) {
-        console.log('No employee data received or invalid format');
-        return;
-      }
-
-      const employeesData = Array.isArray(response.data) ? response.data : [];
-
-      console.log('=== EMPLOYEE DATA SUMMARY ===');
-      console.log(`Total employees received: ${employeesData.length}`);
-      console.log(`Request employee ID: ${requestEmployeeId}`);
-
-      const employeeToFilter = employeesData.find(
-        emp => emp.id === requestEmployeeId,
-      );
-
-      const filteredEmployees = employeesData.filter(
-        employee => employee.id !== requestEmployeeId,
-      );
-
-      console.log(`=== FILTERING RESULTS ===`);
-      console.log(
-        `Filtered ${
-          employeesData.length - filteredEmployees.length
-        } employees, keeping ${filteredEmployees.length} for task assignment`,
-      );
-
-      if (employeeToFilter) {
-        console.log('=== REMOVED EMPLOYEE ===');
-        console.log(JSON.stringify(employeeToFilter, null, 2));
-      }
-
-      const employeeSummary = filteredEmployees.map(emp => ({
-        id: emp.id,
-        employeeId: emp.employeeId,
-        employeeName: emp.employeeName,
-        department: emp.departmentName,
-        designation: emp.designationName,
-      }));
-
-      console.log('=== FILTERED EMPLOYEES SUMMARY ===');
-      console.log(JSON.stringify(employeeSummary, null, 2));
-
-      // Second API call - Get employees assigned to the same shift
-      let shiftEmployeeIds = [];
+  // Optimize fetchTaskAssignmentEmployees with better caching
+  const fetchTaskAssignmentEmployees = useCallback(
+    async (departmentId = null, requestEmployeeId = null) => {
       try {
-        if (requestEmployeeId) {
-          const shiftApiUrl = `${BASE_URL}/Shift/GetRotaAsignedEmployeeByEmployeeId/${requestEmployeeId}`;
-          console.log('Fetching shift employees from:', shiftApiUrl);
+        const companyId = user?.childCompanyId;
 
+        // Use provided parameters or fall back to leaveDetails
+        const finalDepartmentId = departmentId || leaveDetails?.departmentId;
+        const finalRequestEmployeeId =
+          requestEmployeeId || leaveDetails?.employeeId;
+
+        if (!companyId || !finalDepartmentId || !finalRequestEmployeeId) {
+          console.log('Missing required parameters for fetching employees');
+          setTaskAssignmentEmployees([]);
+          return;
+        }
+
+        // Check if we already have data for this employee to avoid duplicate calls
+        const cacheKey = `${finalDepartmentId}-${finalRequestEmployeeId}`;
+        if (
+          taskAssignmentEmployees.length > 0 &&
+          taskAssignmentEmployees[0]?.cacheKey === cacheKey
+        ) {
+          console.log('Using cached task assignment employees');
+          return;
+        }
+
+        // First API call - Get employees by department
+        const apiUrl = `${BASE_URL}/EmpRegistration/GetEmployeeByDepartmentId/${companyId}/${finalDepartmentId}`;
+
+        const response = await axiosinstance.get(apiUrl);
+
+        if (!response.data || !Array.isArray(response.data)) {
+          setTaskAssignmentEmployees([]);
+          return;
+        }
+
+        const employeesData = response.data;
+        const filteredEmployees = employeesData.filter(
+          employee => employee.id !== finalRequestEmployeeId,
+        );
+
+        // Second API call - Get employees assigned to the same shift
+        let finalTaskAssignmentEmployees = filteredEmployees;
+
+        try {
+          const shiftApiUrl = `${BASE_URL}/Shift/GetRotaAsignedEmployeeByEmployeeId/${finalRequestEmployeeId}`;
           const shiftResponse = await axiosinstance.get(shiftApiUrl);
 
           if (shiftResponse.data && Array.isArray(shiftResponse.data)) {
-            shiftEmployeeIds = shiftResponse.data;
-            console.log('=== EMPLOYEES IN SAME SHIFT ===');
-            console.log(JSON.stringify(shiftEmployeeIds, null, 2));
+            const shiftEmployeeIds = shiftResponse.data;
+
+            if (shiftEmployeeIds.length > 0) {
+              finalTaskAssignmentEmployees = filteredEmployees.filter(emp =>
+                shiftEmployeeIds.includes(emp.id),
+              );
+            }
           }
+        } catch (shiftError) {
+          console.error('Error fetching shift employees:', shiftError);
+          // Continue with all department employees if shift fetch fails
         }
-      } catch (shiftError) {
-        console.error('Error fetching shift employees:', shiftError);
-      }
 
-      // Match shiftEmployeeIds with filteredEmployees
-      let finalTaskAssignmentEmployees = filteredEmployees;
-
-      if (shiftEmployeeIds.length > 0) {
-        finalTaskAssignmentEmployees = filteredEmployees.filter(emp =>
-          shiftEmployeeIds.includes(emp.id),
-        );
-
-        console.log('=== FINAL MATCHED EMPLOYEES ===');
-        const finalSummary = finalTaskAssignmentEmployees.map(emp => ({
-          id: emp.id,
-          employeeId: emp.employeeId,
-          employeeName: emp.employeeName,
-          department: emp.departmentName,
-          designation: emp.designationName,
+        // Add cache key to prevent duplicate calls
+        const employeesWithCache = finalTaskAssignmentEmployees.map(emp => ({
+          ...emp,
+          cacheKey,
         }));
-        console.log(JSON.stringify(finalSummary, null, 2));
+
+        setTaskAssignmentEmployees(employeesWithCache);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        setTaskAssignmentEmployees([]);
+      }
+    },
+    [
+      user?.childCompanyId,
+      leaveDetails?.departmentId,
+      leaveDetails?.employeeId,
+      taskAssignmentEmployees.length,
+    ],
+  );
+
+  // Optimize toggleCardExpansion
+  const toggleCardExpansion = useCallback(
+    async id => {
+      if (expandedCard === id) {
+        setExpandedCard(null);
+        return;
       }
 
-      setTaskAssignmentEmployees(finalTaskAssignmentEmployees);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      setTaskAssignmentEmployees([]);
-      return null;
-    }
-  };
+      // Fetch details and task assignment employees when expanding
+      const details = await fetchLeaveDetailsById(id);
+      if (details) {
+        setExpandedCard(id);
 
-  // Add helper function to update task assignee (if not already added)
-  const updateTaskAssignee = (leaveId, employeeId) => {
-    if (!employeeId) return;
-
-    const selectedEmployee = taskAssignmentEmployees.find(
-      emp => emp.id === employeeId,
-    );
-
-    if (selectedEmployee) {
-      console.log(
-        `Setting task assignee for leave ID ${leaveId}:`,
-        selectedEmployee,
-      );
-
-      setSelectedTaskAssignee(prev => ({
-        ...prev,
-        [leaveId]: {
-          employeeId: selectedEmployee.id,
-          employeeName: selectedEmployee.employeeName,
-          employeeCode: selectedEmployee.employeeId,
-        },
-      }));
-    }
-  };
-
-  // Add validation function for leave counts
-  const validateLeaveCounts = (
-    itemId,
-    approvedCount,
-    unapprovedCount,
-    totalLeaveNo,
-  ) => {
-    const approvedNum = Number(approvedCount) || 0;
-    const unapprovedNum = Number(unapprovedCount) || 0;
-    const totalCount = approvedNum + unapprovedNum;
-    const totalLeave = Number(totalLeaveNo) || 0;
-
-    let errors = {};
-
-    // Validate that total is not more than requested leave days
-    if (totalCount > totalLeave) {
-      errors.total = `Total (${totalCount}) exceeds requested days (${totalLeave})`;
-      errors.approved = true;
-      errors.unapproved = true;
-    }
-
-    // Validate that approved and unapproved are not negative
-    if (approvedNum < 0) {
-      errors.approved = true;
-      errors.approvedMsg = 'Cannot be negative';
-    }
-
-    if (unapprovedNum < 0) {
-      errors.unapproved = true;
-      errors.unapprovedMsg = 'Cannot be negative';
-    }
-
-    // Validate that the total is not zero
-    if (totalCount === 0 && (approvedCount !== '' || unapprovedCount !== '')) {
-      errors.total = 'Total leave days cannot be zero';
-      errors.approved = approvedNum === 0;
-      errors.unapproved = unapprovedNum === 0;
-    }
-
-    // Update errors state
-    setLeaveCountErrors(prev => ({
-      ...prev,
-      [itemId]: errors,
-    }));
-
-    // Return true if no errors
-    return Object.keys(errors).length === 0;
-  };
+        // Fetch task assignment employees after we have leave details
+        if (details.departmentId && details.employeeId) {
+          await fetchTaskAssignmentEmployees(
+            details.departmentId,
+            details.employeeId,
+          );
+        }
+      }
+    },
+    [expandedCard, fetchTaskAssignmentEmployees],
+  );
 
   const renderItem = ({item}) => {
     const isExpanded = expandedCard === (item.id || item.applyLeaveId);
@@ -1303,9 +1148,13 @@ const LeaveRequestDetails = ({navigation}) => {
                       </View>
                     </View>
                     {/* Custom validation message for sum exceeding applied leave */}
-                    {Number(approvedLeaveCount[itemId] || 0) + Number(unapprovedLeaveCount[itemId] || 0) > Number(item.leaveNo || 0) && (
+                    {Number(approvedLeaveCount[itemId] || 0) +
+                      Number(unapprovedLeaveCount[itemId] || 0) >
+                      Number(item.leaveNo || 0) && (
                       <Text style={styles.errorText}>
-                        Approve leave or unapprove leave leave no should not be greater than applied Leave no. Kindly review and adjust your request.
+                        Approve leave or unapprove leave leave no should not be
+                        greater than applied Leave no. Kindly review and adjust
+                        your request.
                       </Text>
                     )}
                   </Card.Content>
@@ -1417,72 +1266,72 @@ const LeaveRequestDetails = ({navigation}) => {
                 </Card.Content>
               </Card>
 
-              {/* Task Assignment Dropdown - Fixed to show for any non-HR approver */}
-              {/* {!isAuthorizedForFinalApproval && (
-                <Card style={styles.infoCard}>
-                  <Card.Content>
-                    <Subheading style={styles.sectionTitle}>
-                      Task Assignment
-                    </Subheading>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={
-                          selectedTaskAssignee[itemId]?.employeeId || null
-                        }
-                        style={styles.picker}
-                        dropdownIconColor="#4B5563"
-                        onValueChange={itemValue =>
-                          updateTaskAssignee(itemId, itemValue)
-                        }>
-                        
-                        <Picker.Item
-                          label={
-                            taskAssignmentEmployees.length === 0
-                              ? 'No data found'
-                              : 'Select employee'
-                          }
-                          value={null}
-                          style={styles.pickerPlaceholder}
-                        />
-
-                     
-                        {taskAssignmentEmployees.length > 0 &&
-                          taskAssignmentEmployees.map(employee => (
-                            <Picker.Item
-                              key={employee.id}
-                              label={`${employee.employeeName} (${
-                                employee.employeeId || 'N/A'
-                              })`}
-                              value={employee.id}
-                              style={styles.pickerItem}
-                            />
-                          ))}
-                      </Picker>
-                    </View>
-
-                
-                    {selectedTaskAssignee[itemId] && (
-                      <Chip
-                        icon="account-check"
-                        style={styles.taskAssigneeSelected}>
-                        Task assigned to:{' '}
-                        {selectedTaskAssignee[itemId].employeeName}
-                      </Chip>
-                    )}
-                  </Card.Content>
-                </Card>
-              )} */}
-
               {/* Action Buttons */}
               <View style={styles.buttonContainer}>
                 <PaperButton
                   mode="contained"
                   icon="check-circle"
-                  style={[styles.button, styles.approveButton]}
                   labelStyle={styles.buttonText}
-                  onPress={() => handleApprove(item.id || item.applyLeaveId)}>
-                  {isAuthorizedForFinalApproval ? 'Final Approve' : 'Approve'}
+                  style={[styles.button, styles.approveButton]}
+                  disabled={loading}
+                  onPress={() => {
+                    const currentLeaveDetails = {
+                      CompanyId:
+                        leaveDetails?.companyId || user?.childCompanyId || 1,
+                      Id: leaveDetails?.id || itemId,
+                      EmployeeId: leaveDetails?.employeeId || item.employeeId,
+                      ReportingId: leaveDetails?.reportingId || user?.id,
+                      EmployeeEmail:
+                        leaveDetails?.employeeEmail || item.employeeEmail || '',
+                      ReportingMgerEmail:
+                        leaveDetails?.reportingMgerEmail || user?.email || '',
+                      DepartmentId:
+                        leaveDetails?.departmentId || item.departmentId,
+                      ApplyLeaveId: leaveDetails?.applyLeaveId || itemId,
+                      ToLeaveDate:
+                        leaveDetails?.toLeaveDate || item.toLeaveDate,
+                      FromLeaveDate:
+                        leaveDetails?.fromLeaveDate || item.fromLeaveDate,
+                      EmployeeName:
+                        leaveDetails?.employeeName || item.employeeName,
+                      EmployeeCode:
+                        leaveDetails?.employeeCode || item.employeeCode,
+                      Designation:
+                        leaveDetails?.designation || item.designation,
+                      Department: leaveDetails?.department || item.department,
+                      Remarks:
+                        rmRemarks[itemId] ||
+                        leaveDetails?.remarks ||
+                        item.remarks ||
+                        '',
+                      LeaveNo: leaveDetails?.leaveNo || item.leaveNo || 1,
+                      ApprovedPaidLeave:
+                        Number(approvedLeaveCount[itemId]) ||
+                        Number(item.leaveNo) ||
+                        1,
+                      ApprovedUnpaidLeave:
+                        Number(unapprovedLeaveCount[itemId]) || 0,
+                      ApprovalStatus: 1,
+                      taskAssignmentEmpId:
+                        selectedTaskAssignee[itemId]?.employeeId ||
+                        leaveDetails?.taskAssignmentEmpId ||
+                        0,
+                      taskAssignEmployeeCode:
+                        selectedTaskAssignee[itemId]?.employeeCode ||
+                        leaveDetails?.taskAssignEmployeeCode ||
+                        '',
+                      ReportingRemarks:
+                        rmRemarks[itemId] || 'Approved by manager',
+                      leaveType: leaveDetails?.leaveType || 1,
+                      status: 'Approved',
+                      flag: 1,
+                    };
+
+                    handleFinalApproval(currentLeaveDetails);
+                  }}>
+                  {loading ? 'Processing...' : 'Final Approve'}
                 </PaperButton>
+
                 <PaperButton
                   mode="contained"
                   icon="close-circle"
@@ -1507,10 +1356,8 @@ const LeaveRequestDetails = ({navigation}) => {
       animationType="fade"
       onRequestClose={() => setLeaveBalanceModalVisible(false)}>
       <View style={styles.modalContainer}>
-     
         {/* centers content */}
         <View style={styles.modalPopup}>
-         
           {/* styled popup */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Leave Balance Details</Text>
@@ -1559,10 +1406,18 @@ const LeaveRequestDetails = ({navigation}) => {
               color="#f59e42"
               style={{marginRight: 8}}
             />
-            <Text style={styles.pendingAlertCountSmall}>
-              {pendingRequestsCount} Pending Request
-              {pendingRequestsCount !== 1 ? 's' : ''}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingAlertCountSmall}>
+                {pendingRequestsCount} Pending Request
+                {pendingRequestsCount !== 1 ? 's' : ''}
+              </Text>
+              {/* <Text style={{ fontSize: 12, color: '#f59e42', marginTop: 2 }}>
+                Displaying: {paginatedData.length} items (Page {currentPage} of {totalPages})
+              </Text>
+              <Text style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                Total in list: {approvalList.length} | Should show pagination: {shouldShowPagination ? 'Yes' : 'No'}
+              </Text> */}
+            </View>
           </Card.Content>
         </Card>
       )}
@@ -1579,20 +1434,24 @@ const LeaveRequestDetails = ({navigation}) => {
         showsVerticalScrollIndicator={false}
         ListFooterComponent={() => (
           <>
-            {/* Debug pagination visibility */}
-            {console.log(
-              'Pagination debug - List length:',
-              approvalList.length,
-              'Should show pagination:',
-              approvalList.length >= 3,
-            )}
-
-            {/* Only show pagination when there are 3 or more items */}
-            {approvalList.length >= 3 && (
+            {/* Debug info footer */}
+            {/* <View style={{ padding: 16, backgroundColor: '#F3F4F6', margin: 16, borderRadius: 8 }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Debug Info:</Text>
+              <Text>• Approval List Length: {approvalList.length}</Text>
+              <Text>• Paginated Data Length: {paginatedData.length}</Text>
+              <Text>• Current Page: {currentPage}</Text>
+              <Text>• Total Pages: {totalPages}</Text>
+              <Text>• Items Per Page: {itemsPerPage}</Text>
+              <Text>• Should Show Pagination: {shouldShowPagination ? 'Yes' : 'No'}</Text>
+              <Text>• Pending Count: {pendingRequestsCount}</Text>
+            </View> */}
+            
+            {/* Only show pagination when needed */}
+            {shouldShowPagination && (
               <View style={styles.paginationContainer}>
                 <Pagination
                   currentPage={currentPage}
-                  totalPages={Math.ceil(approvalList.length / itemsPerPage)}
+                  totalPages={totalPages}
                   onPageChange={handlePageChange}
                   itemsPerPage={itemsPerPage}
                   totalItems={approvalList.length}
@@ -1607,6 +1466,10 @@ const LeaveRequestDetails = ({navigation}) => {
               <Icon name="inbox" size={60} color="#9CA3AF" />
               <Text style={styles.emptyText}>
                 No pending leave requests found
+              </Text>
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                Debug: Approval list has {approvalList.length} items, 
+                Paginated data has {paginatedData.length} items
               </Text>
             </Card.Content>
           </Card>
@@ -1628,4 +1491,3 @@ const LeaveRequestDetails = ({navigation}) => {
 };
 
 export default LeaveRequestDetails;
-
