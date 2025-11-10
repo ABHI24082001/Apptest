@@ -62,54 +62,67 @@ const styles = StyleSheet.create({
 
 
 statusBadge: {
-  backgroundColor: '#FFFFFF',
-  borderRadius: 12,
-  padding: 12,
+  backgroundColor: '#ffffffff',
+  borderRadius: 16,
+  paddingVertical: 10,
+  paddingHorizontal: 14,
   marginTop: 16,
-  width: '50%',
+  alignSelf: 'flex-start',
+  minWidth: '60%',
   shadowColor: '#000',
-  shadowOffset: {width: 0, height: 2},
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 3,
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 0.5,
+  borderColor: '#E5E7EB',
 },
 
 statusContent: {
   flexDirection: 'row',
   alignItems: 'center',
   gap: 10,
+  flex: 1,
 },
 
 statusDot: {
-  width: 12,
-  height: 12,
-  borderRadius: 6,
+  width: 14,
+  height: 14,
+  borderRadius: 7,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.15,
+  shadowRadius: 1.5,
 },
 
 statusActive: {
-  backgroundColor: '#10B981', // Green for checked in
+  backgroundColor: '#22C55E', // Tailwind Green-500
 },
 
 statusInactive: {
-  backgroundColor: '#EF4444', // Red for not checked in
+  backgroundColor: '#EF4444', // Tailwind Red-500
 },
 
 statusTextContainer: {
   flex: 1,
 },
 
-statusText: {
-  fontSize: 14,
+statusLabel: {
+  fontSize: 15,
   fontWeight: '600',
-  color: '#374151',
+  color: '#111827',
+  letterSpacing: 0.2,
 },
 
 statusTime: {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: '500',
   color: '#6B7280',
   marginTop: 2,
 },
+
 
 // Hide the old complex status badge styles
 statusBadgeContent: {

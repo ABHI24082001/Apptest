@@ -23,6 +23,16 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import LeaveHeader from '../component/LeaveHeader';
 import styles from '../Stylesheet/Exitcss';
+import LinearGradient from 'react-native-linear-gradient';
+
+const GradientHeader = ({children, style}) => (
+  <LinearGradient
+    colors={['#2563EB', '#3B82F6']}
+    start={{x: 0, y: 1}}
+    end={{x: 0, y: 0}}>
+    {children}
+  </LinearGradient>
+);
 
 const ExitApplyScreen = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -271,16 +281,19 @@ const ExitApplyScreen = ({navigation}) => {
   if (checkingStatus) {
     return (
       <AppSafeArea>
-        <Appbar.Header style={styles.header}>
-          <Appbar.BackAction
-            onPress={() => navigation.goBack()}
-            color="#4B5563"
-          />
-          <Appbar.Content
-            title="Exit Application"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
+        <GradientHeader>
+          <Appbar.Header style={styles.gradientHeader}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}>
+              <Icon name="chevron-left" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Appbar.Content
+              title="Exit Application"
+              titleStyle={styles.headerTitle}
+            />
+          </Appbar.Header>
+        </GradientHeader>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.loadingText}>Checking application status...</Text>
@@ -293,16 +306,19 @@ const ExitApplyScreen = ({navigation}) => {
   if (hasActiveRequest) {
     return (
       <AppSafeArea>
-        <Appbar.Header style={styles.header}>
-          <Appbar.BackAction
-            onPress={() => navigation.goBack()}
-            color="#4B5563"
-          />
-          <Appbar.Content
-            title="Exit Application"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
+        <GradientHeader>
+          <Appbar.Header style={styles.gradientHeader}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}>
+              <Icon name="chevron-left" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Appbar.Content
+              title="Exit Application"
+              titleStyle={styles.headerTitle}
+            />
+          </Appbar.Header>
+        </GradientHeader>
 
         <View style={styles.redirectContainer}>
           <Icon name="alert-circle-outline" size={48} color="#EF4444" />
@@ -324,16 +340,19 @@ const ExitApplyScreen = ({navigation}) => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
-        <Appbar.Content
-          title="Exit Application"
-          titleStyle={styles.headerTitle}
-        />
-      </Appbar.Header>
+      <GradientHeader>
+        <Appbar.Header style={styles.gradientHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}>
+            <Icon name="chevron-left" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Appbar.Content
+            title="Exit Application"
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+      </GradientHeader>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

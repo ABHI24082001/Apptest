@@ -52,7 +52,6 @@ const HomeScreen = () => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [missedPercentage, setMissedPercentage] = useState(0);
-
   const [shiftHours, setShiftHours] = useState('');
   const [shiftName, setShiftName] = useState(''); // NEW: Track shift name
   const [currentTime, setCurrentTime] = useState('');
@@ -913,239 +912,290 @@ const HomeScreen = () => {
     }
   };
 
-
-const handleCheckOut = async () => {
-  setIsLoading(true);
-  try {
-    const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
-    const employeeId = String(employeeDetails?.id || '29');
-    const childCompanyId = employeeDetails?.childCompanyId || 1;
-
-    // Step 1: Fetch OT Policy with timeout
-    const otPolicyPromise = axiosInstance.get(
-      `${BASE_URL}/OtPolicyMaster/GetAllOtPolicy/${childCompanyId}`
-    );
-    const policyTimeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('OT Policy fetch timeout')), 10000)
-    );
-
-    const otPolicyResponse = await Promise.race([otPolicyPromise, policyTimeout]);
-    const otPolicies = Array.isArray(otPolicyResponse.data) ? otPolicyResponse.data : [];
-    
-    console.log('📋 OT Policy List:', otPolicies);
-
-    // Step 2: Find MinOverTime policy
-    const minOTPolicy = otPolicies.find(
-      policy => policy.policyCategory === 'MinOverTime' && policy.transactionType === '>'
-    );
-
-    const minOverTimeValue = minOTPolicy?.value || 30; // Default 30 minutes
-    const unit = minOTPolicy?.unit || 'Minutes';
-    
-    console.log('📋 OT Policy Details:', {
-      minOverTimeValue,
-      unit,
-      transactionType: minOTPolicy?.transactionType || '>',
-      policyFound: !!minOTPolicy
-    });
-
-    // Step 3: Get current shift end time
-    let shiftEndTime = null;
-    let canAutoCheckout = false;
-    let isAfterShiftEnd = false;
-
+  const handleCheckOut = async () => {
+    setIsLoading(true);
     try {
-      // Fetch current shift details to get end time
-      const today = new Date();
-      const fromDate = new Date(today);
-      fromDate.setDate(today.getDate() - 1);
-      const toDate = new Date(today);
-      toDate.setDate(today.getDate() + 1);
+      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+      const employeeId = String(employeeDetails?.id || '29');
+      const childCompanyId = employeeDetails?.childCompanyId || 1;
 
-      const shiftPayload = {
-        EmployeeId: employeeDetails.id,
-        ChildCompanyId: childCompanyId,
-        FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
-        ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
-        Month: 0, Year: 0, YearList: null, BranchName: null, BranchId: 0,
-        EmployeeTypeId: 0, DraftName: null, Did: 0, UserId: 0, status: null,
-        Ids: null, CoverLatter: null, DepartmentId: 0, DesignationId: 0,
-        UserType: 0, CalculationType: 0, childCompanies: null, branchIds: null,
-        departmentsIds: null, designationIds: null, employeeTypeIds: null,
-        employeeIds: null, hasAllReportAccess: false
-      };
-
-      const shiftResponse = await axiosInstance.post(
-        `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
-        shiftPayload
+      // Step 1: Fetch OT Policy with timeout
+      const otPolicyPromise = axiosInstance.get(
+        `${BASE_URL}/OtPolicyMaster/GetAllOtPolicy/${childCompanyId}`,
+      );
+      const policyTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('OT Policy fetch timeout')), 10000),
       );
 
-      if (shiftResponse.data && Array.isArray(shiftResponse.data)) {
-        const todayDateStr = today.getDate().toString().padStart(2, '0') + 
-          ' ' + today.toLocaleString('en-US', { month: 'short' }) + 
-          ' ' + today.getFullYear();
+      const otPolicyResponse = await Promise.race([
+        otPolicyPromise,
+        policyTimeout,
+      ]);
+      const otPolicies = Array.isArray(otPolicyResponse.data)
+        ? otPolicyResponse.data
+        : [];
 
-        const todayShift = shiftResponse.data.find(item => item.date === todayDateStr);
-        
-        if (todayShift?.shiftEndTime) {
-          shiftEndTime = new Date(todayShift.shiftEndTime);
-          console.log('🕒 Shift End Time:', shiftEndTime.toLocaleString());
-          
-          const now = new Date();
-          const timeDiffMs = now - shiftEndTime;
-          const timeDiffMinutes = Math.floor(timeDiffMs / 60000);
-          
-          console.log('⏰ Time Analysis:', {
-            now: now.toLocaleString(),
-            shiftEnd: shiftEndTime.toLocaleString(),
-            diffMinutes: timeDiffMinutes,
-            minOTThreshold: minOverTimeValue
-          });
-          
-          // Check if we're past shift end time
-          isAfterShiftEnd = timeDiffMinutes > 0;
-          
-          // Auto-checkout condition: current time > shift end + MinOverTime threshold
-          if (timeDiffMinutes > minOverTimeValue) {
-            canAutoCheckout = true;
-            console.log('✅ Auto-checkout condition met - beyond OT threshold');
-          } else if (isAfterShiftEnd) {
-            console.log(`⏳ Within OT grace period. Time until auto-checkout: ${minOverTimeValue - timeDiffMinutes} minutes`);
-          } else {
-            console.log(`ℹ️ Before shift end time. Minutes remaining: ${Math.abs(timeDiffMinutes)} minutes`);
-          }
-        }
-      }
-    } catch (shiftError) {
-      console.error('Error fetching shift details:', shiftError);
-    }
+      console.log('📋 OT Policy List:', otPolicies);
 
-    // Step 4: Handle checkout scenarios
-    if (shiftEndTime) {
-      if (canAutoCheckout) {
-        // Auto-checkout - user exceeded OT threshold without manual checkout
-        console.log('🔄 Performing automatic checkout due to OT policy');
-        await performCheckOut('Auto');
-      } else if (isAfterShiftEnd) {
-        // Manual checkout after shift end but within OT grace period
-        const remainingMinutes = minOverTimeValue - Math.floor((new Date() - shiftEndTime) / 60000);
-        Alert.alert(
-          'Overtime Notice',
-          `Your shift ended at ${shiftEndTime.toLocaleTimeString()}.\n\nYou are currently in overtime period.\nAuto check-out in: ${remainingMinutes} minutes\n\nDo you want to check out now?`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false) },
-            { text: 'Check Out Now', onPress: () => performCheckOut('Manual') }
-          ]
-        );
-        return;
-      } else {
-        // Manual checkout before shift end
-        const minutesToShiftEnd = Math.floor((shiftEndTime - new Date()) / 60000);
-        Alert.alert(
-          'Early Check-Out',
-          `Do you want to check out early?`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false) },
-            { text: 'Check Out Early', onPress: () => performCheckOut('Early') }
-          ]
-        );
-        return;
-      }
-    } else {
-      // No shift data available - allow manual checkout
-      console.log('⚠️ Shift end time not available, proceeding with manual checkout');
-      await performCheckOut('Manual');
-    }
+      // Step 2: Find MinOverTime policy
+      const minOTPolicy = otPolicies.find(
+        policy =>
+          policy.policyCategory === 'MinOverTime' &&
+          policy.transactionType === '>',
+      );
 
-    // Step 5: Perform checkout function
-    async function performCheckOut(checkoutType = 'Manual') {
+      const minOverTimeValue = minOTPolicy?.value || 30; // Default 30 minutes
+      const unit = minOTPolicy?.unit || 'Minutes';
+
+      console.log('📋 OT Policy Details:', {
+        minOverTimeValue,
+        unit,
+        transactionType: minOTPolicy?.transactionType || '>',
+        policyFound: !!minOTPolicy,
+      });
+
+      // Step 3: Get current shift end time
+      let shiftEndTime = null;
+      let canAutoCheckout = false;
+      let isAfterShiftEnd = false;
+
       try {
-        const attendancePayload = {
-          EmployeeId: employeeId,
-          EmployeeCode: employeeId,
-          LogDateTime: logDateTime,
-          LogDate: logDate,
-          LogTime: logTime,
-          Direction: 'In',
-          DeviceName: 'Bhubneswar',
-          SerialNo: '1',
-          VerificationCode: '1',
+        // Fetch current shift details to get end time
+        const today = new Date();
+        const fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
+        const toDate = new Date(today);
+        toDate.setDate(today.getDate() + 1);
+
+        const shiftPayload = {
+          EmployeeId: employeeDetails.id,
+          ChildCompanyId: childCompanyId,
+          FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
+          ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
+          Month: 0,
+          Year: 0,
+          YearList: null,
+          BranchName: null,
+          BranchId: 0,
+          EmployeeTypeId: 0,
+          DraftName: null,
+          Did: 0,
+          UserId: 0,
+          status: null,
+          Ids: null,
+          CoverLatter: null,
+          DepartmentId: 0,
+          DesignationId: 0,
+          UserType: 0,
+          CalculationType: 0,
+          childCompanies: null,
+          branchIds: null,
+          departmentsIds: null,
+          designationIds: null,
+          employeeTypeIds: null,
+          employeeIds: null,
+          hasAllReportAccess: false,
         };
 
-        console.log('📤 Posting check-out attendance:', attendancePayload);
-
-        const attendancePromise = axiosInstance.post(
-          `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
-          attendancePayload
+        const shiftResponse = await axiosInstance.post(
+          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
+          shiftPayload,
         );
 
-        const attendanceTimeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Attendance save timeout')), 15000)
-        );
+        if (shiftResponse.data && Array.isArray(shiftResponse.data)) {
+          const todayDateStr =
+            today.getDate().toString().padStart(2, '0') +
+            ' ' +
+            today.toLocaleString('en-US', {month: 'short'}) +
+            ' ' +
+            today.getFullYear();
 
-        const attendanceResponse = await Promise.race([attendancePromise, attendanceTimeout]);
-
-        if (!attendanceResponse.data?.isSuccess) {
-          throw new Error(
-            attendanceResponse.data?.message || 'Failed to save attendance'
+          const todayShift = shiftResponse.data.find(
+            item => item.date === todayDateStr,
           );
+
+          if (todayShift?.shiftEndTime) {
+            shiftEndTime = new Date(todayShift.shiftEndTime);
+            console.log('🕒 Shift End Time:', shiftEndTime.toLocaleString());
+
+            const now = new Date();
+            const timeDiffMs = now - shiftEndTime;
+            const timeDiffMinutes = Math.floor(timeDiffMs / 60000);
+
+            console.log('⏰ Time Analysis:', {
+              now: now.toLocaleString(),
+              shiftEnd: shiftEndTime.toLocaleString(),
+              diffMinutes: timeDiffMinutes,
+              minOTThreshold: minOverTimeValue,
+            });
+
+            // Check if we're past shift end time
+            isAfterShiftEnd = timeDiffMinutes > 0;
+
+            // Auto-checkout condition: current time > shift end + MinOverTime threshold
+            if (timeDiffMinutes > minOverTimeValue) {
+              canAutoCheckout = true;
+              console.log(
+                '✅ Auto-checkout condition met - beyond OT threshold',
+              );
+            } else if (isAfterShiftEnd) {
+              console.log(
+                `⏳ Within OT grace period. Time until auto-checkout: ${
+                  minOverTimeValue - timeDiffMinutes
+                } minutes`,
+              );
+            } else {
+              console.log(
+                `ℹ️ Before shift end time. Minutes remaining: ${Math.abs(
+                  timeDiffMinutes,
+                )} minutes`,
+              );
+            }
+          }
         }
-
-        // Clear all check-in data and stop services
-        await Promise.all([
-          saveCheckInState(false),
-          stopBackgroundService(),
-          AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY),
-          AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY)
-        ]);
-
-        // Reset all state
-        setCheckedIn(false);
-        setCheckInTime(null);
-        setProgressPercentage(0);
-        setMissedPercentage(0);
-        setElapsedTime('00:00:00');
-        setCapturedFace(null);
-
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-        }
-
-        // Show appropriate success message based on checkout type
-        let message = `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`;
-        
-        if (checkoutType === 'Auto') {
-          message = `Automatic Logout: ${logDate} ${logTime}\nYou were automatically checked out after the overtime threshold.\nYour shift has ended. Have a great day!`;
-        } else if (checkoutType === 'Early') {
-          message = `Early Logout: ${logDate} ${logTime}\nYou checked out before your shift ended.\nHave a great day!`;
-        }
-
-        Alert.alert('✅ Check-Out Successful', message);
-
-      } catch (error) {
-        console.error('Checkout execution error:', error);
-        throw error;
+      } catch (shiftError) {
+        console.error('Error fetching shift details:', shiftError);
       }
+
+      // Step 4: Handle checkout scenarios
+      if (shiftEndTime) {
+        if (canAutoCheckout) {
+          // Auto-checkout - user exceeded OT threshold without manual checkout
+          console.log('🔄 Performing automatic checkout due to OT policy');
+          await performCheckOut('Auto');
+        } else if (isAfterShiftEnd) {
+          // Manual checkout after shift end but within OT grace period
+          const remainingMinutes =
+            minOverTimeValue - Math.floor((new Date() - shiftEndTime) / 60000);
+          Alert.alert(
+            'Overtime Notice',
+            `Your shift ended at ${shiftEndTime.toLocaleTimeString()}.\n\nYou are currently in overtime period.\nAuto check-out in: ${remainingMinutes} minutes\n\nDo you want to check out now?`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => setIsLoading(false),
+              },
+              {text: 'Check Out Now', onPress: () => performCheckOut('Manual')},
+            ],
+          );
+          return;
+        } else {
+          // Manual checkout before shift end
+          const minutesToShiftEnd = Math.floor(
+            (shiftEndTime - new Date()) / 60000,
+          );
+          Alert.alert('Early Check-Out', `Do you want to check out early?`, [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => setIsLoading(false),
+            },
+            {text: 'Check Out Early', onPress: () => performCheckOut('Early')},
+          ]);
+          return;
+        }
+      } else {
+        // No shift data available - allow manual checkout
+        console.log(
+          '⚠️ Shift end time not available, proceeding with manual checkout',
+        );
+        await performCheckOut('Manual');
+      }
+
+      // Step 5: Perform checkout function
+      async function performCheckOut(checkoutType = 'Manual') {
+        try {
+          const attendancePayload = {
+            EmployeeId: employeeId,
+            EmployeeCode: employeeId,
+            LogDateTime: logDateTime,
+            LogDate: logDate,
+            LogTime: logTime,
+            Direction: 'In',
+            DeviceName: 'Bhubneswar',
+            SerialNo: '1',
+            VerificationCode: '1',
+          };
+
+          console.log('📤 Posting check-out attendance:', attendancePayload);
+
+          const attendancePromise = axiosInstance.post(
+            `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+            attendancePayload,
+          );
+
+          const attendanceTimeout = new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Attendance save timeout')),
+              15000,
+            ),
+          );
+
+          const attendanceResponse = await Promise.race([
+            attendancePromise,
+            attendanceTimeout,
+          ]);
+
+          if (!attendanceResponse.data?.isSuccess) {
+            throw new Error(
+              attendanceResponse.data?.message || 'Failed to save attendance',
+            );
+          }
+
+          // Clear all check-in data and stop services
+          await Promise.all([
+            saveCheckInState(false),
+            stopBackgroundService(),
+            AsyncStorage.removeItem(BG_LAST_ELAPSED_KEY),
+            AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY),
+          ]);
+
+          // Reset all state
+          setCheckedIn(false);
+          setCheckInTime(null);
+          setProgressPercentage(0);
+          setMissedPercentage(0);
+          setElapsedTime('00:00:00');
+          setCapturedFace(null);
+
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+
+          // Show appropriate success message based on checkout type
+          let message = `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`;
+
+          if (checkoutType === 'Auto') {
+            message = `Automatic Logout: ${logDate} ${logTime}\nYou were automatically checked out after the overtime threshold.\nYour shift has ended. Have a great day!`;
+          } else if (checkoutType === 'Early') {
+            message = `Early Logout: ${logDate} ${logTime}\nYou checked out before your shift ended.\nHave a great day!`;
+          }
+
+          Alert.alert('✅ Check-Out Successful', message);
+        } catch (error) {
+          console.error('Checkout execution error:', error);
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Check-out error:', error);
+
+      let errorMessage = 'Failed to check out. Please try again.';
+      if (error.message?.includes('timeout')) {
+        errorMessage =
+          'Request timed out. Please check your connection and try again.';
+      } else if (error.message?.includes('OT Policy')) {
+        errorMessage =
+          'Could not load overtime policy. Using default settings.';
+      }
+
+      Alert.alert('❌ Check-Out Failed', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-
-  } catch (error) {
-    console.error('Check-out error:', error);
-    
-    let errorMessage = 'Failed to check out. Please try again.';
-    if (error.message?.includes('timeout')) {
-      errorMessage = 'Request timed out. Please check your connection and try again.';
-    } else if (error.message?.includes('OT Policy')) {
-      errorMessage = 'Could not load overtime policy. Using default settings.';
-    }
-    
-    Alert.alert('❌ Check-Out Failed', errorMessage);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
+  };
 
   const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
@@ -2073,7 +2123,7 @@ const handleCheckOut = async () => {
                 ]}
               />
               <View style={styles.statusTextContainer}>
-                <Text style={styles.statusText}>
+                <Text style={styles.statusLabel}>
                   {checkedIn ? 'Checked In' : 'Not Checked In'}
                 </Text>
                 {checkedIn && checkInTime && (

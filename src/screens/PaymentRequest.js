@@ -4,9 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
-  Platform,
   Modal,
   Alert,
 } from 'react-native';
@@ -23,6 +21,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BASE_URL from '../constants/apiConfig';
 import LeaveHeader from '../component/LeaveHeader';
 import {styles, pickerSelectStyles} from '../Stylesheet/PaymentRequest';
+import LinearGradient from 'react-native-linear-gradient';
+
+const GradientHeader = ({children, style}) => (
+  <LinearGradient
+    colors={['#2563EB', '#3B82F6']}
+    start={{x: 0, y: 1}}
+    end={{x: 0, y: 0}}>
+    {children}
+  </LinearGradient>
+);
+
 const PaymentRequest = ({navigation, route}) => {
   const [date, setDate] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
@@ -635,33 +644,26 @@ const PaymentRequest = ({navigation, route}) => {
   // Conditional rendering based on request type
   return (
     <AppSafeArea>
-      {/* Feedback Modal removed */}
-      {/* <FeedbackModal ... /> */}
-      <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.navigate('Main')} />
-        <Appbar.Content
-          title={
-            expenceData
-              ? `Edit ${expenceData.requestType || 'Payment'} Request`
-              : 'Payment Request'
-          }
-          titleStyle={styles.headerTitle}
-        />
-      </Appbar.Header>
+      <GradientHeader>
+        <Appbar.Header style={styles.gradientHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Main')}
+            style={styles.backButton}>
+            <Icon name="chevron-left" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Appbar.Content
+            title={
+              expenceData
+                ? `Edit ${expenceData.requestType || 'Payment'} Request`
+                : 'Payment Request'
+            }
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+      </GradientHeader>
 
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header Section */}
-        {/* <View style={styles.headerSection}>
-          <Icon name="credit-card-outline" size={40} color="#10B981" />
-          <Text style={styles.headerText}>
-            {expenceData ? 'Edit Payment Request' : 'Payment Request'}
-          </Text>
-          <Text style={styles.subHeaderText}>
-            {expenceData
-              ? 'Update the details of your payment request'
-              : 'Please fill in the details below to submit your payment request'}
-          </Text>
-        </View> */}
+      
        <LeaveHeader
         title="Payment Request"
         subtitle="Submit your payment or reimbursement request below."
@@ -731,7 +733,7 @@ const PaymentRequest = ({navigation, route}) => {
           )}
         />
 
-        {/* Expense Items Section - Always show when request type is expense */}
+    
         {requestType === 'expense' && (
           <View style={styles.expenseSection}>
             <View style={styles.expenseSectionHeader}>
@@ -888,7 +890,7 @@ const PaymentRequest = ({navigation, route}) => {
           </View>
         )}
 
-        {/* Total Amount Input Field */}
+       
         <View style={styles.totalAmountContainer}>
           <Text style={styles.label}>Total Amount</Text>
           {/* <TextInput
@@ -990,7 +992,7 @@ const PaymentRequest = ({navigation, route}) => {
         )}
       </ScrollView>
 
-      {/* Add Expense Modal */}
+      
       <Modal
         visible={isModalVisible}
         animationType="slide"

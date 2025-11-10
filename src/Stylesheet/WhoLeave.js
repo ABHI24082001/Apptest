@@ -9,7 +9,7 @@ const styles = StyleSheet.create({
     elevation: 0,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
-    height: 50,
+    height: 60,
   },
   viewAllRow: {
     flexDirection: 'row',

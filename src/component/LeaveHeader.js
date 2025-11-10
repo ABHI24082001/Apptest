@@ -1,58 +1,78 @@
 // components/LeaveHeader.js
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const LeaveHeader = ({
   title = 'Leave Application',
   subtitle = 'Please fill in the details below to submit your leave request.',
   iconName = 'calendar-account-outline',
-  iconSize = 44,
-  colors = ['#3B82F6', '#2563EB'],
+  iconSize = 24,
   style,
   titleStyle,
   subtitleStyle,
 }) => {
   return (
-    <LinearGradient
-      colors={colors}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.headerSection, style]}>
-      <Icon name={iconName} size={iconSize} color="#FFFFFF" />
-      <Text style={[styles.headerText, titleStyle]}>{title}</Text>
-      <Text style={[styles.subHeaderText, subtitleStyle]}>{subtitle}</Text>
-    </LinearGradient>
+    <View style={[styles.headerContainer, style]}>
+      <View style={styles.card}>
+        <View style={styles.iconWrapper}>
+          <Icon name={iconName} size={iconSize} color="#3B82F6" />
+        </View>
+        <View style={styles.textContent}>
+          <Text style={[styles.headerText, titleStyle]}>{title}</Text>
+          <Text style={[styles.subHeaderText, subtitleStyle]}>{subtitle}</Text>
+        </View>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  headerSection: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    elevation: 4,
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffffff',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  textContent: {
+    flex: 1,
   },
   headerText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 10,
-    marginBottom: 6,
+    color: '#111827',
+    marginBottom: 4,
   },
   subHeaderText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 10,
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+    fontWeight: '400',
   },
 });
 

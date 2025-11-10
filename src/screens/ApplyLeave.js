@@ -9,8 +9,10 @@ import {
   Alert,
   ActionSheetIOS,
   Platform,
+  StatusBar,
 } from 'react-native';
 import {Appbar, Button} from 'react-native-paper';
+import LinearGradient from 'react-native-linear-gradient';
 
 // Third-party components
 import DatePicker from 'react-native-date-picker';
@@ -28,6 +30,16 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
+
+const GradientHeader = ({children, style}) => (
+  <LinearGradient
+    colors={['#2563EB', '#3B82F6']}
+    // style={[{flex: 1}, style]}
+    start={{x: 0, y: 1}}
+    end={{x: 0, y: 0}}>
+    {children}
+  </LinearGradient>
+);
 
 const ApplyLeaveScreen = ({navigation, route}) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -99,9 +111,9 @@ const ApplyLeaveScreen = ({navigation, route}) => {
     if (!date || isNaN(new Date(date).getTime())) return null;
     const d = new Date(date);
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours(),
-    )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate(),
+    )}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
   // Fetch leave policies on component mount
@@ -323,13 +335,20 @@ const ApplyLeaveScreen = ({navigation, route}) => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
-        <Appbar.Content title="Apply Leave" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      <GradientHeader>
+        <Appbar.Header style={styles.gradientHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}>
+            <Icon name="chevron-left" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Appbar.Content
+            title="Apply Leave"
+            titleStyle={[styles.headerTitle, {color: '#FFFFFF'}]}
+          />
+        </Appbar.Header>
+      </GradientHeader>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -343,9 +362,9 @@ const ApplyLeaveScreen = ({navigation, route}) => {
             subtitle="Please fill in the details below to submit your leave request."
             iconName="calendar-account-outline"
           />
-         
-         <Text style={styles.headerText}>Leave application</Text>
-         
+
+          <Text style={styles.headerText}>Leave application</Text>
+
           <LeaveBalanceCards leaveData={leaveData} />
 
           {/* Leave Name Dropdown */}
@@ -595,39 +614,70 @@ const ApplyLeaveScreen = ({navigation, route}) => {
 
           {/* Document Upload UI */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Supporting Document (PDF only)</Text>
+            <Text style={styles.label}>Supporting Document</Text>
+            <Text style={styles.subLabel}>
+              Upload PDF, JPG, or PNG files (Optional)
+            </Text>
+
             {uploadedFile ? (
-              <View style={styles.documentPreview}>
-                <Icon
-                  name={
-                    uploadedFile.type.includes('pdf')
-                      ? 'file-pdf-box'
-                      : 'file-image'
-                  }
-                  size={24}
-                  color={
-                    uploadedFile.type.includes('pdf') ? '#e74c3c' : '#3498db'
-                  }
-                />
-                <Text style={styles.documentName}>{documentPath}</Text>
+              <View style={styles.documentCard}>
+                <View style={styles.documentIcon}>
+                  <Icon
+                    name={
+                      uploadedFile.type.includes('pdf')
+                        ? 'file-pdf-box'
+                        : 'file-image'
+                    }
+                    size={28}
+                    color={
+                      uploadedFile.type.includes('pdf') ? '#DC2626' : '#2563EB'
+                    }
+                  />
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {documentPath}
+                  </Text>
+                  <Text style={styles.documentSize}>
+                    {(uploadedFile.size / 1024).toFixed(1)} KB
+                  </Text>
+                </View>
                 <TouchableOpacity
+                  style={styles.removeButton}
                   onPress={() => {
                     setUploadedFile(null);
                     setDocumentPath('');
                     setValue('DocumentPath', '');
-                  }}>
-                  <Icon name="close" size={20} color="#e74c3c" />
+                  }}
+                  activeOpacity={0.7}>
+                  <Icon name="close-circle" size={24} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={handleDocumentPick}>
-                <Icon name="upload" size={20} color="#3498db" />
-                <Text style={styles.uploadText}>Upload Document</Text>
+                style={styles.uploadContainer}
+                onPress={handleDocumentPick}
+                activeOpacity={0.7}>
+                <View style={styles.uploadIconWrapper}>
+                  <Icon name="cloud-upload" size={32} color="#3B82F6" />
+                </View>
+                <Text style={styles.uploadTitle}>Upload Document</Text>
+                <Text style={styles.uploadSubtitle}>
+                  Tap to browse files from your device
+                </Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.fileHint}>Max file size: 5MB</Text>
+
+            <View style={styles.uploadHints}>
+              <View style={styles.hintRow}>
+                <Icon name="information" size={16} color="#6B7280" />
+                <Text style={styles.hintText}>Maximum file size: 5MB</Text>
+              </View>
+              <View style={styles.hintRow}>
+                <Icon name="file-check" size={16} color="#6B7280" />
+                <Text style={styles.hintText}>Supported: PDF, JPG, PNG</Text>
+              </View>
+            </View>
           </View>
 
           {/* Submit Button */}
@@ -636,7 +686,8 @@ const ApplyLeaveScreen = ({navigation, route}) => {
             onPress={handleSubmit(onSubmit)}
             loading={isSubmitting}
             disabled={isSubmitting}
-            style={styles.submitButton}>
+            style={styles.submitButton}
+            buttonColor="#2563EB">
             Submit
           </Button>
         </ScrollView>

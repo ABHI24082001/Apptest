@@ -13,13 +13,15 @@ import {
   ScrollView,
   Linking,
   Image,
+  StatusBar,
+  
 } from 'react-native';
 import {Card, Appbar} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
 import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
-
+import LinearGradient from 'react-native-linear-gradient';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import BASE_URL from '../constants/apiConfig';
 import axiosinstance from '../utils/axiosInstance';
@@ -71,6 +73,17 @@ const MyPaySlip = () => {
     });
   };
 
+
+  const GradientHeader = ({children, style}) => (
+    <LinearGradient
+      colors={['#2563EB', '#3B82F6']}
+      // style={[{flex: 1}, style]}
+      start={{x: 0, y: 1}}
+      end={{x: 0, y: 0}}>
+      {children}
+    </LinearGradient>
+  );
+  
   const fetchPayslips = async () => {
     try {
       const payload = {
@@ -609,10 +622,25 @@ const MyPaySlip = () => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={styles.header}>
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      {/* <Appbar.Header style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+      </Appbar.Header> */}
+
+      <GradientHeader>
+        <Appbar.Header style={styles.gradientHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}>
+            <Icon name="chevron-left" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Appbar.Content
+            title="My Payslip"
+            titleStyle={styles.headerTitle}
+          />
+        </Appbar.Header>
+      </GradientHeader>
          <LeaveHeader
         title="Payslip"
         subtitle="Here’s the summary of your monthly earnings and deductions."
@@ -712,10 +740,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     elevation: Platform.OS === 'android' ? 3 : 0,
   },
+  gradientHeader: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 0,
+  },
+  backButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 131, 246, 0.3)',
+    borderRadius: 50,
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    marginLeft: 20
   },
   headerContainer: {
     paddingVertical: 16,

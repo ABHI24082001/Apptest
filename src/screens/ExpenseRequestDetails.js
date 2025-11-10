@@ -1175,66 +1175,7 @@ const ExpenseRequestDetails = ({navigation}) => {
     );
   };
 
-  //   setLoading(true);
-
-  //   try {
-  //     const currentEmployeeId = user?.id;
-
-  //     if (!currentEmployeeId) {
-  //       console.warn('❗ No current employee ID found.');
-  //       return;
-  //     }
-
-  //     // Step 1: Fetch functional access data
-  //     const accessList = await fetchFunctionAccessMenu();
-
-  //     // Step 2: Fetch all exit requests
-  //     const exitResponse = await fetch(
-  //       `${BASE_URL}/EmployeeExit/GetAllEmpExitRecords/${user?.childCompanyId}`
-  //     );
-
-  //     if (!exitResponse.ok) {
-  //       throw new Error(`HTTP error! status: ${exitResponse.status}`);
-  //     }
-
-  //     const allExitRequests = await exitResponse.json();
-  //     console.log('✅ All employee exit records:', allExitRequests);
-
-  //     let filteredList = [];
-
-  //     // Step 3: Check if current employee is in access list
-  //     const hasApprovalAccess = Array.isArray(accessList)
-  //       ? accessList.some(item => item.employeeId === currentEmployeeId)
-  //       : false;
-
-  //     setIsAuthorizedForFinalApproval(hasApprovalAccess);
-
-  //     if (hasApprovalAccess) {
-  //       // Filter where applicationStatus is Pending
-  //       filteredList = allExitRequests.filter(
-  //         item => item.applicationStatus === 'Pending'
-  //       );
-  //       console.log('✅ Employee has access.FINAL APPROVAL Filtered approval list:', filteredList);
-  //     } else {
-  //       // Filter where reportingId === currentEmployeeId && supervisorStatus === 'Pending'
-  //       filteredList = allExitRequests.filter(
-  //         item =>
-  //           item.reportingId === currentEmployeeId &&
-  //           item.supervisorStatus === 'Pending'
-  //       );
-  //       console.log('✅ Employee has NO access. Filtered REPORTING MANAGER APPROVAL supervisor list:', filteredList);
-  //     }
-
-  //     // Set the filtered list to the requests state
-  //     setRequests(filteredList);
-
-  //   } catch (error) {
-  //     console.error('❌ Error in currentEmploye logic:', error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-  // Updated Payment Details Modal to handle the structured API response
+  
   const renderPaymentDetailsModal = () => (
     <Portal>
       <Modal
@@ -1343,19 +1284,31 @@ const ExpenseRequestDetails = ({navigation}) => {
     </Portal>
   );
 
+  const GradientHeader = ({children, style}) => (
+    <LinearGradient
+      colors={['#2563EB', '#3B82F6']}
+      start={{x: 0, y: 1}}
+      end={{x: 0, y: 0}}>
+      {children}
+    </LinearGradient>
+  );
+
   return (
     <Provider>
       <AppSafeArea>
-        <Appbar.Header style={styles.header}>
-          <Appbar.BackAction
-            onPress={() => navigation.goBack()}
-            color="#4B5563"
-          />
-          <Appbar.Content
-            title="Employee's Expense Request"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
+        <GradientHeader>
+          <Appbar.Header style={styles.gradientHeader}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}>
+              <Icon name="chevron-left" size={28} color="#ffffffff" />
+            </TouchableOpacity>
+            <Appbar.Content
+              title="Employee's Expense Request"
+              titleStyle={styles.headerTitle}
+            />
+          </Appbar.Header>
+        </GradientHeader>
 
         {/* Pending Requests Badge */}
         <Card style={styles.pendingAlertCard}>

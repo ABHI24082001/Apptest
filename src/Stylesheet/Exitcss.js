@@ -4,6 +4,21 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  gradientHeader: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 0,
+  },
+  backButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 131, 246, 0.3)',
+    borderRadius: 50,
+  },
   header: {
     backgroundColor: '#FFFFFF',
     elevation: 0,
@@ -12,10 +27,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    color: '#111827',
-    fontWeight: '800',
-    fontSize: 18,
-    fontFamily: Platform.OS === 'android' ? 'sans-serif-medium' : undefined,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   container: {
     flexGrow: 1,
@@ -34,6 +52,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 12,
     marginBottom: 8,
+    marginLeft: 16,
   },
   subHeaderText: {
     fontSize: 14,
