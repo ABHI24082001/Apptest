@@ -31,12 +31,11 @@ import BASE_URL from '../constants/apiConfig';
 import FeedbackModal from '../component/FeedbackModal';
 import styles from '../Stylesheet/LeaveRequestDetails';
 import {useAuth} from '../constants/AuthContext';
-// Import the Pagination component
 import Pagination from '../component/Pagination';
-// Import Picker for task assignment dropdown
 import {Picker} from '@react-native-picker/picker';
-// Import the new LeaveBalanceTable component
 import LeaveBalanceTable from '../component/LeaveBalanceTable';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
@@ -1385,107 +1384,82 @@ const LeaveRequestDetails = ({navigation}) => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
-        <Appbar.Content
-          title="Employee's Leave Request"
-          titleStyle={styles.headerTitle}
-        />
-      </Appbar.Header>
+      <CustomHeader title="Employee's Leave Request" navigation={navigation} />
 
-      {/* Pending Requests Card - Updated to show actual count */}
-      {pendingRequestsCount > 0 && (
-        <Card style={styles.pendingAlertCard}>
-          <Card.Content style={styles.pendingAlertContent}>
-            <Icon
-              name="alert-circle"
-              size={20}
-              color="#f59e42"
-              style={{marginRight: 8}}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pendingAlertCountSmall}>
-                {pendingRequestsCount} Pending Request
-                {pendingRequestsCount !== 1 ? 's' : ''}
-              </Text>
-              {/* <Text style={{ fontSize: 12, color: '#f59e42', marginTop: 2 }}>
-                Displaying: {paginatedData.length} items (Page {currentPage} of {totalPages})
-              </Text>
-              <Text style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
-                Total in list: {approvalList.length} | Should show pagination: {shouldShowPagination ? 'Yes' : 'No'}
-              </Text> */}
-            </View>
-          </Card.Content>
-        </Card>
-      )}
-
-      <FlatList
-        contentContainerStyle={styles.listContainer}
-        data={paginatedData}
-        keyExtractor={item =>
-          item.id?.toString() ||
-          item.applyLeaveId?.toString() ||
-          Math.random().toString()
-        }
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={() => (
-          <>
-            {/* Debug info footer */}
-            {/* <View style={{ padding: 16, backgroundColor: '#F3F4F6', margin: 16, borderRadius: 8 }}>
-              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Debug Info:</Text>
-              <Text>• Approval List Length: {approvalList.length}</Text>
-              <Text>• Paginated Data Length: {paginatedData.length}</Text>
-              <Text>• Current Page: {currentPage}</Text>
-              <Text>• Total Pages: {totalPages}</Text>
-              <Text>• Items Per Page: {itemsPerPage}</Text>
-              <Text>• Should Show Pagination: {shouldShowPagination ? 'Yes' : 'No'}</Text>
-              <Text>• Pending Count: {pendingRequestsCount}</Text>
-            </View> */}
-            
-            {/* Only show pagination when needed */}
-            {shouldShowPagination && (
-              <View style={styles.paginationContainer}>
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={approvalList.length}
-                />
+      <ScrollAwareContainer navigation={navigation} currentRoute="LeaveRequestDetails">
+        {/* Pending Requests Card - Updated to show actual count */}
+        {pendingRequestsCount > 0 && (
+          <Card style={styles.pendingAlertCard}>
+            <Card.Content style={styles.pendingAlertContent}>
+              <Icon
+                name="alert-circle"
+                size={20}
+                color="#f59e42"
+                style={{marginRight: 8}}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pendingAlertCountSmall}>
+                  {pendingRequestsCount} Pending Request
+                  {pendingRequestsCount !== 1 ? 's' : ''}
+                </Text>
               </View>
-            )}
-          </>
-        )}
-        ListEmptyComponent={
-          <Card style={styles.emptyCard}>
-            <Card.Content style={styles.emptyContainer}>
-              <Icon name="inbox" size={60} color="#9CA3AF" />
-              <Text style={styles.emptyText}>
-                No pending leave requests found
-              </Text>
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
-                Debug: Approval list has {approvalList.length} items, 
-                Paginated data has {paginatedData.length} items
-              </Text>
             </Card.Content>
           </Card>
-        }
-      />
+        )}
 
-      {/* Add the modal to the root of the component */}
-      <LeaveBalanceModal />
+        <FlatList
+          contentContainerStyle={styles.listContainer}
+          data={paginatedData}
+          keyExtractor={item =>
+            item.id?.toString() ||
+            item.applyLeaveId?.toString() ||
+            Math.random().toString()
+          }
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={() => (
+            <>
+              {/* Only show pagination when needed */}
+              {shouldShowPagination && (
+                <View style={styles.paginationContainer}>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={approvalList.length}
+                  />
+                </View>
+              )}
+            </>
+          )}
+          ListEmptyComponent={
+            <Card style={styles.emptyCard}>
+              <Card.Content style={styles.emptyContainer}>
+                <Icon name="inbox" size={60} color="#9CA3AF" />
+                <Text style={styles.emptyText}>
+                  No pending leave requests found
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                  Debug: Approval list has {approvalList.length} items, 
+                  Paginated data has {paginatedData.length} items
+                </Text>
+              </Card.Content>
+            </Card>
+          }
+        />
 
-      {/* Add the feedback modal */}
-      <FeedbackModal
-        visible={feedbackModalVisible}
-        onClose={hideFeedbackModal}
-        type={feedbackModalType}
-        message={feedbackModalMessage}
-      />
+        {/* Add the modal to the root of the component */}
+        <LeaveBalanceModal />
+
+        {/* Add the feedback modal */}
+        <FeedbackModal
+          visible={feedbackModalVisible}
+          onClose={hideFeedbackModal}
+          type={feedbackModalType}
+          message={feedbackModalMessage}
+        />
+      </ScrollAwareContainer>
     </AppSafeArea>
   );
 };

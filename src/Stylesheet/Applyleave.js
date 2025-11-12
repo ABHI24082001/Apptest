@@ -12,21 +12,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   backButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    margin: 10,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -62,6 +54,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.15)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+    marginLeft: 10,
   },
   container: {
     flexGrow: 1,

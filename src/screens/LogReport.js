@@ -5,42 +5,25 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppSafeArea from '../component/AppSafeArea';
 import Attendancecalender from '../component/Attendancecalender';
-
-const GradientHeader = ({children, style}) => (
-  <LinearGradient
-    colors={['#2563EB', '#3B82F6']}
-    start={{x: 0, y: 1}}
-    end={{x: 0, y: 0}}>
-    {children}
-  </LinearGradient>
-);
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const Attandance = ({navigation}) => {
   return ( 
     <AppSafeArea>
-      <GradientHeader>
-        <Appbar.Header style={styles.gradientHeader}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Icon name="chevron-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Appbar.Content
-            title="Log Report"
-            titleStyle={styles.headerTitle} 
-          />
-        </Appbar.Header>
-      </GradientHeader>
+      <CustomHeader title="Log Report" navigation={navigation} />
 
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}>
-        <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
-          <Card.Content>
-            <Attendancecalender />
-          </Card.Content>
-        </Card>
-      </ScrollView>
+      <ScrollAwareContainer navigation={navigation} currentRoute="LogReport">
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}>
+          <Card style={[styles.card, {backgroundColor: '#f0f0f0'}]}>
+            <Card.Content>
+              <Attendancecalender />
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </ScrollAwareContainer>
     </AppSafeArea>
   );
 };

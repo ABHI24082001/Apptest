@@ -24,6 +24,9 @@ import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import styles from '../Stylesheet/LeaveReportScreen';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
+
 const LeaveReportScreen = ({ navigation }) => {
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -37,6 +40,16 @@ const LeaveReportScreen = ({ navigation }) => {
 
   const formatDate = (date) =>
     date ? moment(date).format('DD/MM/YY') : 'Select';
+
+  // Set default dates when component mounts
+  useEffect(() => {
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    setFromDate(oneYearAgo);
+    setToDate(today);
+  }, []);
 
   // Helper to format date for backend (YYYY-MM-DDTHH:mm:ss)
   const formatDateForBackend = (date) => {
@@ -109,11 +122,24 @@ const LeaveReportScreen = ({ navigation }) => {
     setLoading(true);
     try {
       const payload = buildCommonParameterPayload();
+      console.log('📤 Sending Leave Report Payload:', payload);
+      
       const response = await axiosinstance.post(`${BASE_URL}/LeaveApproval/GetLeaveReport`, payload);
-      // Set leaveData directly from API response
-      setLeaveData(response.data || []);
+      
+      console.log('✅ Leave Report API Response:', response.data);
+      
+      // Handle different response structures
+      const responseData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.data || response.data?.leaveReports || [];
+      
+      console.log('📊 Processed Leave Data:', responseData);
+      setLeaveData(responseData);
     } catch (error) {
-      console.error('LeaveReport API error:', error);
+      console.error('❌ LeaveReport API error:', error);
+      if (error.response) {
+        console.error('❌ API Error Response:', error.response.data);
+      }
       setLeaveData([]);
     } finally {
       setLoading(false);
@@ -220,102 +246,128 @@ const LeaveReportScreen = ({ navigation }) => {
     </View>
   );
 
-  // Enhanced Card for each leave record
-  const renderLeaveCard = ({ item }) => (
-    <Card style={styles.card} elevation={2}>
-      <Card.Title
-        title={item.employeeName}
-        subtitle={item.employeeCode}
-        left={() => (
-          <Avatar.Text
-            size={40}
-            label={getInitials(item.employeeName)}
-            style={{ backgroundColor: '#2563EB' }}
-            color="#fff"
-          />
-        )}
-        right={() => (
-          <Badge
-            style={{
-              backgroundColor: getStatusColor(item.status),
-              alignSelf: 'center',
-              marginRight: 8,
-            }}
-            size={28}
-          >
-            {item.status}
-          </Badge>
-        )}
-      />
-      <Card.Content>
-        <View style={styles.row}>
-          <Chip style={styles.chip}>{item.branchName}</Chip>
-          <Chip style={styles.chip}>{item.department}</Chip>
-          <Chip style={styles.chip}>{item.designation}</Chip>
-        </View>
-        <View style={styles.row}>
-          <Chip icon="calendar" style={styles.leaveTypeChip}>
-            {item.leaveName}
-          </Chip>
-          <Chip icon="account" style={styles.chip}>
-            {item.taskAssignEmployeeCode}
-          </Chip>
-        </View>
-        <View style={styles.row}>
-          <Card style={styles.dateCard} elevation={0}>
-            <Card.Content>
-              <Text style={styles.dateLabel}>From</Text>
-              <Text style={styles.dateValue}>{formatDate(item.fromLeaveDate)}</Text>
-            </Card.Content>
-          </Card>
-          <Card style={styles.dateCard} elevation={0}>
-            <Card.Content>
-              <Text style={styles.dateLabel}>To</Text>
-              <Text style={styles.dateValue}>{formatDate(item.toLeaveDate)}</Text>
-            </Card.Content>
-          </Card>
-          <Card style={styles.dateCard} elevation={0}>
-            <Card.Content>
-              <Text style={styles.dateLabel}>Applied</Text>
-              <Text style={styles.dateValue}>{formatDate(item.createdDate)}</Text>
-            </Card.Content>
-          </Card>
-        </View>
-        <View style={styles.row}>
-          <Chip style={styles.chip}>Paid: {item.approvedPaidLeave}</Chip>
-          <Chip style={styles.chip}>Unpaid: {item.approvedUnpaidLeave}</Chip>
-          {/* <Chip style={styles.chip}>Amount: {item.paidLeaveAmount ?? 0}</Chip> */}
-        </View>
-      </Card.Content>
-    </Card>
-  );
+  // Enhanced Card for each leave record with better data handling
+  const renderLeaveCard = ({ item }) => {
+    console.log('🎯 Rendering Leave Item:', item);
+    
+    return (
+      <Card style={styles.card} elevation={2}>
+        <Card.Title
+          title={item.employeeName || item.EmployeeName || 'N/A'}
+          subtitle={item.employeeCode || item.EmployeeCode || 'N/A'}
+          left={() => (
+            <Avatar.Text
+              size={40}
+              label={getInitials(item.employeeName || item.EmployeeName || '')}
+              style={{ backgroundColor: '#2563EB' }}
+              color="#fff"
+            />
+          )}
+          right={() => (
+            <Badge
+              style={{
+                backgroundColor: getStatusColor(item.status || item.Status),
+                alignSelf: 'center',
+                marginRight: 8,
+              }}
+              size={28}
+            >
+              {item.status || item.Status || 'N/A'}
+            </Badge>
+          )}
+        />
+        <Card.Content>
+          <View style={styles.row}>
+            <Chip style={styles.chip}>{item.branchName || item.BranchName || 'N/A'}</Chip>
+            <Chip style={styles.chip}>{item.department || item.Department || 'N/A'}</Chip>
+            <Chip style={styles.chip}>{item.designation || item.Designation || 'N/A'}</Chip>
+          </View>
+          <View style={styles.row}>
+            <Chip icon="calendar" style={styles.leaveTypeChip}>
+              {item.leaveName || item.LeaveName || 'N/A'}
+            </Chip>
+            <Chip icon="account" style={styles.chip}>
+              {item.taskAssignEmployeeCode || item.TaskAssignEmployeeCode || 'N/A'}
+            </Chip>
+          </View>
+          <View style={styles.row}>
+            <Card style={styles.dateCard} elevation={0}>
+              <Card.Content>
+                <Text style={styles.dateLabel}>From</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(item.fromLeaveDate || item.FromLeaveDate)}
+                </Text>
+              </Card.Content>
+            </Card>
+            <Card style={styles.dateCard} elevation={0}>
+              <Card.Content>
+                <Text style={styles.dateLabel}>To</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(item.toLeaveDate || item.ToLeaveDate)}
+                </Text>
+              </Card.Content>
+            </Card>
+            <Card style={styles.dateCard} elevation={0}>
+              <Card.Content>
+                <Text style={styles.dateLabel}>Applied</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(item.createdDate || item.CreatedDate)}
+                </Text>
+              </Card.Content>
+            </Card>
+          </View>
+          <View style={styles.row}>
+            <Chip style={styles.chip}>
+              Paid: {item.approvedPaidLeave || item.ApprovedPaidLeave || 0}
+            </Chip>
+            <Chip style={styles.chip}>
+              Unpaid: {item.approvedUnpaidLeave || item.ApprovedUnpaidLeave || 0}
+            </Chip>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
 
   return (
     <AppSafeArea>
-      {renderAppBar()}
-      {renderHeader()}
+      <CustomHeader title="My Leave Report" navigation={navigation} />
+      
+      <ScrollAwareContainer navigation={navigation} currentRoute="LeaveReport">
+        {renderHeader()}
 
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#2962ff" />
-          <Text style={styles.loaderText}>Loading leave data...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={leaveData}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={renderLeaveCard}
-          contentContainerStyle={styles.cardListContainer}
-          ListEmptyComponent={
-            <Card style={styles.emptyCard} elevation={1}>
-              <Card.Content style={{ alignItems: 'center' }}>
-                <MaterialIcon name="file-document-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyText}>No leave records found</Text>
-              </Card.Content>
-            </Card>
-          }
-        />
-      )}
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2962ff" />
+            <Text style={styles.loaderText}>Loading leave data...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={leaveData}
+            keyExtractor={(item, index) => `${item.id || item.Id || index}-${index}`}
+            renderItem={renderLeaveCard}
+            contentContainerStyle={styles.cardListContainer}
+            ListEmptyComponent={
+              <Card style={styles.emptyCard} elevation={1}>
+                <Card.Content style={{ alignItems: 'center' }}>
+                  <MaterialIcon name="file-document-outline" size={48} color="#D1D5DB" />
+                  <Text style={styles.emptyText}>
+                    {fromDate && toDate 
+                      ? 'No leave records found for the selected date range' 
+                      : 'Please select date range to view leave records'
+                    }
+                  </Text>
+                  {leaveData.length === 0 && fromDate && toDate && (
+                    <Text style={[styles.emptyText, {fontSize: 12, marginTop: 8}]}>
+                      Try adjusting your date filter or check if you have any leave applications
+                    </Text>
+                  )}
+                </Card.Content>
+              </Card>
+            }
+          />
+        )}
+      </ScrollAwareContainer>
 
       <DatePicker
         modal

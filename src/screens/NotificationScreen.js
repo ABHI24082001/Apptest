@@ -8,6 +8,8 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/RequestDetailsCs';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const getRequestTypeAndColor = (notification) => {
   const msg = notification.toLowerCase();
@@ -224,87 +226,91 @@ const RequestDetailsScreen = ({ navigation }) => {
 
   return (
     <AppSafeArea>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Request Details</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity 
-            onPress={markAllAsRead}
-            activeOpacity={0.7}
-            style={styles.markAllButton}
-          >
-            <Text style={styles.markAllText}>Mark All Read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* <CustomHeader 
+        title="Request Details" 
+        navigation={navigation}
+        rightComponent={
+          unreadCount > 0 ? (
+            <TouchableOpacity 
+              onPress={markAllAsRead}
+              activeOpacity={0.7}
+              style={styles.markAllButton}
+            >
+              <Text style={styles.markAllText}>Mark All Read</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      /> */}
 
-      <ScrollView 
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loaderText}>Loading notifications...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Debug info */}
-            <Text style={styles.debugText}>
-              Today: {notifications.today.length}, Older: {notifications.older.length}
-            </Text>
-            
-            {/* Today Section */}
-            {notifications.today.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Today</Text>
-                  {notifications.today.filter(item => item.unread).length > 0 && (
-                    <View style={styles.unreadCount}>
-                      <Text style={styles.unreadCountText}>
-                        {notifications.today.filter(item => item.unread).length}
-                      </Text>
-                    </View>
-                  )}
+      <ScrollAwareContainer navigation={navigation} currentRoute="NotificationScreen">
+        <ScrollView 
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          {loading ? (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+              <Text style={styles.loaderText}>Loading notifications...</Text>
+            </View>
+          ) : (
+            <>
+              {/* Debug info */}
+              <Text style={styles.debugText}>
+                Today: {notifications.today.length}, Older: {notifications.older.length}
+              </Text>
+              
+              {/* Today Section */}
+              {notifications.today.length > 0 && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Today</Text>
+                    {notifications.today.filter(item => item.unread).length > 0 && (
+                      <View style={styles.unreadCount}>
+                        <Text style={styles.unreadCountText}>
+                          {notifications.today.filter(item => item.unread).length}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.cardsContainer}>
+                    {notifications.today.map((item, index) => (
+                      <RequestCard 
+                        item={item} 
+                        key={`today-${item.id}`}
+                        onPress={() => handleCardPress('today', index)}
+                      />
+                    ))}
+                  </View>
                 </View>
-                <View style={styles.cardsContainer}>
-                  {notifications.today.map((item, index) => (
-                    <RequestCard 
-                      item={item} 
-                      key={`today-${item.id}`}
-                      onPress={() => handleCardPress('today', index)}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
+              )}
 
-            {/* Older Section */}
-            {notifications.older.length > 0 && (
-              <View style={styles.section}>
-                {notifications.today.length > 0 && <Divider style={styles.divider} />}
-                <Text style={styles.sectionTitle}>Older</Text>
-                <View style={styles.cardsContainer}>
-                  {notifications.older.map((item, index) => (
-                    <RequestCard 
-                      item={item} 
-                      key={`older-${item.id}`}
-                      onPress={() => handleCardPress('older', index)}
-                    />
-                  ))}
+              {/* Older Section */}
+              {notifications.older.length > 0 && (
+                <View style={styles.section}>
+                  {notifications.today.length > 0 && <Divider style={styles.divider} />}
+                  <Text style={styles.sectionTitle}>Older</Text>
+                  <View style={styles.cardsContainer}>
+                    {notifications.older.map((item, index) => (
+                      <RequestCard 
+                        item={item} 
+                        key={`older-${item.id}`}
+                        onPress={() => handleCardPress('older', index)}
+                      />
+                    ))}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {notifications.today.length === 0 && notifications.older.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
-                <Text style={styles.emptyText}>No notifications available</Text>
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+              {notifications.today.length === 0 && notifications.older.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <MaterialCommunityIcons name="bell-off" size={48} color="#BDBDBD" />
+                  <Text style={styles.emptyText}>No notifications available</Text>
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </ScrollAwareContainer>
     </AppSafeArea>
   );
 };

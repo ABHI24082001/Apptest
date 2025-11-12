@@ -35,6 +35,8 @@ import WebView from 'react-native-webview';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import styles from '../Stylesheet/ExpenseRequestDetails';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const ExpenseTypeColors = {
   Advance: '#3b82f6', // Blue
@@ -1296,130 +1298,120 @@ const ExpenseRequestDetails = ({navigation}) => {
   return (
     <Provider>
       <AppSafeArea>
-        <GradientHeader>
-          <Appbar.Header style={styles.gradientHeader}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}>
-              <Icon name="chevron-left" size={28} color="#ffffffff" />
-            </TouchableOpacity>
-            <Appbar.Content
-              title="Employee's Expense Request"
-              titleStyle={styles.headerTitle}
-            />
-          </Appbar.Header>
-        </GradientHeader>
+        <CustomHeader title="Employee's Expense Request" navigation={navigation} />
 
-        {/* Pending Requests Badge */}
-        <Card style={styles.pendingAlertCard}>
-          <Card.Content style={styles.pendingAlertContent}>
-            <Icon
-              name="alert-circle"
-              size={20}
-              color="#f59e42"
-              style={{marginRight: 8}}
-            />
-            <Text style={styles.pendingAlertCountSmall}>
-              {pendingRequestsCount} Pending Request
-              {pendingRequestsCount !== 1 ? 's' : ''}
-            </Text>
-          </Card.Content>
-        </Card>
-
-        <FlatList
-          contentContainerStyle={styles.listContainer}
-          data={paginatedData}
-          keyExtractor={(item, index) => {
-            const uniqueId = `${item.requestId || item.id || 'item'}-${index}`;
-            return uniqueId.toString();
-          }}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={
-            expenseList.length > 0 ? (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(expenseList.length / itemsPerPage)}
-                onPageChange={handlePageChange}
-                itemsPerPage={itemsPerPage}
-                totalItems={expenseList.length}
+        <ScrollAwareContainer navigation={navigation} currentRoute="ExpenseRequestDetails">
+          {/* Pending Requests Badge */}
+          <Card style={styles.pendingAlertCard}>
+            <Card.Content style={styles.pendingAlertContent}>
+              <Icon
+                name="alert-circle"
+                size={20}
+                color="#f59e42"
+                style={{marginRight: 8}}
               />
-            ) : null
-          }
-          ListEmptyComponent={
-            <Card style={styles.emptyCard}>
-              <Card.Content style={styles.emptyContainer}>
-                <Icon name="inbox" size={40} color="#9CA3AF" />
-                <Text style={styles.emptyText}>
-                  No pending expense requests found
-                </Text>
-              </Card.Content>
-            </Card>
-          }
-        />
+              <Text style={styles.pendingAlertCountSmall}>
+                {pendingRequestsCount} Pending Request
+                {pendingRequestsCount !== 1 ? 's' : ''}
+              </Text>
+            </Card.Content>
+          </Card>
 
-        {/* Payment Details Modal */}
-        {renderPaymentDetailsModal()}
+          <FlatList
+            contentContainerStyle={styles.listContainer}
+            data={paginatedData}
+            keyExtractor={(item, index) => {
+              const uniqueId = `${item.requestId || item.id || 'item'}-${index}`;
+              return uniqueId.toString();
+            }}
+            renderItem={renderItem}
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={
+              expenseList.length > 0 ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(expenseList.length / itemsPerPage)}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={expenseList.length}
+                />
+              ) : null
+            }
+            ListEmptyComponent={
+              <Card style={styles.emptyCard}>
+                <Card.Content style={styles.emptyContainer}>
+                  <Icon name="inbox" size={40} color="#9CA3AF" />
+                  <Text style={styles.emptyText}>
+                    No pending expense requests found
+                  </Text>
+                </Card.Content>
+              </Card>
+            }
+          />
 
-        {/* Document Viewer Modal */}
-        <Portal>
-          <Modal
-            visible={documentViewerVisible}
-            onDismiss={() => setDocumentViewerVisible(false)}
-            contentContainerStyle={styles.documentViewerContainer}>
-            <Card style={styles.documentViewerCard}>
-              <Card.Title
-                title="Document Viewer"
-                right={props => (
-                  <IconButton
-                    {...props}
-                    icon="close"
+          {/* Payment Details Modal */}
+          {renderPaymentDetailsModal()}
+
+          {/* Document Viewer Modal */}
+          <Portal>
+            <Modal
+              visible={documentViewerVisible}
+              onDismiss={() => setDocumentViewerVisible(false)}
+              contentContainerStyle={styles.documentViewerContainer}>
+              <Card style={styles.documentViewerCard}>
+                <Card.Title
+                  title="Document Viewer"
+                  right={props => (
+                    <IconButton
+                      {...props}
+                      icon="close"
+                      onPress={() => setDocumentViewerVisible(false)}
+                    />
+                  )}
+                />
+                <Card.Content style={styles.webViewContainer}>
+                  {documentUrl ? (
+                    <WebView
+                      source={{uri: documentUrl}}
+                      style={styles.webView}
+                      startInLoadingState={true}
+                      onError={syntheticEvent => {
+                        const {nativeEvent} = syntheticEvent;
+                        console.error('WebView error: ', nativeEvent);
+                        alert(
+                          `Error loading document: ${nativeEvent.description}`,
+                        );
+                      }}
+                    />
+                  ) : (
+                    <View style={styles.noDocumentContainer}>
+                      <Icon name="file-text" size={50} color="#9CA3AF" />
+                      <Text style={styles.noDocumentText}>
+                        No document to display
+                      </Text>
+                    </View>
+                  )}
+                </Card.Content>
+                <Card.Actions>
+                  <Button
+                    mode="contained"
                     onPress={() => setDocumentViewerVisible(false)}
-                  />
-                )}
-              />
-              <Card.Content style={styles.webViewContainer}>
-                {documentUrl ? (
-                  <WebView
-                    source={{uri: documentUrl}}
-                    style={styles.webView}
-                    startInLoadingState={true}
-                    onError={syntheticEvent => {
-                      const {nativeEvent} = syntheticEvent;
-                      console.error('WebView error: ', nativeEvent);
-                      alert(
-                        `Error loading document: ${nativeEvent.description}`,
-                      );
-                    }}
-                  />
-                ) : (
-                  <View style={styles.noDocumentContainer}>
-                    <Icon name="file-text" size={50} color="#9CA3AF" />
-                    <Text style={styles.noDocumentText}>
-                      No document to display
-                    </Text>
-                  </View>
-                )}
-              </Card.Content>
-              <Card.Actions>
-                <Button
-                  mode="contained"
-                  onPress={() => setDocumentViewerVisible(false)}
-                  style={styles.closeButton}>
-                  Close
-                </Button>
-              </Card.Actions>
-            </Card>
-          </Modal>
-        </Portal>
+                    style={styles.closeButton}>
+                    Close
+                  </Button>
+                </Card.Actions>
+              </Card>
+            </Modal>
+          </Portal>
 
-        {/* Add Feedback Modal */}
-        <FeedbackModal
-          visible={feedbackVisible}
-          onClose={() => setFeedbackVisible(false)}
-          type={feedbackType}
-          message={feedbackMessage}
-        />
+          {/* Add Feedback Modal */}
+          <FeedbackModal
+            visible={feedbackVisible}
+            onClose={() => setFeedbackVisible(false)}
+            type={feedbackType}
+            message={feedbackMessage}
+          />
+        </ScrollAwareContainer>
       </AppSafeArea>
     </Provider>
   );

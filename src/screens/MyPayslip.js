@@ -32,6 +32,8 @@ import RNFS from 'react-native-fs';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import RNPrint from 'react-native-print';
 import {useAuth } from '../constants/AuthContext';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const STATIC_LOGO_FILENAME = '28072025121916.png';
 const STATIC_LOGO_URL = `https://hcmv2.anantatek.com/assets/UploadImg/${STATIC_LOGO_FILENAME}`; // <-- Set your actual logo hosting path here
@@ -623,27 +625,13 @@ const MyPaySlip = () => {
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-      {/* <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="My Payslip" titleStyle={styles.headerTitle} />
-      </Appbar.Header> */}
+     
+      <CustomHeader title="My Payslip" navigation={navigation} />
 
-      <GradientHeader>
-        <Appbar.Header style={styles.gradientHeader}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Icon name="chevron-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Appbar.Content
-            title="My Payslip"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
-      </GradientHeader>
-         <LeaveHeader
+
+      <LeaveHeader
         title="Payslip"
-        subtitle="Here’s the summary of your monthly earnings and deductions."
+        subtitle="Here's the summary of your monthly earnings and deductions."
         iconName="file-document-outline"
       />
       {/* Show logoBase64 image if available */}
@@ -655,17 +643,20 @@ const MyPaySlip = () => {
         />
       )}
 
-      <FlatList
-        data={apiPayslips}
-        keyExtractor={item => item.id.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={ListEmptyComponent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.scrollContent}
-      />
+      <ScrollAwareContainer navigation={navigation} currentRoute="MyPayslip">
+        <FlatList
+          data={apiPayslips}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={ListEmptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </ScrollAwareContainer>
 
       <DatePicker
         modal

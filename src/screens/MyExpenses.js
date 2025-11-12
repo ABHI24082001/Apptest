@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import {
   Text,
-  Appbar,
   Card,
   Avatar,
   Chip,
@@ -21,6 +20,8 @@ import AppSafeArea from '../component/AppSafeArea';
 import BASE_URL from '../constants/apiConfig';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import styles from '../Stylesheet/MyExpenses';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const MyExpenses = ({navigation}) => {
   const [fromDate, setFromDate] = useState(null);
@@ -105,17 +106,6 @@ const MyExpenses = ({navigation}) => {
       .toUpperCase()
       .slice(0, 2);
   };
-
-  // Enhanced gradient AppBar
-  const renderAppBar = () => (
-    <Appbar.Header style={styles.header}>
-      <Appbar.BackAction color="#000" onPress={() => navigation.goBack()} />
-      <Appbar.Content
-        title="My Expenses Report"
-        titleStyle={styles.headerTitle}
-      />
-    </Appbar.Header>
-  );
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
@@ -225,46 +215,49 @@ const MyExpenses = ({navigation}) => {
 
   return (
     <AppSafeArea>
-      {renderAppBar()}
-      {renderHeader()}
+      <CustomHeader title="My Expenses Report" navigation={navigation} />
+      
+      <ScrollAwareContainer navigation={navigation} currentRoute="MyExpenses">
+        {renderHeader()}
 
-      <View style={styles.tabContainer}>
-        <SegmentedButtons
-          value={tab}
-          onValueChange={setTab}
-          buttons={[
-            {value: 'expense', label: 'Expense'},
-            {value: 'advance', label: 'Advance'},
-          ]}
-          style={styles.segmented}
-        />
-      </View>
-
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#2962ff" />
-          <Text style={styles.loaderText}>Loading data...</Text>
+        <View style={styles.tabContainer}>
+          <SegmentedButtons
+            value={tab}
+            onValueChange={setTab}
+            buttons={[
+              {value: 'expense', label: 'Expense'},
+              {value: 'advance', label: 'Advance'},
+            ]}
+            style={styles.segmented}
+          />
         </View>
-      ) : (
-        <FlatList
-          data={tab === 'expense' ? expenseData : advanceData}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={renderExpenseCard}
-          contentContainerStyle={styles.cardListContainer}
-          ListEmptyComponent={
-            <Card style={styles.emptyCard} elevation={1}>
-              <Card.Content style={{alignItems: 'center'}}>
-                <MaterialIcon
-                  name="file-document-outline"
-                  size={48}
-                  color="#D1D5DB"
-                />
-                <Text style={styles.emptyText}>No records found</Text>
-              </Card.Content>
-            </Card>
-          }
-        />
-      )}
+
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2962ff" />
+            <Text style={styles.loaderText}>Loading data...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={tab === 'expense' ? expenseData : advanceData}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={renderExpenseCard}
+            contentContainerStyle={styles.cardListContainer}
+            ListEmptyComponent={
+              <Card style={styles.emptyCard} elevation={1}>
+                <Card.Content style={{alignItems: 'center'}}>
+                  <MaterialIcon
+                    name="file-document-outline"
+                    size={48}
+                    color="#D1D5DB"
+                  />
+                  <Text style={styles.emptyText}>No records found</Text>
+                </Card.Content>
+              </Card>
+            }
+          />
+        )}
+      </ScrollAwareContainer>
 
       <DatePicker
         modal

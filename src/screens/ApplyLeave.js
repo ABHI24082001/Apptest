@@ -9,10 +9,8 @@ import {
   Alert,
   ActionSheetIOS,
   Platform,
-  StatusBar,
 } from 'react-native';
-import {Appbar, Button} from 'react-native-paper';
-import LinearGradient from 'react-native-linear-gradient';
+import {Button} from 'react-native-paper';
 
 // Third-party components
 import DatePicker from 'react-native-date-picker';
@@ -22,7 +20,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {pick} from '@react-native-documents/picker';
 
 // Custom components and utilities
-import AppSafeArea from '../component/AppSafeArea';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import CustomHeader from '../component/CustomHeader';
 import LeaveHeader from '../component/LeaveHeader';
 import LeaveBalanceCards from '../component/LeaveBalanceCards';
 import styles from '../Stylesheet/Applyleave';
@@ -30,16 +29,6 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
-
-const GradientHeader = ({children, style}) => (
-  <LinearGradient
-    colors={['#2563EB', '#3B82F6']}
-    // style={[{flex: 1}, style]}
-    start={{x: 0, y: 1}}
-    end={{x: 0, y: 0}}>
-    {children}
-  </LinearGradient>
-);
 
 const ApplyLeaveScreen = ({navigation, route}) => {
   const employeeDetails = useFetchEmployeeDetails();
@@ -334,21 +323,11 @@ const ApplyLeaveScreen = ({navigation, route}) => {
   };
 
   return (
-    <AppSafeArea>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-      <GradientHeader>
-        <Appbar.Header style={styles.gradientHeader}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Icon name="chevron-left" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Appbar.Content
-            title="Apply Leave"
-            titleStyle={[styles.headerTitle, {color: '#FFFFFF'}]}
-          />
-        </Appbar.Header>
-      </GradientHeader>
+    <ScrollAwareContainer
+      navigation={navigation}
+      currentRoute="ApplyLeave"
+      showBottomTab={true}>
+      <CustomHeader title="Apply Leave" navigation={navigation} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -699,7 +678,7 @@ const ApplyLeaveScreen = ({navigation, route}) => {
         message={feedback.message}
         onClose={() => setFeedback({visible: false, type: '', message: ''})}
       />
-    </AppSafeArea>
+    </ScrollAwareContainer>
   );
 };
 

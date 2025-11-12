@@ -22,6 +22,8 @@ import BASE_URL from '../constants/apiConfig';
 import LeaveHeader from '../component/LeaveHeader';
 import {styles, pickerSelectStyles} from '../Stylesheet/PaymentRequest';
 import LinearGradient from 'react-native-linear-gradient';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const GradientHeader = ({children, style}) => (
   <LinearGradient
@@ -644,7 +646,7 @@ const PaymentRequest = ({navigation, route}) => {
   // Conditional rendering based on request type
   return (
     <AppSafeArea>
-      <GradientHeader>
+      {/* <GradientHeader>
         <Appbar.Header style={styles.gradientHeader}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Main')}
@@ -660,337 +662,347 @@ const PaymentRequest = ({navigation, route}) => {
             titleStyle={styles.headerTitle}
           />
         </Appbar.Header>
-      </GradientHeader>
+      </GradientHeader> */}
 
-      <ScrollView contentContainerStyle={styles.container}>
-      
-       <LeaveHeader
-        title="Payment Request"
-        subtitle="Submit your payment or reimbursement request below."
-        iconName="bank-transfer"
+      <CustomHeader
+        title={
+          expenceData
+            ? `Edit ${expenceData.requestType || 'Payment'} Request`
+            : 'Payment Request'
+        }
+        navigation={navigation}
       />
 
-        <Text style={styles.label}>
-          Request Type <Text style={styles.required}>*</Text>
-          {errors.requestType && (
-            <Text style={styles.errorText}> {errors.requestType.message}</Text>
-          )}
-        </Text>
-        <Controller
-          control={control}
-          name="requestType"
-          rules={{required: 'Request type is required'}}
-          render={({field: {onChange, value}}) => (
-            <RNPickerSelect
-              onValueChange={selectedValue => {
-                // Only allow changing to advance if no expense items exist
-                if (selectedValue === 'advance' && expenseItems.length > 0) {
-                  Alert.alert(
-                    'Cannot Change Request Type',
-                    'You have expense items added. Please remove all expense items before changing to Advance request type.',
-                    [{text: 'OK'}],
-                  );
-                  return;
-                }
+      <ScrollAwareContainer navigation={navigation} showBottomTab={true} currentRoute="PaymentRequest">
+        <ScrollView contentContainerStyle={styles.container}>
+          <LeaveHeader
+            title="Payment Request"
+            subtitle="Submit your payment or reimbursement request below."
+            iconName="bank-transfer"
+          />
 
-                // Otherwise allow the change
-                onChange(selectedValue);
-                setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2);
-                console.log('Request type changed to:', selectedValue);
-              }}
-              value={value}
-              disabled={
-                !!expenceData ||
-                (value === 'expense' && expenseItems.length > 0)
-              } // Disable when editing or has items
-              placeholder={{label: 'Select Request Type', value: null}}
-              items={[
-                {label: 'Expense', value: 'expense'},
-                {label: 'Advance', value: 'advance'},
-              ]}
-              style={{
-                ...pickerSelectStyles,
-                inputIOS: {
-                  ...pickerSelectStyles.inputIOS,
-                  color:
-                    expenceData ||
-                    (value === 'expense' && expenseItems.length > 0)
-                      ? '#666'
-                      : '#000',
-                },
-                inputAndroid: {
-                  ...pickerSelectStyles.inputAndroid,
-                  color:
-                    expenceData ||
-                    (value === 'expense' && expenseItems.length > 0)
-                      ? '#666'
-                      : '#000',
-                },
-              }}
-              useNativeAndroidPickerStyle={false}
-              Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
-            />
-          )}
-        />
+          <Text style={styles.label}>
+            Request Type <Text style={styles.required}>*</Text>
+            {errors.requestType && (
+              <Text style={styles.errorText}> {errors.requestType.message}</Text>
+            )}
+          </Text>
+          <Controller
+            control={control}
+            name="requestType"
+            rules={{required: 'Request type is required'}}
+            render={({field: {onChange, value}}) => (
+              <RNPickerSelect
+                onValueChange={selectedValue => {
+                  // Only allow changing to advance if no expense items exist
+                  if (selectedValue === 'advance' && expenseItems.length > 0) {
+                    Alert.alert(
+                      'Cannot Change Request Type',
+                      'You have expense items added. Please remove all expense items before changing to Advance request type.',
+                      [{text: 'OK'}],
+                    );
+                    return;
+                  }
+
+                  // Otherwise allow the change
+                  onChange(selectedValue);
+                  setValue('RequestTypeId', selectedValue === 'expense' ? 1 : 2);
+                  console.log('Request type changed to:', selectedValue);
+                }}
+                value={value}
+                disabled={
+                  !!expenceData ||
+                  (value === 'expense' && expenseItems.length > 0)
+                } // Disable when editing or has items
+                placeholder={{label: 'Select Request Type', value: null}}
+                items={[
+                  {label: 'Expense', value: 'expense'},
+                  {label: 'Advance', value: 'advance'},
+                ]}
+                style={{
+                  ...pickerSelectStyles,
+                  inputIOS: {
+                    ...pickerSelectStyles.inputIOS,
+                    color:
+                      expenceData ||
+                      (value === 'expense' && expenseItems.length > 0)
+                        ? '#666'
+                        : '#000',
+                  },
+                  inputAndroid: {
+                    ...pickerSelectStyles.inputAndroid,
+                    color:
+                      expenceData ||
+                      (value === 'expense' && expenseItems.length > 0)
+                        ? '#666'
+                        : '#000',
+                  },
+                }}
+                useNativeAndroidPickerStyle={false}
+                Icon={() => <Icon name="chevron-down" size={20} color="#555" />}
+              />
+            )}
+          />
 
     
-        {requestType === 'expense' && (
-          <View style={styles.expenseSection}>
-            <View style={styles.expenseSectionHeader}>
-              <Text style={styles.expenseSectionTitle}>
-                {expenceData ? 'Edit Expense Items' : 'Expense Items'}
-              </Text>
-              {expenseItems.length > 0 && !expenceData && (
-                <Text style={styles.itemsCountBadge}>
-                  {expenseItems.length}{' '}
-                  {expenseItems.length === 1 ? 'Item' : 'Items'}
+          {requestType === 'expense' && (
+            <View style={styles.expenseSection}>
+              <View style={styles.expenseSectionHeader}>
+                <Text style={styles.expenseSectionTitle}>
+                  {expenceData ? 'Edit Expense Items' : 'Expense Items'}
                 </Text>
+                {expenseItems.length > 0 && !expenceData && (
+                  <Text style={styles.itemsCountBadge}>
+                    {expenseItems.length}{' '}
+                    {expenseItems.length === 1 ? 'Item' : 'Items'}
+                  </Text>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={openAddExpenseModal}
+                disabled={!!expenceData} // Disable add button in edit mode
+              >
+                <Icon name="plus" size={20} color="#fff" />
+                <Text style={styles.addBtnText}>
+                  {expenceData ? 'Add' : 'Add Expense'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Show paymentDetails in edit mode */}
+              {expenceData && paymentDetails && paymentDetails.length > 0 ? (
+                <View style={{marginTop: 16}}>
+                  <Text
+                    style={{fontWeight: 'bold', fontSize: 16, marginBottom: 8}}>
+                    Payment Details
+                  </Text>
+                  <View style={styles.gridContainer}>
+                    <View style={styles.gridHeader}>
+                      <Text style={styles.gridHeaderText}>Date</Text>
+                      <Text style={styles.gridHeaderText}>Expense Head</Text>
+                      <Text style={styles.gridHeaderText}>Amount</Text>
+                      <Text style={styles.gridHeaderText}>Document</Text>
+                      <Text style={styles.gridHeaderText}>Remarks</Text>
+                      <Text style={styles.gridHeaderText}>Actions</Text>
+                    </View>
+                    {paymentDetails.map(item => (
+                      <View key={item.id} style={styles.gridRow}>
+                        <Text style={styles.gridCell}>
+                          {item.transactionDate
+                            ? new Date(item.transactionDate).toLocaleDateString()
+                            : '—'}
+                        </Text>
+                        <Text style={styles.gridCell}>
+                          {item.expenseHead || '—'}
+                        </Text>
+                        <Text style={styles.gridCell}>
+                          ₹{formatCurrency(item.amount)}
+                        </Text>
+                        <View style={styles.gridCell}>
+                          {item.documentPath ? (
+                            <Icon
+                              name="file-check-outline"
+                              size={20}
+                              color="#10B981"
+                            />
+                          ) : (
+                            <Icon
+                              name="file-remove-outline"
+                              size={20}
+                              color="#EF4444"
+                            />
+                          )}
+                        </View>
+                        <Text style={styles.gridCell}>{item.remark || '—'}</Text>
+                        <View style={[styles.gridCell, styles.actionsCell]}>
+                          <TouchableOpacity
+                            style={styles.gridActionBtn}
+                            onPress={() => {
+                              Alert.alert(
+                                'Delete Payment Detail',
+                                'Are you sure you want to delete this payment detail?',
+                                [
+                                  {text: 'Cancel', style: 'cancel'},
+                                  {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: () => {
+                                      // Remove from paymentDetails state
+                                      setPaymentDetails(prev =>
+                                        prev.filter(
+                                          detail => detail.id !== item.id,
+                                        ),
+                                      );
+                                    },
+                                  },
+                                ],
+                              );
+                            }}>
+                            <Icon name="trash-can" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                // Show the normal expense items grid for new requests
+                expenseItems.length > 0 && (
+                  <View style={styles.gridContainer}>
+                    {/* Grid Header */}
+                    <View style={styles.gridHeader}>
+                      <Text style={styles.gridHeaderText}>Date</Text>
+                      <Text style={styles.gridHeaderText}>Expense Head</Text>
+                      <Text style={styles.gridHeaderText}>Title</Text>
+                      <Text style={styles.gridHeaderText}>Amount</Text>
+                      <Text style={styles.gridHeaderText}>Document</Text>
+                      <Text style={styles.gridHeaderText}>Actions</Text>
+                    </View>
+
+                    {/* Grid Rows */}
+                    {expenseItems.map(item => (
+                      <View key={item.id} style={styles.gridRow}>
+                        <Text style={styles.gridCell}>
+                          {formatDate(item.date)}
+                        </Text>
+                        <Text style={styles.gridCell}>{item.head}</Text>
+                        <Text style={styles.gridCell}>{item.title || '—'}</Text>
+                        <Text style={styles.gridCell}>
+                          ₹{formatCurrency(item.amount)}
+                        </Text>
+                        <View style={styles.gridCell}>
+                          {item.document ? (
+                            <Icon
+                              name="file-check-outline"
+                              size={20}
+                              color="#10B981"
+                            />
+                          ) : (
+                            <Icon
+                              name="file-remove-outline"
+                              size={20}
+                              color="#EF4444"
+                            />
+                          )}
+                        </View>
+                        <View style={[styles.gridCell, styles.actionsCell]}>
+                          <TouchableOpacity
+                            style={styles.gridActionBtn}
+                            onPress={() => handleDeleteExpense(item.id)}>
+                            <Icon name="trash-can" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )
               )}
             </View>
-
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={openAddExpenseModal}
-              disabled={!!expenceData} // Disable add button in edit mode
-            >
-              <Icon name="plus" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>
-                {expenceData ? 'Add' : 'Add Expense'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Show paymentDetails in edit mode */}
-            {expenceData && paymentDetails && paymentDetails.length > 0 ? (
-              <View style={{marginTop: 16}}>
-                <Text
-                  style={{fontWeight: 'bold', fontSize: 16, marginBottom: 8}}>
-                  Payment Details
-                </Text>
-                <View style={styles.gridContainer}>
-                  <View style={styles.gridHeader}>
-                    <Text style={styles.gridHeaderText}>Date</Text>
-                    <Text style={styles.gridHeaderText}>Expense Head</Text>
-                    <Text style={styles.gridHeaderText}>Amount</Text>
-                    <Text style={styles.gridHeaderText}>Document</Text>
-                    <Text style={styles.gridHeaderText}>Remarks</Text>
-                    <Text style={styles.gridHeaderText}>Actions</Text>
-                  </View>
-                  {paymentDetails.map(item => (
-                    <View key={item.id} style={styles.gridRow}>
-                      <Text style={styles.gridCell}>
-                        {item.transactionDate
-                          ? new Date(item.transactionDate).toLocaleDateString()
-                          : '—'}
-                      </Text>
-                      <Text style={styles.gridCell}>
-                        {item.expenseHead || '—'}
-                      </Text>
-                      <Text style={styles.gridCell}>
-                        ₹{formatCurrency(item.amount)}
-                      </Text>
-                      <View style={styles.gridCell}>
-                        {item.documentPath ? (
-                          <Icon
-                            name="file-check-outline"
-                            size={20}
-                            color="#10B981"
-                          />
-                        ) : (
-                          <Icon
-                            name="file-remove-outline"
-                            size={20}
-                            color="#EF4444"
-                          />
-                        )}
-                      </View>
-                      <Text style={styles.gridCell}>{item.remark || '—'}</Text>
-                      <View style={[styles.gridCell, styles.actionsCell]}>
-                        <TouchableOpacity
-                          style={styles.gridActionBtn}
-                          onPress={() => {
-                            Alert.alert(
-                              'Delete Payment Detail',
-                              'Are you sure you want to delete this payment detail?',
-                              [
-                                {text: 'Cancel', style: 'cancel'},
-                                {
-                                  text: 'Delete',
-                                  style: 'destructive',
-                                  onPress: () => {
-                                    // Remove from paymentDetails state
-                                    setPaymentDetails(prev =>
-                                      prev.filter(
-                                        detail => detail.id !== item.id,
-                                      ),
-                                    );
-                                  },
-                                },
-                              ],
-                            );
-                          }}>
-                          <Icon name="trash-can" size={18} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              // Show the normal expense items grid for new requests
-              expenseItems.length > 0 && (
-                <View style={styles.gridContainer}>
-                  {/* Grid Header */}
-                  <View style={styles.gridHeader}>
-                    <Text style={styles.gridHeaderText}>Date</Text>
-                    <Text style={styles.gridHeaderText}>Expense Head</Text>
-                    <Text style={styles.gridHeaderText}>Title</Text>
-                    <Text style={styles.gridHeaderText}>Amount</Text>
-                    <Text style={styles.gridHeaderText}>Document</Text>
-                    <Text style={styles.gridHeaderText}>Actions</Text>
-                  </View>
-
-                  {/* Grid Rows */}
-                  {expenseItems.map(item => (
-                    <View key={item.id} style={styles.gridRow}>
-                      <Text style={styles.gridCell}>
-                        {formatDate(item.date)}
-                      </Text>
-                      <Text style={styles.gridCell}>{item.head}</Text>
-                      <Text style={styles.gridCell}>{item.title || '—'}</Text>
-                      <Text style={styles.gridCell}>
-                        ₹{formatCurrency(item.amount)}
-                      </Text>
-                      <View style={styles.gridCell}>
-                        {item.document ? (
-                          <Icon
-                            name="file-check-outline"
-                            size={20}
-                            color="#10B981"
-                          />
-                        ) : (
-                          <Icon
-                            name="file-remove-outline"
-                            size={20}
-                            color="#EF4444"
-                          />
-                        )}
-                      </View>
-                      <View style={[styles.gridCell, styles.actionsCell]}>
-                        <TouchableOpacity
-                          style={styles.gridActionBtn}
-                          onPress={() => handleDeleteExpense(item.id)}>
-                          <Icon name="trash-can" size={18} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )
-            )}
-          </View>
-        )}
+          )}
 
        
-        <View style={styles.totalAmountContainer}>
-          <Text style={styles.label}>Total Amount</Text>
-          {/* <TextInput
-            value={
-              requestType === 'advance'
-                ? totalAmount.toString()
-                : `₹${totalAmount}`
-            }
-            editable={requestType === 'advance' && !expenceData?.status?.toLowerCase()?.includes('approved')} 
-            onChangeText={value => {
-              if (requestType === 'advance') {
-                // const numericValue = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
-                setTotalAmount(value);
+          <View style={styles.totalAmountContainer}>
+            <Text style={styles.label}>Total Amount</Text>
+            {/* <TextInput
+              value={
+                requestType === 'advance'
+                  ? totalAmount.toString()
+                  : `₹${totalAmount}`
               }
-            }}
-            style={[
-              styles.input, 
-              styles.totalAmountInput,
-              {color: '#000'} // Ensure text is visible
-            ]}
-            keyboardType="numeric"
-          /> */}
+              editable={requestType === 'advance' && !expenceData?.status?.toLowerCase()?.includes('approved')} 
+              onChangeText={value => {
+                if (requestType === 'advance') {
+                  // const numericValue = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
+                  setTotalAmount(value);
+                }
+              }}
+              style={[
+                styles.input, 
+                styles.totalAmountInput,
+                {color: '#000'} // Ensure text is visible
+              ]}
+              keyboardType="numeric"
+            /> */}
 
-          <TextInput
-            value={
-              requestType === 'advance'
-                ? totalAmount.toString()
-                : `₹${totalAmount}`
-            }
-            placeholder={
-              requestType === 'advance'
-                ? 'Enter advance amount'
-                : 'Total amount (auto-calculated)'
-            }
-            editable={
-              requestType === 'advance' &&
-              !expenceData?.status?.toLowerCase()?.includes('approved')
-            }
-            onChangeText={value => {
-              if (requestType === 'advance') {
-                setTotalAmount(value);
-              }
-            }}
-            style={[
-              styles.input,
-              styles.totalAmountInput,
-              {color: '#000'}, // Ensure text is visible
-            ]}
-            keyboardType="numeric"
-          />
-        </View>
-
-        {/* Remarks */}
-        <Text style={styles.label}>
-          Remarks <Text style={styles.required}>*</Text>
-          {errors.remarks && (
-            <Text style={styles.errorText}> {errors.remarks.message}</Text>
-          )}
-        </Text>
-        <Controller
-          control={control}
-          name="remarks"
-          rules={{required: 'Remarks are required'}}
-          render={({field: {onChange, onBlur, value}}) => (
             <TextInput
-              value={value || ''}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="Add Remarks"
-              multiline
+              value={
+                requestType === 'advance'
+                  ? totalAmount.toString()
+                  : `₹${totalAmount}`
+              }
+              placeholder={
+                requestType === 'advance'
+                  ? 'Enter advance amount'
+                  : 'Total amount (auto-calculated)'
+              }
+              editable={
+                requestType === 'advance' &&
+                !expenceData?.status?.toLowerCase()?.includes('approved')
+              }
+              onChangeText={value => {
+                if (requestType === 'advance') {
+                  setTotalAmount(value);
+                }
+              }}
               style={[
                 styles.input,
-                {height: 100, textAlignVertical: 'top'},
-                errors.remarks && styles.errorInput,
+                styles.totalAmountInput,
+                {color: '#000'}, // Ensure text is visible
               ]}
+              keyboardType="numeric"
             />
-          )}
-        />
+          </View>
 
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            expenceData && {backgroundColor: '#0891B2'},
-          ]}
-          onPress={handleSubmit(onSubmit)}>
-          <Text style={styles.submitText}>
-            {expenceData ? 'Update' : 'Submit'}
+          {/* Remarks */}
+          <Text style={styles.label}>
+            Remarks <Text style={styles.required}>*</Text>
+            {errors.remarks && (
+              <Text style={styles.errorText}> {errors.remarks.message}</Text>
+            )}
           </Text>
-        </TouchableOpacity>
+          <Controller
+            control={control}
+            name="remarks"
+            rules={{required: 'Remarks are required'}}
+            render={({field: {onChange, onBlur, value}}) => (
+              <TextInput
+                value={value || ''}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="Add Remarks"
+                multiline
+                style={[
+                  styles.input,
+                  {height: 100, textAlignVertical: 'top'},
+                  errors.remarks && styles.errorInput,
+                ]}
+              />
+            )}
+          />
 
-        {/* Show a Cancel button when editing */}
-        {expenceData && (
+          {/* Submit Button */}
           <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            style={[
+              styles.submitBtn,
+              expenceData && {backgroundColor: '#0891B2'},
+            ]}
+            onPress={handleSubmit(onSubmit)}>
+            <Text style={styles.submitText}>
+              {expenceData ? 'Update' : 'Submit'}
+            </Text>
           </TouchableOpacity>
-        )}
-      </ScrollView>
+
+          {/* Show a Cancel button when editing */}
+          {expenceData && (
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => navigation.goBack()}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </ScrollAwareContainer>
 
       
       <Modal

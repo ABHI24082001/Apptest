@@ -45,6 +45,9 @@ import {pick} from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
 import {useAuth} from '../constants/AuthContext';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
+
 const EditableField = ({
   icon,
   label,
@@ -1327,160 +1330,158 @@ const ProfileScreen = () => {
   return (
     <PaperProvider>
       <AppSafeArea>
-        <Appbar.Header style={styles.header}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Profile" titleStyle={styles.headerTitle} />
-          {isEditing ? (
-            <>
-              <Appbar.Action
-                icon="check"
-                iconColor="#4CAF50"
-                onPress={handleSave}
-              />
-              <Appbar.Action
-                icon="close"
-                iconColor="#F44336"
-                onPress={handleCancelEdit}
-              />
-            </>
-          ) : (
-            <>
-              <Appbar.Action
-                icon="lock-reset"
-                iconColor="#2196F3"
-                onPress={() => setIsPasswordModalVisible(true)}
-              />
-              <Appbar.Action
-                icon="pencil"
-                iconColor="#2196F3"
-                onPress={() => setIsEditing(true)}
-              />
-            </>
-          )}
-        </Appbar.Header>
-
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }>
-          {/* Enhanced Profile Header Card with LinearGradient */}
-          <View style={styles.profileHeaderContainer}>
-            <LinearGradient
-              colors={['#3B82F6', '#2563EB', '#3B82F6']}
-              style={styles.headerGradient}>
-              <View style={styles.headerCurve} />
-
-              <View style={styles.profileHeaderContent}>
-                {/* Profile Image Section */}
+        <CustomHeader 
+          title="Profile" 
+          navigation={navigation}
+          rightComponent={
+            isEditing ? (
+              <View style={{ flexDirection: 'row' }}>
                 <TouchableOpacity
-                  onPress={handleProfilePhotoUpdate}
-                  style={styles.modernProfileImageContainer}>
-                  <Image
-                    source={
-                      uploadedPhoto
-                        ? {uri: uploadedPhoto.uri}
-                        : imageUrll
-                        ? {uri: imageUrll}
-                        : {
-                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
-                          }
-                    }
-                    style={styles.modernProfileImage}
-                  />
-                  <View style={styles.editIconContainer}>
-                    <Icon name="camera" size={14} color="#fff" />
-                  </View>
+                  onPress={handleSave}
+                  style={{ paddingHorizontal: 8 }}>
+                  <Icon name="check" size={24} color="#4CAF50" />
                 </TouchableOpacity>
-
-                {/* Profile Info Section */}
-                <View style={styles.profileInfoContainer}>
-                  <Text style={styles.modernProfileName}>
-                    {employeeDetails.employeeName}
-                  </Text>
-                  <Text style={styles.modernProfileDesignation}>
-                    {employeeDetails.designationName}
-                  </Text>
-
-                  {/* Employee Status Badge */}
-                  {/* <View style={styles.statusBadge}>
-                    <Icon name="check-circle" size={14} color="#4CAF50" />
-                    <Text style={styles.statusText}>Active Employee</Text>
-                  </View> */}
-                </View>
+                <TouchableOpacity
+                  onPress={handleCancelEdit}
+                  style={{ paddingHorizontal: 8 }}>
+                  <Icon name="close" size={24} color="#F44336" />
+                </TouchableOpacity>
               </View>
-
-              {/* Quick Stats Cards */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                  <Icon name="calendar-clock" size={24} color="#4c669f" />
-                  <Text style={styles.statValue}>
-                    {employeeDetails.employeeId}
-                  </Text>
-                  <Text style={styles.statLabel}>Emp ID</Text>
-                </View>
-
-                <View style={styles.statCard}>
-                  <Icon name="domain" size={24} color="#4c669f" />
-                  <Text style={styles.statValue}>
-                    {employeeDetails.departmentName}
-                  </Text>
-                  <Text style={styles.statLabel}>Department</Text>
-                </View>
-
-                <View style={styles.statCard}>
-                  <Icon name="office-building" size={24} color="#4c669f" />
-                  <Text style={styles.statValue}>
-                    {employeeDetails.branchName}
-                  </Text>
-                  <Text style={styles.statLabel}>Branch</Text>
-                </View>
+            ) : (
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity
+                  onPress={() => setIsPasswordModalVisible(true)}
+                  style={{ paddingHorizontal: 8 }}>
+                  <Icon name="lock-reset" size={24} color="#2196F3" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setIsEditing(true)}
+                  style={{ paddingHorizontal: 8 }}>
+                  <Icon name="pencil" size={24} color="#2196F3" />
+                </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </View>
+            )
+          }
+        />
 
-          {/* Profile Sections */}
-          <ProfileSection
-            title="General Information"
-            icon="information-outline"
-            data={generalInfoData}
-            isEditing={isEditing}
-            editedFields={editedFields}
-            setEditedFields={setEditedFields}
-            onEdit={handleEdit}
-          />
+        <ScrollAwareContainer navigation={navigation} currentRoute="Profile">
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }>
+            {/* Enhanced Profile Header Card with LinearGradient */}
+            <View style={styles.profileHeaderContainer}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB', '#3B82F6']}
+                style={styles.headerGradient}>
+                <View style={styles.headerCurve} />
 
-          <ProfileSection
-            title="Contact Information"
-            icon="phone-outline"
-            data={contactData}
-            isEditing={isEditing}
-            editedFields={editedFields}
-            setEditedFields={setEditedFields}
-            onEdit={handleEdit}
-          />
+                <View style={styles.profileHeaderContent}>
+                  {/* Profile Image Section */}
+                  <TouchableOpacity
+                    onPress={handleProfilePhotoUpdate}
+                    style={styles.modernProfileImageContainer}>
+                    <Image
+                      source={
+                        uploadedPhoto
+                          ? {uri: uploadedPhoto.uri}
+                          : imageUrll
+                          ? {uri: imageUrll}
+                          : {
+                              uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
+                            }
+                      }
+                      style={styles.modernProfileImage}
+                    />
+                    <View style={styles.editIconContainer}>
+                      <Icon name="camera" size={14} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
 
-          <ProfileSection
-            title="Account Credentials"
-            icon="shield-account-outline"
-            data={credentialsData}
-            isEditing={false}
-            editedFields={editedFields}
-            setEditedFields={setEditedFields}
-            onEdit={handleEdit}
-          />
+                  {/* Profile Info Section */}
+                  <View style={styles.profileInfoContainer}>
+                    <Text style={styles.modernProfileName}>
+                      {employeeDetails.employeeName}
+                    </Text>
+                    <Text style={styles.modernProfileDesignation}>
+                      {employeeDetails.designationName}
+                    </Text>
+                  </View>
+                </View>
 
-          <ProfileSection
-            title="Professional Details"
-            icon="briefcase-outline"
-            data={professionalData}
-            isEditing={false}
-            editedFields={editedFields}
-            setEditedFields={setEditedFields}
-            onEdit={handleEdit}
-          />
-        </ScrollView>
+                {/* Quick Stats Cards */}
+                <View style={styles.statsContainer}>
+                  <View style={styles.statCard}>
+                    <Icon name="calendar-clock" size={24} color="#4c669f" />
+                    <Text style={styles.statValue}>
+                      {employeeDetails.employeeId}
+                    </Text>
+                    <Text style={styles.statLabel}>Emp ID</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <Icon name="domain" size={24} color="#4c669f" />
+                    <Text style={styles.statValue}>
+                      {employeeDetails.departmentName}
+                    </Text>
+                    <Text style={styles.statLabel}>Department</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <Icon name="office-building" size={24} color="#4c669f" />
+                    <Text style={styles.statValue}>
+                      {employeeDetails.branchName}
+                    </Text>
+                    <Text style={styles.statLabel}>Branch</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
+
+            {/* Profile Sections */}
+            <ProfileSection
+              title="General Information"
+              icon="information-outline"
+              data={generalInfoData}
+              isEditing={isEditing}
+              editedFields={editedFields}
+              setEditedFields={setEditedFields}
+              onEdit={handleEdit}
+            />
+
+            <ProfileSection
+              title="Contact Information"
+              icon="phone-outline"
+              data={contactData}
+              isEditing={isEditing}
+              editedFields={editedFields}
+              setEditedFields={setEditedFields}
+              onEdit={handleEdit}
+            />
+
+            <ProfileSection
+              title="Account Credentials"
+              icon="shield-account-outline"
+              data={credentialsData}
+              isEditing={false}
+              editedFields={editedFields}
+              setEditedFields={setEditedFields}
+              onEdit={handleEdit}
+            />
+
+            <ProfileSection
+              title="Professional Details"
+              icon="briefcase-outline"
+              data={professionalData}
+              isEditing={false}
+              editedFields={editedFields}
+              setEditedFields={setEditedFields}
+              onEdit={handleEdit}
+            />
+          </ScrollView>
+        </ScrollAwareContainer>
 
         {/* Change Password Modal */}
         <ChangePasswordModal
@@ -1489,8 +1490,6 @@ const ProfileScreen = () => {
           onSubmit={handlePasswordChange}
           loading={passwordLoading}
         />
-
-        {/* Removed FAB button */}
       </AppSafeArea>
     </PaperProvider>
   );

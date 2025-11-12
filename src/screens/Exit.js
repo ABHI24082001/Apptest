@@ -24,6 +24,8 @@ import FeedbackModal from '../component/FeedbackModal';
 import LeaveHeader from '../component/LeaveHeader';
 import styles from '../Stylesheet/Exitcss';
 import LinearGradient from 'react-native-linear-gradient';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const GradientHeader = ({children, style}) => (
   <LinearGradient
@@ -281,19 +283,7 @@ const ExitApplyScreen = ({navigation}) => {
   if (checkingStatus) {
     return (
       <AppSafeArea>
-        <GradientHeader>
-          <Appbar.Header style={styles.gradientHeader}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}>
-              <Icon name="chevron-left" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Appbar.Content
-              title="Exit Application"
-              titleStyle={styles.headerTitle}
-            />
-          </Appbar.Header>
-        </GradientHeader>
+        <CustomHeader title="Exit Application" navigation={navigation} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.loadingText}>Checking application status...</Text>
@@ -306,19 +296,7 @@ const ExitApplyScreen = ({navigation}) => {
   if (hasActiveRequest) {
     return (
       <AppSafeArea>
-        <GradientHeader>
-          <Appbar.Header style={styles.gradientHeader}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}>
-              <Icon name="chevron-left" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Appbar.Content
-              title="Exit Application"
-              titleStyle={styles.headerTitle}
-            />
-          </Appbar.Header>
-        </GradientHeader>
+        <CustomHeader title="Exit Application" navigation={navigation} />
 
         <View style={styles.redirectContainer}>
           <Icon name="alert-circle-outline" size={48} color="#EF4444" />
@@ -340,129 +318,111 @@ const ExitApplyScreen = ({navigation}) => {
 
   return (
     <AppSafeArea>
-      <GradientHeader>
-        <Appbar.Header style={styles.gradientHeader}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Icon name="chevron-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Appbar.Content
-            title="Exit Application"
-            titleStyle={styles.headerTitle}
-          />
-        </Appbar.Header>
-      </GradientHeader>
+      <CustomHeader title="Exit Application" navigation={navigation} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={styles.container}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          {/* Header Section */}
-          {/* <View style={styles.headerSection}>
-            <Icon name="exit-run" size={40} color="#3B82F6" />
-            <Text style={styles.headerText}>Request Exit</Text>
-            <Text style={styles.subHeaderText}>
-              Please fill in the details below to submit your exit request
-            </Text>
-          </View> */}
+      <ScrollAwareContainer>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.flex}>
+          <ScrollView
+            contentContainerStyle={styles.container}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            
+            <LeaveHeader
+              title="Exit Request"
+              subtitle="Please fill in the details below to submit your exit request"
+              iconName="exit-run"
+            />
 
-          <LeaveHeader
-            title="Exit Request"
-            subtitle="Please fill in the details below to submit your exit request"
-            iconName="exit-run"
-          />
-
-          {/* Form Section */}
-          <View style={styles.formContainer}>
-            {/* Exit Date */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Exit Date <Text style={{color: 'red'}}>*</Text>
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
-                activeOpacity={0.7}>
-                <View style={styles.dateInputWrapper}>
-                  <Icon
-                    name="calendar"
-                    size={20}
-                    color="#3B82F6"
-                    style={styles.dateIcon}
-                  />
-                  <Text style={styles.dateText}>
-                    {moment(exitDate).format('MMMM D, YYYY')}
-                  </Text>
-                  <Icon name="chevron-down" size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-              {errors.exitDate && (
-                <Text style={styles.errorText}>Exit Date is required</Text>
-              )}
-            </View>
-
-            {/* Reason / Remarks */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Reason for Exit <Text style={{color: 'red'}}>*</Text>
-              </Text>
-              <Controller
-                control={control}
-                name="reason"
-                rules={{
-                  required: 'Reason is required',
-                  maxLength: {
-                    value: 100,
-                    message: 'Reason cannot exceed 100 characters',
-                  },
-                }}
-                render={({field: {onChange, value}}) => (
-                  <TextInput
-                    placeholder="Explain your reason for leaving....."
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    numberOfLines={5}
-                    value={value}
-                    onChangeText={text => {
-                      // Limit text to 100 characters
-                      if (text.length <= 100) {
-                        onChange(text);
-                      }
-                    }}
-                    style={styles.textArea}
-                  />
+            {/* Form Section */}
+            <View style={styles.formContainer}>
+              {/* Exit Date */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>
+                  Exit Date <Text style={{color: 'red'}}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}>
+                  <View style={styles.dateInputWrapper}>
+                    <Icon
+                      name="calendar"
+                      size={20}
+                      color="#3B82F6"
+                      style={styles.dateIcon}
+                    />
+                    <Text style={styles.dateText}>
+                      {moment(exitDate).format('MMMM D, YYYY')}
+                    </Text>
+                    <Icon name="chevron-down" size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+                {errors.exitDate && (
+                  <Text style={styles.errorText}>Exit Date is required</Text>
                 )}
-              />
-              <Text
-                style={[
-                  styles.charCount,
-                  watch('reason')?.length >= 100 ? {color: 'red'} : {},
-                ]}>
-                {watch('reason')?.length || 0}/100 characters
-              </Text>
-              {errors.reason && (
-                <Text style={styles.errorText}>{errors.reason.message}</Text>
-              )}
-            </View>
+              </View>
 
-            {/* Submit Button */}
-            <Button
-              mode="contained"
-              onPress={handleSubmit(onSubmit)}
-              style={styles.submitButtonSmall}
-              contentStyle={styles.buttonContentSmall}
-              labelStyle={styles.buttonLabelSmall}
-              icon="send-check"
-              disabled={isSubmitting}
-              loading={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Submit'}
-            </Button>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {/* Reason / Remarks */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>
+                  Reason for Exit <Text style={{color: 'red'}}>*</Text>
+                </Text>
+                <Controller
+                  control={control}
+                  name="reason"
+                  rules={{
+                    required: 'Reason is required',
+                    maxLength: {
+                      value: 100,
+                      message: 'Reason cannot exceed 100 characters',
+                    },
+                  }}
+                  render={({field: {onChange, value}}) => (
+                    <TextInput
+                      placeholder="Explain your reason for leaving....."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      numberOfLines={5}
+                      value={value}
+                      onChangeText={text => {
+                        // Limit text to 100 characters
+                        if (text.length <= 100) {
+                          onChange(text);
+                        }
+                      }}
+                      style={styles.textArea}
+                    />
+                  )}
+                />
+                <Text
+                  style={[
+                    styles.charCount,
+                    watch('reason')?.length >= 100 ? {color: 'red'} : {},
+                  ]}>
+                  {watch('reason')?.length || 0}/100 characters
+                </Text>
+                {errors.reason && (
+                  <Text style={styles.errorText}>{errors.reason.message}</Text>
+                )}
+              </View>
+
+              {/* Submit Button */}
+              <Button
+                mode="contained"
+                onPress={handleSubmit(onSubmit)}
+                style={styles.submitButtonSmall}
+                contentStyle={styles.buttonContentSmall}
+                labelStyle={styles.buttonLabelSmall}
+                icon="send-check"
+                disabled={isSubmitting}
+                loading={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit'}
+              </Button>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ScrollAwareContainer>
 
       {/* Date Pickers */}
       <DatePicker

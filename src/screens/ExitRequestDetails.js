@@ -32,6 +32,9 @@ import {useAuth} from '../constants/AuthContext';
 import DatePicker from 'react-native-date-picker';
 import FeedbackModal from '../component/FeedbackModal';
 import styles from '../Stylesheet/ExitRequestdetailscss';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
+
 // Helper to format date string as DD-MM-YYYY
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -671,21 +674,14 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
 
   return (
     <AppSafeArea>
-      {/* Header with Gradient Background */}
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction
-          onPress={() => navigation.goBack()}
-          color="#4B5563"
-        />
-        <Appbar.Content
-          title={
-            isAccountRole
-              ? "Account's Exit Requests"
-              : "Employee's Exit Request"
-          }
-          titleStyle={styles.headerTitle}
-        />
-      </Appbar.Header>
+      <CustomHeader 
+        title={
+          isAccountRole
+            ? "Account's Exit Requests"
+            : "Employee's Exit Request"
+        }
+        navigation={navigation} 
+      />
 
       {/* Feedback Modal */}
       <FeedbackModal
@@ -695,433 +691,434 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
         onClose={() => setFeedbackVisible(false)}
       />
 
-      {/* Exit Request Cards */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>
-              Loading exit request details...
-            </Text>
-          </View>
-        ) : requests.length > 0 ? (
-          <>
-            {/* Horizontal Employee Request Cards */}
-            <Text style={styles.sectionTitle}>
-              {isAccountRole
-                ? 'Pending Account Clearance Requests'
-                : 'Pending Exit Requests'}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollView}>
-              {requests.map((request, index) => (
-                <TouchableOpacity
-                  key={request.id}
-                  style={[
-                    styles.requestItem,
-                    selectedRequest?.id === request.id &&
-                      styles.selectedRequestItem,
-                  ]}
-                  onPress={() => setSelectedRequest(request)}>
-                  <View style={styles.requestItemContent}>
-                    <View style={styles.requestNameRow}>
-                      <Text style={styles.requestName} numberOfLines={1}>
-                        {request.empName || 'N/A'}
-                      </Text>
-                      <View
-                        style={[
-                          styles.miniStatusIndicator,
-                          {
-                            backgroundColor: getStatusColor(
-                              isAccountRole
-                                ? request.accountStatus
-                                : request.applicationStatus,
-                            ),
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.requestCode} numberOfLines={1}>
-                      {request.employeeCode || 'N/A'}
-                    </Text>
-                    <Text style={styles.requestDate} numberOfLines={1}>
-                      Exit: {formatDate(request.exitDt)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Detail Card */}
-            <Card style={styles.formCard}>
-              <Card.Content>
-                {/* Employee Info Section */}
-                <Card style={styles.employeeInfoCard}>
-                  <Card.Content>
-                    <View style={styles.employeeInfoContainer}>
-                      <View style={styles.employeeDetails}>
-                        <Text style={styles.employeeName}>
-                          {selectedRequest?.empName || 'Employee Name'}
+      <ScrollAwareContainer navigation={navigation} currentRoute="ExitRequestDetails">
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#3B82F6" />
+              <Text style={styles.loadingText}>
+                Loading exit request details...
+              </Text>
+            </View>
+          ) : requests.length > 0 ? (
+            <>
+              {/* Horizontal Employee Request Cards */}
+              <Text style={styles.sectionTitle}>
+                {isAccountRole
+                  ? 'Pending Account Clearance Requests'
+                  : 'Pending Exit Requests'}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScrollView}>
+                {requests.map((request, index) => (
+                  <TouchableOpacity
+                    key={request.id}
+                    style={[
+                      styles.requestItem,
+                      selectedRequest?.id === request.id &&
+                        styles.selectedRequestItem,
+                    ]}
+                    onPress={() => setSelectedRequest(request)}>
+                    <View style={styles.requestItemContent}>
+                      <View style={styles.requestNameRow}>
+                        <Text style={styles.requestName} numberOfLines={1}>
+                          {request.empName || 'N/A'}
                         </Text>
-                        <View style={[styles.statusBadgeContainer]}>
-                          <View
-                            style={[
-                              styles.statusIndicator,
-                              {
-                                backgroundColor: getStatusColor(
-                                  isAccountRole
-                                    ? selectedRequest?.accountStatus
-                                    : selectedRequest?.applicationStatus,
-                                ),
-                              },
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              styles.statusText,
-                              {
-                                color: getStatusColor(
-                                  isAccountRole
-                                    ? selectedRequest?.accountStatus
-                                    : selectedRequest?.applicationStatus,
-                                ),
-                              },
-                            ]}>
-                            {isAccountRole
-                              ? selectedRequest?.accountStatus || 'Pending'
-                              : selectedRequest?.applicationStatus || 'Pending'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.employeeDate}>
-                        <Text style={styles.employeeDesignation}>
-                          {selectedRequest?.empDesignation || 'Designation'}
-                        </Text>
-                        <Text style={styles.employeeDepartment}>
-                          {selectedRequest?.empDepartment || 'Department'}
-                        </Text>
-                      </View>
-
-                      {/* Employee Code */}
-                      <Text style={styles.employeeCode}>
-                        Employee Code: {selectedRequest?.employeeCode || 'N/A'}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-
-                {/* Card for date fields and reason in row format */}
-                <Card style={styles.dataCard}>
-                  <Card.Content>
-                    {/* Row for Applied Date */}
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon name="calendar-plus" size={20} color="#3B82F6" />
-                        <Text style={styles.dataLabel}>Applied Date :</Text>
-                      </View>
-                      <Text style={styles.dataValue}>
-                        {selectedRequest
-                          ? formatDate(selectedRequest.appliedDt)
-                          : 'N/A'}
-                      </Text>
-                    </View>
-
-                    {/* Row for Exit Date */}
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon
-                          name="calendar-remove"
-                          size={20}
-                          color="#EF4444"
+                        <View
+                          style={[
+                            styles.miniStatusIndicator,
+                            {
+                              backgroundColor: getStatusColor(
+                                isAccountRole
+                                  ? request.accountStatus
+                                  : request.applicationStatus,
+                              ),
+                            },
+                          ]}
                         />
-                        <Text style={styles.dataLabel}>Exit Date :</Text>
                       </View>
-                      <Text style={styles.dataValue}>
-                        {selectedRequest
-                          ? formatDate(selectedRequest.exitDt)
-                          : 'N/A'}
+                      <Text style={styles.requestCode} numberOfLines={1}>
+                        {request.employeeCode || 'N/A'}
+                      </Text>
+                      <Text style={styles.requestDate} numberOfLines={1}>
+                        Exit: {formatDate(request.exitDt)}
                       </Text>
                     </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
-                    {/* Row for Reasons */}
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon
-                          name="information-outline"
-                          size={20}
-                          color="#8B5CF6"
-                        />
-                        <Text style={styles.dataLabel}>Reasons :</Text>
-                      </View>
-                      <Text style={styles.dataValue}>
-                        {selectedRequest?.exitReasons || 'N/A'}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-
-                {/* Status Info Card - Show for all roles with appropriate information */}
-                <Card style={[styles.dataCard, {borderLeftColor: '#F59E0B'}]}>
-                  <Card.Content>
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon
-                          name="account-supervisor"
-                          size={20}
-                          color="#F59E0B"
-                        />
-                        <Text style={styles.dataLabel}>Supervisor:</Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.dataValue,
-                          {
-                            color: getStatusColor(
-                              selectedRequest?.supervisorStatus,
-                            ),
-                          },
-                        ]}>
-                        {selectedRequest?.supervisorStatus || 'Pending'}
-                        {selectedRequest?.supervisorRemarks &&
-                          ` (${selectedRequest.supervisorRemarks})`}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon name="account-cash" size={20} color="#F59E0B" />
-                        <Text style={styles.dataLabel}>Account:</Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.dataValue,
-                          {
-                            color: getStatusColor(
-                              selectedRequest?.accountStatus,
-                            ),
-                          },
-                        ]}>
-                        {selectedRequest?.accountStatus || 'Pending'}
-                        {selectedRequest?.accountRemarks &&
-                          ` (${selectedRequest.accountRemarks})`}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon name="account-tie" size={20} color="#F59E0B" />
-                        <Text style={styles.dataLabel}>HR:</Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.dataValue,
-                          {color: getStatusColor(selectedRequest?.hrstatus)},
-                        ]}>
-                        {selectedRequest?.hrstatus || 'Pending'}
-                        {selectedRequest?.hrremarks &&
-                          ` (${selectedRequest.hrremarks})`}
-                      </Text>
-                    </View>
-                    <View style={styles.dataRow}>
-                      <View style={styles.dataLabelContainer}>
-                        <Icon name="account-tie" size={20} color="#F59E0B" />
-                        <Text style={styles.dataLabel}>
-                          Application Status:
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.dataValue,
-                          {
-                            color: getStatusColor(
-                              selectedRequest?.applicationStatus,
-                            ),
-                          },
-                        ]}>
-                        {selectedRequest?.applicationStatus &&
-                          ` ${selectedRequest.applicationStatus}`}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-
-                {/* Only show contingent employee selection for HR */}
-                {isAuthorizedForFinalApproval && (
-                  <View style={styles.formField}>
-                    <Text style={styles.formLabel}>
-                      Authorized Person's Status
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={statusAction}
-                        style={styles.picker}
-                        onValueChange={itemValue => setStatusAction(itemValue)}>
-                        <Picker.Item label="Select Action" value="" />
-                        {statusActions.map(action => (
-                          <Picker.Item
-                            key={action.id}
-                            label={action.label}
-                            value={action.id}
-                          />
-                        ))}
-                      </Picker>
-                    </View>
-                  </View>
-                )}
-
-                {/* HR Exit Date - Only show for HR */}
-                {isAuthorizedForFinalApproval && (
-                  <Card style={[styles.dataCard, {borderLeftColor: '#8B5CF6'}]}>
-                    <Card.Title title="HR Approval Date Range" />
+              {/* Detail Card */}
+              <Card style={styles.formCard}>
+                <Card.Content>
+                  {/* Employee Info Section */}
+                  <Card style={styles.employeeInfoCard}>
                     <Card.Content>
-                      <View style={styles.dateRangeContainer}>
-                        {/* From Date Selection */}
-                        <View style={styles.datePickerField}>
-                          <Text style={styles.datePickerLabel}>
-                            Select Exit Date
+                      <View style={styles.employeeInfoContainer}>
+                        <View style={styles.employeeDetails}>
+                          <Text style={styles.employeeName}>
+                            {selectedRequest?.empName || 'Employee Name'}
                           </Text>
-                          <TouchableOpacity
-                            style={styles.datePickerButton}
-                            onPress={() => setShowFromPicker(true)}>
-                            <Text style={styles.datePickerText}>
-                              {fromDate ? formatDate(fromDate) : 'Select Date'}
+                          <View style={[styles.statusBadgeContainer]}>
+                            <View
+                              style={[
+                                styles.statusIndicator,
+                                {
+                                  backgroundColor: getStatusColor(
+                                    isAccountRole
+                                      ? selectedRequest?.accountStatus
+                                      : selectedRequest?.applicationStatus,
+                                  ),
+                                },
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.statusText,
+                                {
+                                  color: getStatusColor(
+                                    isAccountRole
+                                      ? selectedRequest?.accountStatus
+                                      : selectedRequest?.applicationStatus,
+                                  ),
+                                },
+                              ]}>
+                              {isAccountRole
+                                ? selectedRequest?.accountStatus || 'Pending'
+                                : selectedRequest?.applicationStatus || 'Pending'}
                             </Text>
-                            <Icon name="calendar" size={20} color="#3B82F6" />
-                          </TouchableOpacity>
+                          </View>
                         </View>
+
+                        <View style={styles.employeeDate}>
+                          <Text style={styles.employeeDesignation}>
+                            {selectedRequest?.empDesignation || 'Designation'}
+                          </Text>
+                          <Text style={styles.employeeDepartment}>
+                            {selectedRequest?.empDepartment || 'Department'}
+                          </Text>
+                        </View>
+
+                        {/* Employee Code */}
+                        <Text style={styles.employeeCode}>
+                          Employee Code: {selectedRequest?.employeeCode || 'N/A'}
+                        </Text>
                       </View>
                     </Card.Content>
                   </Card>
-                )}
 
-                {/* Date Pickers (Modal) */}
-                <DatePicker
-                  modal
-                  open={showFromPicker}
-                  date={fromDate || new Date()}
-                  mode="date"
-                  title="Select From Date"
-                  confirmText="Confirm"
-                  cancelText="Cancel"
-                  onConfirm={date => {
-                    setShowFromPicker(false);
-                    setFromDate(date);
-                    // If to date is not set or is before from date, update to date
-                    if (!toDate || toDate < date) {
-                      setToDate(
-                        new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000),
-                      ); // Default to 7 days after
-                    }
-                  }}
-                  onCancel={() => setShowFromPicker(false)}
-                />
+                  {/* Card for date fields and reason in row format */}
+                  <Card style={styles.dataCard}>
+                    <Card.Content>
+                      {/* Row for Applied Date */}
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="calendar-plus" size={20} color="#3B82F6" />
+                          <Text style={styles.dataLabel}>Applied Date :</Text>
+                        </View>
+                        <Text style={styles.dataValue}>
+                          {selectedRequest
+                            ? formatDate(selectedRequest.appliedDt)
+                            : 'N/A'}
+                        </Text>
+                      </View>
 
-                <DatePicker
-                  modal
-                  open={showToPicker}
-                  date={
-                    toDate ||
-                    (fromDate
-                      ? new Date(fromDate.getTime() + 7 * 24 * 60 * 60 * 1000)
-                      : new Date())
-                  }
-                  mode="date"
-                  minimumDate={fromDate || undefined}
-                  title="Select To Date"
-                  confirmText="Confirm"
-                  cancelText="Cancel"
-                  onConfirm={date => {
-                    setShowToPicker(false);
-                    setToDate(date);
-                  }}
-                  onCancel={() => setShowToPicker(false)}
-                />
+                      {/* Row for Exit Date */}
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon
+                            name="calendar-remove"
+                            size={20}
+                            color="#EF4444"
+                          />
+                          <Text style={styles.dataLabel}>Exit Date :</Text>
+                        </View>
+                        <Text style={styles.dataValue}>
+                          {selectedRequest
+                            ? formatDate(selectedRequest.exitDt)
+                            : 'N/A'}
+                        </Text>
+                      </View>
 
-                {/* Only show contingent employee picker for HR */}
-                {isAuthorizedForFinalApproval && (
-                  <View style={styles.formField}>
-                    <Text style={styles.formLabel}>
-                      Contingent Employees' Code
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                      {loadingEmployees ? (
-                        <ActivityIndicator
-                          size="small"
-                          color="#3B82F6"
-                          style={styles.pickerLoading}
-                        />
-                      ) : (
+                      {/* Row for Reasons */}
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon
+                            name="information-outline"
+                            size={20}
+                            color="#8B5CF6"
+                          />
+                          <Text style={styles.dataLabel}>Reasons :</Text>
+                        </View>
+                        <Text style={styles.dataValue}>
+                          {selectedRequest?.exitReasons || 'N/A'}
+                        </Text>
+                      </View>
+                    </Card.Content>
+                  </Card>
+
+                  {/* Status Info Card - Show for all roles with appropriate information */}
+                  <Card style={[styles.dataCard, {borderLeftColor: '#F59E0B'}]}>
+                    <Card.Content>
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon
+                            name="account-supervisor"
+                            size={20}
+                            color="#F59E0B"
+                          />
+                          <Text style={styles.dataLabel}>Supervisor:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.supervisorStatus,
+                              ),
+                            },
+                          ]}>
+                          {selectedRequest?.supervisorStatus || 'Pending'}
+                          {selectedRequest?.supervisorRemarks &&
+                            ` (${selectedRequest.supervisorRemarks})`}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-cash" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>Account:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.accountStatus,
+                              ),
+                            },
+                          ]}>
+                          {selectedRequest?.accountStatus || 'Pending'}
+                          {selectedRequest?.accountRemarks &&
+                            ` (${selectedRequest.accountRemarks})`}
+                        </Text>
+                      </View>
+
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-tie" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>HR:</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {color: getStatusColor(selectedRequest?.hrstatus)},
+                          ]}>
+                          {selectedRequest?.hrstatus || 'Pending'}
+                          {selectedRequest?.hrremarks &&
+                            ` (${selectedRequest.hrremarks})`}
+                        </Text>
+                      </View>
+                      <View style={styles.dataRow}>
+                        <View style={styles.dataLabelContainer}>
+                          <Icon name="account-tie" size={20} color="#F59E0B" />
+                          <Text style={styles.dataLabel}>
+                            Application Status:
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dataValue,
+                            {
+                              color: getStatusColor(
+                                selectedRequest?.applicationStatus,
+                              ),
+                            },
+                          ]}>
+                          {selectedRequest?.applicationStatus &&
+                            ` ${selectedRequest.applicationStatus}`}
+                        </Text>
+                      </View>
+                    </Card.Content>
+                  </Card>
+
+                  {/* Only show contingent employee selection for HR */}
+                  {isAuthorizedForFinalApproval && (
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>
+                        Authorized Person's Status
+                      </Text>
+                      <View style={styles.pickerContainer}>
                         <Picker
-                          selectedValue={selectedEmployee}
+                          selectedValue={statusAction}
                           style={styles.picker}
-                          onValueChange={itemValue =>
-                            setSelectedEmployee(itemValue)
-                          }>
-                          <Picker.Item label="Select Employee" value="" />
-                          {employees.map(employee => (
+                          onValueChange={itemValue => setStatusAction(itemValue)}>
+                          <Picker.Item label="Select Action" value="" />
+                          {statusActions.map(action => (
                             <Picker.Item
-                              key={employee.id}
-                              label={employee.name}
-                              value={employee.empCode || employee.id}
+                              key={action.id}
+                              label={action.label}
+                              value={action.id}
                             />
                           ))}
                         </Picker>
-                      )}
+                      </View>
                     </View>
-                  </View>
-                )}
+                  )}
 
-                {/* Remarks Input */}
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>
-                    Remarks (Maximum 100 Characters)*
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={remarks}
-                    onChangeText={text => {
-                      if (text.length <= 100) setRemarks(text);
+                  {/* HR Exit Date - Only show for HR */}
+                  {isAuthorizedForFinalApproval && (
+                    <Card style={[styles.dataCard, {borderLeftColor: '#8B5CF6'}]}>
+                      <Card.Title title="HR Approval Date Range" />
+                      <Card.Content>
+                        <View style={styles.dateRangeContainer}>
+                          {/* From Date Selection */}
+                          <View style={styles.datePickerField}>
+                            <Text style={styles.datePickerLabel}>
+                              Select Exit Date
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.datePickerButton}
+                              onPress={() => setShowFromPicker(true)}>
+                              <Text style={styles.datePickerText}>
+                                {fromDate ? formatDate(fromDate) : 'Select Date'}
+                              </Text>
+                              <Icon name="calendar" size={20} color="#3B82F6" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  )}
+
+                  {/* Date Pickers (Modal) */}
+                  <DatePicker
+                    modal
+                    open={showFromPicker}
+                    date={fromDate || new Date()}
+                    mode="date"
+                    title="Select From Date"
+                    confirmText="Confirm"
+                    cancelText="Cancel"
+                    onConfirm={date => {
+                      setShowFromPicker(false);
+                      setFromDate(date);
+                      // If to date is not set or is before from date, update to date
+                      if (!toDate || toDate < date) {
+                        setToDate(
+                          new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000),
+                        ); // Default to 7 days after
+                      }
                     }}
-                    mode="outlined"
-                    placeholder="Enter Remarks"
-                    multiline
-                    numberOfLines={3}
-                    maxLength={100}
-                    right={<TextInput.Affix text={`${remarks.length}/100`} />}
+                    onCancel={() => setShowFromPicker(false)}
                   />
-                </View>
+
+                  <DatePicker
+                    modal
+                    open={showToPicker}
+                    date={
+                      toDate ||
+                      (fromDate
+                        ? new Date(fromDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+                        : new Date())
+                    }
+                    mode="date"
+                    minimumDate={fromDate || undefined}
+                    title="Select To Date"
+                    confirmText="Confirm"
+                    cancelText="Cancel"
+                    onConfirm={date => {
+                      setShowToPicker(false);
+                      setToDate(date);
+                    }}
+                    onCancel={() => setShowToPicker(false)}
+                  />
+
+                  {/* Only show contingent employee picker for HR */}
+                  {isAuthorizedForFinalApproval && (
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>
+                        Contingent Employees' Code
+                      </Text>
+                      <View style={styles.pickerContainer}>
+                        {loadingEmployees ? (
+                          <ActivityIndicator
+                            size="small"
+                            color="#3B82F6"
+                            style={styles.pickerLoading}
+                          />
+                        ) : (
+                          <Picker
+                            selectedValue={selectedEmployee}
+                            style={styles.picker}
+                            onValueChange={itemValue =>
+                              setSelectedEmployee(itemValue)
+                            }>
+                            <Picker.Item label="Select Employee" value="" />
+                            {employees.map(employee => (
+                              <Picker.Item
+                                key={employee.id}
+                                label={employee.name}
+                                value={employee.empCode || employee.id}
+                              />
+                            ))}
+                          </Picker>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Remarks Input */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>
+                      Remarks (Maximum 100 Characters)*
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      value={remarks}
+                      onChangeText={text => {
+                        if (text.length <= 100) setRemarks(text);
+                      }}
+                      mode="outlined"
+                      placeholder="Enter Remarks"
+                      multiline
+                      numberOfLines={3}
+                      maxLength={100}
+                      right={<TextInput.Affix text={`${remarks.length}/100`} />}
+                    />
+                  </View>
+                </Card.Content>
+                <Card.Actions style={styles.cardActions}>
+                  <Button
+                    mode="contained"
+                    onPress={handleApprove}
+                    style={styles.approveBtn}>
+                    {isAccountRole ? 'Approve Account Clearance' : 'Approve'}
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={handleReject}
+                    style={styles.rejectBtn}
+                    labelStyle={styles.rejectBtnLabel}>
+                    Reject
+                  </Button>
+                </Card.Actions>
+              </Card>
+            </>
+          ) : (
+            <Card style={styles.emptyCard}>
+              <Card.Content style={styles.emptyContainer}>
+                <Icons name="inbox" size={60} color="#9CA3AF" />
+                <Text style={styles.emptyText}>
+                  No pending exit requests found
+                </Text>
               </Card.Content>
-              <Card.Actions style={styles.cardActions}>
-                <Button
-                  mode="contained"
-                  onPress={handleApprove}
-                  style={styles.approveBtn}>
-                  {isAccountRole ? 'Approve Account Clearance' : 'Approve'}
-                </Button>
-                <Button
-                  mode="outlined"
-                  onPress={handleReject}
-                  style={styles.rejectBtn}
-                  labelStyle={styles.rejectBtnLabel}>
-                  Reject
-                </Button>
-              </Card.Actions>
             </Card>
-          </>
-        ) : (
-          <Card style={styles.emptyCard}>
-            <Card.Content style={styles.emptyContainer}>
-              <Icons name="inbox" size={60} color="#9CA3AF" />
-              <Text style={styles.emptyText}>
-                No pending exit requests found
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
+      </ScrollAwareContainer>
     </AppSafeArea>
   );
 };

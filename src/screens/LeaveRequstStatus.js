@@ -11,16 +11,18 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
-import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
-import FeedbackModal from '../component/FeedbackModal'; // Import FeedbackModal
-import StatusCard from '../component/StatusCard'; // Import the StatusCard component
-import Pagination from '../component/Pagination'; // Import the Pagination component
+import FeedbackModal from '../component/FeedbackModal';
+import StatusCard from '../component/StatusCard';
+import Pagination from '../component/Pagination';
 import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/LeaveRequestStatus';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
+
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
 ];
@@ -204,100 +206,198 @@ const LeaveRequestStatus = () => {
 
   return (
     <AppSafeArea>
-      {/* Header */}
-      <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.navigate('Main')} />
-        <Appbar.Content title="My Leave" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+      <CustomHeader title="My Leave" navigation={navigation} />
 
-      {/* Date Filter Toggle Button */}
-      <TouchableOpacity
-        style={styles.filterToggleButton}
-        onPress={() => setShowDateFilter(!showDateFilter)}>
-        <View style={styles.filterToggleContent}>
-          <Icon
-            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
-            size={22}
-            color="#3B82F6"
-          />
-          <Text style={styles.filterToggleText}>
-            {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
-          </Text>
-
-          {/* Badge to show active filters */}
-          {(fromDate || toDate) && (
-            <View style={styles.activeDateFilterBadge}>
-              <Text style={styles.activeDateFilterText}>Active</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Collapsible Date Filter Section */}
-      {showDateFilter && (
-        <View style={styles.dateRangeContainer}>
-          <View style={styles.datePickerRow}>
-            <TouchableOpacity
-              style={[
-                styles.dateButton,
-                fromDate && {
-                  borderColor: '#3B82F6',
-                  backgroundColor: '#EFF6FF',
-                },
-              ]}
-              onPress={() => setShowFromPicker(true)}>
-              <View style={styles.dateButtonContent}>
-                <Icon name="calendar" size={18} color="#3B82F6" />
-                <Text style={styles.dateButtonText}>
-                  {fromDate ? formatDate(fromDate) : 'From Date'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
+      <ScrollAwareContainer navigation={navigation} currentRoute="LeaveRequestStatus">
+        {/* Date Filter Toggle Button */}
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowDateFilter(!showDateFilter)}>
+          <View style={styles.filterToggleContent}>
             <Icon
-              name="arrow-right"
-              size={20}
-              color="#6B7280"
-              style={styles.arrowIcon}
+              name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+              size={22}
+              color="#3B82F6"
             />
+            <Text style={styles.filterToggleText}>
+              {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+            </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.dateButton,
-                toDate && {borderColor: '#3B82F6', backgroundColor: '#EFF6FF'},
-              ]}
-              onPress={() => setShowToPicker(true)}>
-              <View style={styles.dateButtonContent}>
-                <Icon name="calendar" size={18} color="#3B82F6" />
-                <Text style={styles.dateButtonText}>
-                  {toDate ? formatDate(toDate) : 'To Date'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterActions}>
+            {/* Badge to show active filters */}
             {(fromDate || toDate) && (
-              <TouchableOpacity
-                style={styles.clearFilterButton}
-                onPress={clearFilters}>
-                <Icon name="close" size={16} color="#EF4444" />
-                <Text style={styles.clearFilterText}>Clear</Text>
-              </TouchableOpacity>
+              <View style={styles.activeDateFilterBadge}>
+                <Text style={styles.activeDateFilterText}>Active</Text>
+              </View>
             )}
-
-            <TouchableOpacity
-              style={[
-                styles.applyFilterButton,
-                !fromDate && !toDate && {opacity: 0.6},
-              ]}
-              onPress={applyDateFilter}>
-              <Icon name="filter" size={16} color="#FFFFFF" />
-              <Text style={styles.applyFilterText}>Apply Filter</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        </TouchableOpacity>
+
+        {/* Collapsible Date Filter Section */}
+        {showDateFilter && (
+          <View style={styles.dateRangeContainer}>
+            <View style={styles.datePickerRow}>
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  fromDate && {
+                    borderColor: '#3B82F6',
+                    backgroundColor: '#EFF6FF',
+                  },
+                ]}
+                onPress={() => setShowFromPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {fromDate ? formatDate(fromDate) : 'From Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <Icon
+                name="arrow-right"
+                size={20}
+                color="#6B7280"
+                style={styles.arrowIcon}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  toDate && {borderColor: '#3B82F6', backgroundColor: '#EFF6FF'},
+                ]}
+                onPress={() => setShowToPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {toDate ? formatDate(toDate) : 'To Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterActions}>
+              {(fromDate || toDate) && (
+                <TouchableOpacity
+                  style={styles.clearFilterButton}
+                  onPress={clearFilters}>
+                  <Icon name="close" size={16} color="#EF4444" />
+                  <Text style={styles.clearFilterText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.applyFilterButton,
+                  !fromDate && !toDate && {opacity: 0.6},
+                ]}
+                onPress={applyDateFilter}>
+                <Icon name="filter" size={16} color="#FFFFFF" />
+                <Text style={styles.applyFilterText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Leave Cards with loading state and refresh control */}
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2962ff" />
+            <Text style={styles.loaderText}>Loading leave data...</Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#2962ff']}
+                tintColor="#2962ff"
+              />
+            }>
+            {filteredData.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No requests</Text>
+                {(fromDate || toDate) && (
+                  <Text style={styles.emptySubText}>for selected date range</Text>
+                )}
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={onRefresh}>
+                  <Icon name="refresh" size={18} color="#fff" />
+                  <Text style={styles.refreshButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                {/* Display only current page items */}
+                {getCurrentItems().map(item => (
+                  <StatusCard
+                    key={item.id}
+                    title={`${item.employeeName || 'Leave Request'}`}
+                    subtitle={`${
+                      item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''
+                    } to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
+                    details={[
+                      {
+                        icon: 'briefcase-outline',
+                        label: 'Leave Type',
+                        value: item.leaveName || 'N/A',
+                      },
+                      {
+                        icon: 'calendar-range',
+                        label: 'Leave Days',
+                        value: item.leaveNo || 'N/A',
+                      },
+                      {
+                        icon: 'account-clock',
+                        label: 'Leave Type ',
+                        value: getLeaveTypeLabel(item.leaveType),
+                      },
+                      {
+                        icon: 'clock-outline',
+                        label: 'Applied On',
+                        value: formatDate(item.createdDate),
+                      },
+                    ]}
+                    status={item.status || 'Pending'}
+                    remarks={item.remarks}
+                    onEdit={() => handleEditLeave(item)}
+                    onDelete={() =>
+                      !item.status?.toLowerCase().includes('approved') &&
+                      item.status === 'Pending' &&
+                      Alert.alert(
+                        'Delete Leave Request',
+                        'Are you sure you want to delete this leave request?',
+                        [
+                          {text: 'Cancel', style: 'cancel'},
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: () => handleDeleteLeave(item.id),
+                          },
+                        ],
+                      )
+                    }
+                  />
+                ))}
+
+                {/* Pagination component - only show if we have enough items */}
+                {filteredData.length > itemsPerPage && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredData.length / itemsPerPage)}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={filteredData.length}
+                  />
+                )}
+              </>
+            )}
+          </ScrollView>
+        )}
+      </ScrollAwareContainer>
 
       {/* Date Pickers */}
       <DatePicker
@@ -328,106 +428,6 @@ const LeaveRequestStatus = () => {
         }}
         onCancel={() => setShowToPicker(false)}
       />
-
-      {/* Leave Cards with loading state and refresh control */}
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#2962ff" />
-          <Text style={styles.loaderText}>Loading leave data...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#2962ff']}
-              tintColor="#2962ff"
-            />
-          }>
-          {filteredData.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No requests</Text>
-              {(fromDate || toDate) && (
-                <Text style={styles.emptySubText}>for selected date range</Text>
-              )}
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={onRefresh}>
-                <Icon name="refresh" size={18} color="#fff" />
-                <Text style={styles.refreshButtonText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              {/* Display only current page items */}
-              {getCurrentItems().map(item => (
-                <StatusCard
-                  key={item.id}
-                  title={`${item.employeeName || 'Leave Request'}`}
-                  subtitle={`${
-                    item.fromLeaveDate ? formatDate(item.fromLeaveDate) : ''
-                  } to ${item.toLeaveDate ? formatDate(item.toLeaveDate) : ''}`}
-                  details={[
-                    {
-                      icon: 'briefcase-outline',
-                      label: 'Leave Type',
-                      value: item.leaveName || 'N/A',
-                    },
-                    {
-                      icon: 'calendar-range',
-                      label: 'Leave Days',
-                      value: item.leaveNo || 'N/A',
-                    },
-                    {
-                      icon: 'account-clock',
-                      label: 'Leave Type ',
-                      value: getLeaveTypeLabel(item.leaveType),
-                    },
-                    {
-                      icon: 'clock-outline',
-                      label: 'Applied On',
-                      value: formatDate(item.createdDate),
-                    },
-                  ]}
-                  status={item.status || 'Pending'}
-                  remarks={item.remarks}
-                  onEdit={() => handleEditLeave(item)}
-                  onDelete={() =>
-                    !item.status?.toLowerCase().includes('approved') &&
-                    item.status === 'Pending' &&
-                    Alert.alert(
-                      'Delete Leave Request',
-                      'Are you sure you want to delete this leave request?',
-                      [
-                        {text: 'Cancel', style: 'cancel'},
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () => handleDeleteLeave(item.id),
-                        },
-                      ],
-                    )
-                  }
-                />
-              ))}
-
-              {/* Pagination component - only show if we have enough items */}
-              {filteredData.length > itemsPerPage && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={Math.ceil(filteredData.length / itemsPerPage)}
-                  onPageChange={handlePageChange}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={filteredData.length}
-                />
-              )}
-            </>
-          )}
-        </ScrollView>
-      )}
 
       {/* Feedback Modal */}
       <FeedbackModal

@@ -12,15 +12,16 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
-import {Appbar} from 'react-native-paper';
 import AppSafeArea from '../component/AppSafeArea';
 import DatePicker from 'react-native-date-picker';
 import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import axiosinstance from '../utils/axiosInstance';
-import TabFilter from '../component/TabFilter'; // Import the reusable TabFilter component
-import StatusCard from '../component/StatusCard'; // Import the reusable component
+import TabFilter from '../component/TabFilter';
+import StatusCard from '../component/StatusCard';
 import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/ExpenseRequestStatusScreen';
+import CustomHeader from '../component/CustomHeader';
+import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
 const ExpenseRequestStatusScreen = () => {
   const navigation = useNavigation();
@@ -168,112 +169,185 @@ useEffect(() => {
 
   return (
     <AppSafeArea>
-      <Appbar.Header elevated style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="My Expense " titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+      <CustomHeader title="My Expense" navigation={navigation} />
 
-      {/* Type Filter */}
-      <View style={styles.typeFilterContainer}>
-        {/* <Text style={styles.filterTitle}>Filter by Type</Text> */}
-        <TabFilter
-          tabs={[
-            {label: 'Expense', value: 'Expense'},
-            {label: 'Advance', value: 'Advance'},
-          ]}
-          activeTab={selectedType}
-          setActiveTab={setSelectedType}
-        />
-      </View>
-
+      <ScrollAwareContainer navigation={navigation} currentRoute="ExpenseRequestStatus">
+        {/* Type Filter */}
+        <View style={styles.typeFilterContainer}>
+          <TabFilter
+            tabs={[
+              {label: 'Expense', value: 'Expense'},
+              {label: 'Advance', value: 'Advance'},
+            ]}
+            activeTab={selectedType}
+            setActiveTab={setSelectedType}
+          />
+        </View>
 
         <TouchableOpacity
-        style={styles.filterToggleButton}
-        onPress={() => setShowDateFilter(!showDateFilter)}>
-        <View style={styles.filterToggleContent}>
-          <Icon
-            name={showDateFilter ? 'chevron-up' : 'chevron-down'}
-            size={22}
-            color="#3B82F6"
-          />
-          <Text style={styles.filterToggleText}>
-            {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
-          </Text>
-
-          {/* Badge to show active filters */}
-          {(fromDate || toDate) && (
-            <View style={styles.activeDateFilterBadge}>
-              <Text style={styles.activeDateFilterText}>Active</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Date Filter */}
-     {showDateFilter && (
-        <View style={styles.dateRangeContainer}>
-          <View style={styles.datePickerRow}>
-            <TouchableOpacity
-              style={[
-                styles.dateButton,
-                fromDate && {
-                  borderColor: '#3B82F6',
-                  backgroundColor: '#EFF6FF',
-                },
-              ]}
-              onPress={() => setShowFromPicker(true)}>
-              <View style={styles.dateButtonContent}>
-                <Icon name="calendar" size={18} color="#3B82F6" />
-                <Text style={styles.dateButtonText}>
-                  {fromDate ? formatDate(fromDate) : 'From Date'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
+          style={styles.filterToggleButton}
+          onPress={() => setShowDateFilter(!showDateFilter)}>
+          <View style={styles.filterToggleContent}>
             <Icon
-              name="arrow-right"
-              size={20}
-              color="#6B7280"
-              style={styles.arrowIcon}
+              name={showDateFilter ? 'chevron-up' : 'chevron-down'}
+              size={22}
+              color="#3B82F6"
             />
+            <Text style={styles.filterToggleText}>
+              {showDateFilter ? 'Hide Date Filter' : 'Show Date Filter'}
+            </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.dateButton,
-                toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
-              ]}
-              onPress={() => setShowToPicker(true)}>
-              <View style={styles.dateButtonContent}>
-                <Icon name="calendar" size={18} color="#3B82F6" />
-                <Text style={styles.dateButtonText}>
-                  {toDate ? formatDate(toDate) : 'To Date'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterActions}>
+            {/* Badge to show active filters */}
             {(fromDate || toDate) && (
-              <TouchableOpacity
-                style={styles.clearFilterButton}
-                onPress={clearFilters}>
-                <Icon name="close" size={16} color="#EF4444" />
-                <Text style={styles.clearFilterText}>Clear</Text>
-              </TouchableOpacity>
+              <View style={styles.activeDateFilterBadge}>
+                <Text style={styles.activeDateFilterText}>Active</Text>
+              </View>
             )}
-
-            <TouchableOpacity
-              style={[
-                styles.applyFilterButton,
-                !fromDate && !toDate && { opacity: 0.6 },
-              ]}
-              onPress={applyDateFilter}>
-              <Icon name="filter" size={16} color="#FFFFFF" />
-              <Text style={styles.applyFilterText}>Apply Filter</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        </TouchableOpacity>
+
+        {/* Date Filter */}
+        {showDateFilter && (
+          <View style={styles.dateRangeContainer}>
+            <View style={styles.datePickerRow}>
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  fromDate && {
+                    borderColor: '#3B82F6',
+                    backgroundColor: '#EFF6FF',
+                  },
+                ]}
+                onPress={() => setShowFromPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {fromDate ? formatDate(fromDate) : 'From Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <Icon
+                name="arrow-right"
+                size={20}
+                color="#6B7280"
+                style={styles.arrowIcon}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.dateButton,
+                  toDate && { borderColor: '#3B82F6', backgroundColor: '#EFF6FF' },
+                ]}
+                onPress={() => setShowToPicker(true)}>
+                <View style={styles.dateButtonContent}>
+                  <Icon name="calendar" size={18} color="#3B82F6" />
+                  <Text style={styles.dateButtonText}>
+                    {toDate ? formatDate(toDate) : 'To Date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterActions}>
+              {(fromDate || toDate) && (
+                <TouchableOpacity
+                  style={styles.clearFilterButton}
+                  onPress={clearFilters}>
+                  <Icon name="close" size={16} color="#EF4444" />
+                  <Text style={styles.clearFilterText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.applyFilterButton,
+                  !fromDate && !toDate && { opacity: 0.6 },
+                ]}
+                onPress={applyDateFilter}>
+                <Icon name="filter" size={16} color="#FFFFFF" />
+                <Text style={styles.applyFilterText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Expense Cards with Loading & RefreshControl */}
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#2962ff" />
+            <Text style={styles.loaderText}>Loading expense data...</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#2962ff']}
+                tintColor="#2962ff"
+              />
+            }
+          >
+            {filteredData.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Icon name="file-document-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No requests found</Text>
+                <TouchableOpacity 
+                  style={styles.refreshButton} 
+                  onPress={onRefresh}
+                >
+                  <Icon name="refresh" size={18} color="#fff" />
+                  <Text style={styles.refreshButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              filteredData.map((item, index) => {
+                // Log each item to console for debugging
+                console.log('Expense item data:', JSON.stringify(item, null, 2));
+                
+                // Get appropriate status styling
+                const statusStyles = getStatusStyles(item.status);
+                
+                return (
+                  <StatusCard
+                    key={`expense-${item.requestId}-${index}`}
+                    title={item.employeeName}
+                    subtitle={`${item.designation}, ${item.department}`}
+                    details={[
+                      {icon: 'calendar-blank-outline', label: 'Applied On', value: formatDate(item.createdDate)},
+                      {icon: 'cash-multiple', label: 'Type', value: item.requestType},
+                      {icon: 'currency-inr', label: 'Amount', value: `₹${item.totalAmount}`},
+                    ]}
+                    status={item.status}
+                    statusStyle={statusStyles}
+                    remarks={item.remarks}
+                    onEdit={() => handleEditExpense(item)}
+                    onDelete={() =>
+                      Alert.alert(
+                        'Delete',
+                        `Are you sure you want to delete the request for ${item.employeeName}?`,
+                        [
+                          {text: 'Cancel', style: 'cancel'},
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: () => handleDeleteExpense(item.requestId, item.companyId),
+                          },
+                        ],
+                      )
+                    }
+                    buttonContainerStyle={styles.actionButtonContainer}
+                    editButtonStyle={styles.editButton}
+                    deleteButtonStyle={styles.deleteButton}
+                  />
+                );
+              })
+            )}
+          </ScrollView>
+        )}
+      </ScrollAwareContainer>
 
       {/* Date Pickers */}
       <DatePicker
@@ -304,81 +378,6 @@ useEffect(() => {
         }}
         onCancel={() => setShowToPicker(false)}
       />
-      {/* Expense Cards with Loading & RefreshControl */}
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#2962ff" />
-          <Text style={styles.loaderText}>Loading expense data...</Text>
-        </View>
-      ) : (
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#2962ff']}
-              tintColor="#2962ff"
-            />
-          }
-        >
-          {filteredData.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No requests found</Text>
-              <TouchableOpacity 
-                style={styles.refreshButton} 
-                onPress={onRefresh}
-              >
-                <Icon name="refresh" size={18} color="#fff" />
-                <Text style={styles.refreshButtonText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            filteredData.map((item, index) => {
-              // Log each item to console for debugging
-              console.log('Expense item data:', JSON.stringify(item, null, 2));
-              
-              // Get appropriate status styling
-              const statusStyles = getStatusStyles(item.status);
-              
-              return (
-                <StatusCard
-                  key={`expense-${item.requestId}-${index}`} // Ensure truly unique keys by combining requestId with index
-                  title={item.employeeName}
-                  subtitle={`${item.designation}, ${item.department}`}
-                  details={[
-                    {icon: 'calendar-blank-outline', label: 'Applied On', value: formatDate(item.createdDate)},
-                    {icon: 'cash-multiple', label: 'Type', value: item.requestType},
-                    {icon: 'currency-inr', label: 'Amount', value: `₹${item.totalAmount}`},
-                  ]}
-                  status={item.status}
-                  statusStyle={statusStyles}
-                  remarks={item.remarks}
-                  onEdit={() => handleEditExpense(item)}
-                  onDelete={() =>
-                    Alert.alert(
-                      'Delete',
-                      `Are you sure you want to delete the request for ${item.employeeName}?`,
-                      [
-                        {text: 'Cancel', style: 'cancel'},
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () => handleDeleteExpense(item.requestId, item.companyId),
-                        },
-                      ],
-                    )
-                  }
-                  buttonContainerStyle={styles.actionButtonContainer}
-                  editButtonStyle={styles.editButton}
-                  deleteButtonStyle={styles.deleteButton}
-                />
-              );
-            })
-          )}
-        </ScrollView>
-      )}
     </AppSafeArea>
   );
 };
