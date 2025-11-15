@@ -1,24 +1,28 @@
-import {StyleSheet, Platform} from 'react-native';
+import {StyleSheet, Platform } from 'react-native';
+const IOS_TOP =  Platform.OS === "ios" ? -30 : 0;
 
 const styles = StyleSheet.create({
+ 
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    paddingTop: Platform.OS === 'ios' ? 44 : 0,
-    marginBottom: -20, // Added bottom padding to prevent content from being cut off
+    paddingBottom: Platform.OS === 'ios' ? IOS_TOP : 0,  
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
+  paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
+  marginBottom: 20,
+  paddingTop: Platform.OS === 'ios' ? IOS_TOP : 20,
+  paddingBottom: 20,
+  borderBottomLeftRadius: 30,
+  borderBottomRightRadius: 30,
+},
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: Platform.OS === 'ios' ? 40 : 20,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 0,
+    paddingTop: Platform.OS === 'ios' ? 50 : 0,
   },
   headerGreeting: {
     fontSize: 20,
@@ -67,6 +71,8 @@ statusBadge: {
   paddingVertical: 10,
   paddingHorizontal: 14,
   marginTop: 16,
+  marginBottom: 10,
+  marginLeft: Platform.OS === 'ios' ? 20 : 0,
   alignSelf: 'flex-start',
   minWidth: '60%',
   shadowColor: '#000',
@@ -167,6 +173,7 @@ statusTimeText: {
         shadowOffset: {width: 0, height: 4},
         shadowOpacity: 0.1,
         shadowRadius: 12,
+        marginBottom: 10,
       },
       android: {
         elevation: 4,
@@ -312,36 +319,12 @@ statusTimeText: {
     color: '#64748B',
     fontWeight: '500',
   },
-  // progressBadge: {
-  //   backgroundColor: '#10B981',
-  //   paddingHorizontal: 12,
-  //   paddingVertical: 6,
-  //   borderRadius: 16,
-  //   minWidth: 50,
-  //   alignItems: 'center',
-  //   ...Platform.select({
-  //     ios: {
-  //       shadowColor: '#10B981',
-  //       shadowOffset: { width: 0, height: 2 },
-  //       shadowOpacity: 0.2,
-  //       shadowRadius: 4,
-  //     },
-  //     android: {
-  //       elevation: 3,
-  //     },
-  //   }),
-  // },
-  // progressBadgeText: {
-  //   fontSize: 13,
-  //   fontWeight: '700',
-  //   color: '#FFFFFF',
-  // },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-   justifyContent: 'space-evenly',
-   marginTop: 5,
+    justifyContent: 'space-evenly',
+    marginTop: 5,
   },
   missesPercentageText: {
     fontSize: 15,
@@ -609,7 +592,7 @@ statusTimeText: {
     }),
   },
   shiftInfoGradient: {
-    padding: 16,
+    padding: Platform.OS === 'ios' ? 0 : 16,
   },
   shiftInfoHeader: {
     flexDirection: 'row',
@@ -688,8 +671,8 @@ statusTimeText: {
     transform: [{ scale: 0.98 }],
   },
   actionButtonGradient: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 0 : 20,
+    paddingHorizontal: Platform.OS === 'ios' ? 0 : 16,
   },
   buttonContent: {
     flexDirection: 'row',

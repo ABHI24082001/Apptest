@@ -2114,7 +2114,7 @@ const handleCheckOut = async () => {
   // Main HomeScreen Header and Content
   return (
     <AppSafeArea>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      <StatusBar  barStyle="light-content" backgroundColor="#1E40AF" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
