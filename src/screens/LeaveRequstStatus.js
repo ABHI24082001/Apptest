@@ -22,6 +22,7 @@ import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/LeaveRequestStatus';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const statusTabs = [
   {label: 'Pending', color: '#FFA500', icon: 'clock-alert-outline'},
@@ -316,19 +317,13 @@ const LeaveRequestStatus = () => {
               />
             }>
             {filteredData.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyText}>No requests</Text>
-                {(fromDate || toDate) && (
-                  <Text style={styles.emptySubText}>for selected date range</Text>
-                )}
-                <TouchableOpacity
-                  style={styles.refreshButton}
-                  onPress={onRefresh}>
-                  <Icon name="refresh" size={18} color="#fff" />
-                  <Text style={styles.refreshButtonText}>Refresh</Text>
-                </TouchableOpacity>
-              </View>
+              <EmptyListComponent
+                iconName="file-document-outline"
+                text="No requests"
+                subText={(fromDate || toDate) ? "for selected date range" : null}
+                cardStyle={styles.emptyState}
+                contentStyle={{paddingVertical: 40}}
+              />
             ) : (
               <>
                 {/* Display only current page items */}

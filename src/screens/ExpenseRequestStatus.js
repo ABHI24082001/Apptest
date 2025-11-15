@@ -22,6 +22,7 @@ import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/ExpenseRequestStatusScreen';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const ExpenseRequestStatusScreen = () => {
   const navigation = useNavigation();
@@ -291,17 +292,13 @@ useEffect(() => {
             }
           >
             {filteredData.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Icon name="file-document-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyText}>No requests found</Text>
-                <TouchableOpacity 
-                  style={styles.refreshButton} 
-                  onPress={onRefresh}
-                >
-                  <Icon name="refresh" size={18} color="#fff" />
-                  <Text style={styles.refreshButtonText}>Refresh</Text>
-                </TouchableOpacity>
-              </View>
+              <EmptyListComponent
+                iconName="file-document-outline"
+                text="No requests found"
+                subText="Try adjusting your filters or refresh the page"
+                cardStyle={styles.emptyState}
+                contentStyle={{paddingVertical: 40}}
+              />
             ) : (
               filteredData.map((item, index) => {
                 // Log each item to console for debugging

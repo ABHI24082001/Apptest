@@ -36,6 +36,7 @@ import {Picker} from '@react-native-picker/picker';
 import LeaveBalanceTable from '../component/LeaveBalanceTable';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const LeaveTypeColors = {
   'Casual Leave': '#3b82f6', // Blue
@@ -802,6 +803,64 @@ const LeaveRequestDetails = ({navigation}) => {
     [expandedCard, fetchTaskAssignmentEmployees],
   );
 
+  // Add the missing updateTaskAssignee function
+  const updateTaskAssignee = useCallback((itemId, employeeId) => {
+    if (!employeeId) {
+      // Clear selection
+      setSelectedTaskAssignee(prev => ({
+        ...prev,
+        [itemId]: null,
+      }));
+      return;
+    }
+
+    // Find the selected employee from the list
+    const selectedEmployee = taskAssignmentEmployees.find(
+      emp => emp.id === employeeId
+    );
+
+    if (selectedEmployee) {
+      setSelectedTaskAssignee(prev => ({
+        ...prev,
+        [itemId]: {
+          employeeId: selectedEmployee.id,
+          employeeName: selectedEmployee.employeeName,
+          employeeCode: selectedEmployee.employeeId || selectedEmployee.employeeCode || '',
+        },
+      }));
+    }
+  }, [taskAssignmentEmployees]);
+
+  // Add validation function for leave counts
+  const validateLeaveCounts = (itemId, approvedCount, unapprovedCount, totalLeave) => {
+    const approved = Number(approvedCount) || 0;
+    const unapproved = Number(unapprovedCount) || 0;
+    const total = Number(totalLeave) || 0;
+    
+    const errors = {};
+    
+    if (approved < 0) {
+      errors.approved = true;
+      errors.approvedMsg = 'Approved days cannot be negative';
+    }
+    
+    if (unapproved < 0) {
+      errors.unapproved = true;
+      errors.unapprovedMsg = 'Unapproved days cannot be negative';
+    }
+    
+    if (approved + unapproved > total) {
+      errors.approved = true;
+      errors.unapproved = true;
+      errors.totalMsg = 'Total approved and unapproved days cannot exceed applied leave days';
+    }
+    
+    setLeaveCountErrors(prev => ({
+      ...prev,
+      [itemId]: errors,
+    }));
+  };
+
   const renderItem = ({item}) => {
     const isExpanded = expandedCard === (item.id || item.applyLeaveId);
     const leaveType = item.leaveName || 'Leave';
@@ -1220,12 +1279,27 @@ const LeaveRequestDetails = ({navigation}) => {
                       {isAuthorizedForFinalApproval
                         ? 'Final Remark'
                         : 'RM Remark'}
-                      <Text style={styles.requiredField}>*</Text>
+                      {/* <Text style={styles.requiredField}>*</Text> */}
                       <Text style={styles.maxCharText}>
                         {' '}
                         (max 400 characters)
                       </Text>
                     </Subheading>
+
+                    {/* Optional: Add a help icon with tooltip */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        // TODO: Show tooltip or help modal
+                        console.log('Show help for remarks');
+                      }}
+                      style={styles.helpIconContainer}>
+                      <Icon
+                        name="info"
+                        size={16}
+                        color="#3b82f6"
+                        style={styles.helpIcon}
+                      />
+                    </TouchableOpacity>
                   </View>
 
                   <TextInput
@@ -1434,18 +1508,14 @@ const LeaveRequestDetails = ({navigation}) => {
             </>
           )}
           ListEmptyComponent={
-            <Card style={styles.emptyCard}>
-              <Card.Content style={styles.emptyContainer}>
-                <Icon name="inbox" size={60} color="#9CA3AF" />
-                <Text style={styles.emptyText}>
-                  No pending leave requests found
-                </Text>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
-                  Debug: Approval list has {approvalList.length} items, 
-                  Paginated data has {paginatedData.length} items
-                </Text>
-              </Card.Content>
-            </Card>
+            <EmptyListComponent
+              iconName="inbox"
+              iconSize={60}
+              iconColor="#9CA3AF"
+              text="No pending leave requests found"
+              subText="All leave requests have been processed or there are no requests to review"
+              showCard={true}
+            />
           }
         />
 

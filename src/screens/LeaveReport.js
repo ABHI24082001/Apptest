@@ -26,6 +26,7 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import styles from '../Stylesheet/LeaveReportScreen';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const LeaveReportScreen = ({ navigation }) => {
   const [fromDate, setFromDate] = useState(null);
@@ -348,22 +349,17 @@ const LeaveReportScreen = ({ navigation }) => {
             renderItem={renderLeaveCard}
             contentContainerStyle={styles.cardListContainer}
             ListEmptyComponent={
-              <Card style={styles.emptyCard} elevation={1}>
-                <Card.Content style={{ alignItems: 'center' }}>
-                  <MaterialIcon name="file-document-outline" size={48} color="#D1D5DB" />
-                  <Text style={styles.emptyText}>
-                    {fromDate && toDate 
-                      ? 'No leave records found for the selected date range' 
-                      : 'Please select date range to view leave records'
-                    }
-                  </Text>
-                  {leaveData.length === 0 && fromDate && toDate && (
-                    <Text style={[styles.emptyText, {fontSize: 12, marginTop: 8}]}>
-                      Try adjusting your date filter or check if you have any leave applications
-                    </Text>
-                  )}
-                </Card.Content>
-              </Card>
+              <EmptyListComponent
+                iconName="calendar-remove"
+                text={fromDate && toDate 
+                  ? 'No leave records found for the selected date range' 
+                  : 'Please select date range to view leave records'
+                }
+                subText={leaveData.length === 0 && fromDate && toDate 
+                  ? 'Try adjusting your date filter or check if you have any leave applications'
+                  : null
+                }
+              />
             }
           />
         )}

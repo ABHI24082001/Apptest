@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
-  Linking,
   Modal,
   ScrollView,
   Alert,
@@ -37,6 +35,7 @@ import FeedbackModal from '../component/FeedbackModal';
 import styles from '../Stylesheet/ExpenseRequestDetails';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const ExpenseTypeColors = {
   Advance: '#3b82f6', // Blue
@@ -1338,14 +1337,18 @@ const ExpenseRequestDetails = ({navigation}) => {
               ) : null
             }
             ListEmptyComponent={
-              <Card style={styles.emptyCard}>
-                <Card.Content style={styles.emptyContainer}>
-                  <Icon name="inbox" size={40} color="#9CA3AF" />
-                  <Text style={styles.emptyText}>
-                    No pending expense requests found
-                  </Text>
-                </Card.Content>
-              </Card>
+              <EmptyListComponent
+                iconName="inbox"
+                iconSize={48}
+                iconColor="#9CA3AF"
+                text="No pending expense requests found"
+                subText="All expense requests have been processed or there are no requests to review"
+                showCard={true}
+                cardStyle={{
+                  marginHorizontal: 16,
+                  marginVertical: 20,
+                }}
+              />
             }
           />
 

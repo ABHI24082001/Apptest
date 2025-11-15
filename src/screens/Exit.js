@@ -44,6 +44,7 @@ const ExitApplyScreen = ({navigation}) => {
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState('success'); // Add feedback type state
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Calculate minimum allowed exit date (30 days from today)
@@ -238,37 +239,35 @@ const ExitApplyScreen = ({navigation}) => {
 
       if (response.status === 200) {
         setSubmitSuccess(true);
+        setFeedbackType('success');
         setFeedbackMessage(
           response.data?.message
             ? response.data.message
             : 'Exit application submitted successfully.',
         );
         setFeedbackVisible(true);
-        // Navigation will be handled after modal closes
       } else {
         setSubmitSuccess(false);
-        Alert.alert('Error', 'Failed to submit exit application');
+        setFeedbackType('fail');
+        setFeedbackMessage('Failed to submit exit application');
+        setFeedbackVisible(true);
       }
     } catch (error) {
       console.error('Error submitting exit application:', error);
       setSubmitSuccess(false);
+      setFeedbackType('fail');
 
       // Show backend error message for 400 errors
       if (error.response?.status === 400 && error.response?.data?.message) {
-        Alert.alert('Error', `Bad Request: ${error.response.data.message}`);
+        setFeedbackMessage(`Bad Request: ${error.response.data.message}`);
       } else if (error.response?.data?.message) {
-        Alert.alert('Error', error.response.data.message);
+        setFeedbackMessage(error.response.data.message);
       } else if (error.response?.status === 409) {
-        Alert.alert(
-          'Error',
-          'Exit application already in process for this employee',
-        );
+        setFeedbackMessage('Exit application already in process for this employee');
       } else {
-        Alert.alert(
-          'Error',
-          'Failed to submit exit application. Please try again.',
-        );
+        setFeedbackMessage('Failed to submit exit application. Please try again.');
       }
+      setFeedbackVisible(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -412,9 +411,8 @@ const ExitApplyScreen = ({navigation}) => {
                 mode="contained"
                 onPress={handleSubmit(onSubmit)}
                 style={styles.submitButtonSmall}
-                contentStyle={styles.buttonContentSmall}
                 labelStyle={styles.buttonLabelSmall}
-                icon="send-check"
+                // icon="send-check"
                 disabled={isSubmitting}
                 loading={isSubmitting}>
                 {isSubmitting ? 'Submitting...' : 'Submit'}
@@ -449,12 +447,17 @@ const ExitApplyScreen = ({navigation}) => {
       {/* Feedback Modal */}
       <FeedbackModal
         visible={feedbackVisible}
-        type="success"
+        type={feedbackType}
         message={feedbackMessage}
         onClose={() => {
           setFeedbackVisible(false);
-          navigation.navigate('ExitRequestStatus');
+          if (feedbackType === 'success') {
+            navigation.navigate('ExitRequestStatus');
+          }
         }}
+        autoClose={feedbackType === 'success'}
+        duration={3000}
+        showCloseButton={feedbackType === 'fail'}
       />
     </AppSafeArea>
   );

@@ -16,6 +16,7 @@ import BASE_URL from '../constants/apiConfig';
 import styles from '../Stylesheet/ExitRequestStatusScreencss';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -133,10 +134,14 @@ const ExitRequestStatusScreen = () => {
             </View>
           ) : requests.length === 0 ? (
             canApplyNew ? (
-              <View style={styles.emptyState}>
-                <Icon name="folder-open-outline" size={64} color="#94A3B8" />
-                <Text style={styles.emptyText}>No Exit Requests Found</Text>
-              </View>
+              <EmptyListComponent
+                iconName="folder-open-outline"
+                iconSize={64}
+                iconColor="#94A3B8"
+                text="No Exit Requests Found"
+                subText="You haven't submitted any exit requests yet"
+                cardStyle={styles.emptyState}
+              />
             ) : (
               <View style={styles.pendingMessageContainer}>
                 <Icon name="alert-circle-outline" size={48} color="#FFA500" />

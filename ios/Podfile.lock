@@ -1419,6 +1419,8 @@ PODS:
     - ReactCommon/turbomodule/core
   - react-native-aes (3.2.1):
     - React-Core
+  - react-native-background-actions (4.0.1):
+    - React-Core
   - react-native-blob-util (0.21.3):
     - DoubleConversion
     - glog
@@ -2240,7 +2242,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated (3.19.1):
+  - RNReanimated (3.19.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2263,10 +2265,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.19.1)
-    - RNReanimated/worklets (= 3.19.1)
+    - RNReanimated/reanimated (= 3.19.2)
+    - RNReanimated/worklets (= 3.19.2)
     - Yoga
-  - RNReanimated/reanimated (3.19.1):
+  - RNReanimated/reanimated (3.19.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2289,9 +2291,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.19.1)
+    - RNReanimated/reanimated/apple (= 3.19.2)
     - Yoga
-  - RNReanimated/reanimated/apple (3.19.1):
+  - RNReanimated/reanimated/apple (3.19.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2315,7 +2317,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated/worklets (3.19.1):
+  - RNReanimated/worklets (3.19.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2338,9 +2340,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.19.1)
+    - RNReanimated/worklets/apple (= 3.19.2)
     - Yoga
-  - RNReanimated/worklets/apple (3.19.1):
+  - RNReanimated/worklets/apple (3.19.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2494,6 +2496,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-aes (from `../node_modules/react-native-aes-crypto`)
+  - react-native-background-actions (from `../node_modules/react-native-background-actions`)
   - react-native-blob-util (from `../node_modules/react-native-blob-util`)
   - react-native-date-picker (from `../node_modules/react-native-date-picker`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
@@ -2659,6 +2662,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-aes:
     :path: "../node_modules/react-native-aes-crypto"
+  react-native-background-actions:
+    :path: "../node_modules/react-native-background-actions"
   react-native-blob-util:
     :path: "../node_modules/react-native-blob-util"
   react-native-date-picker:
@@ -2833,6 +2838,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 08d7cddd2dcd2cc51c424931cca9ef507f7afe7b
   React-microtasksnativemodule: cd8733e55d2bc53f5342d2c8e26c8c9bae82a999
   react-native-aes: 2f9ce51c4bd1e9fb5c50f5c867df05bcac10884b
+  react-native-background-actions: ea5bab231a28710eea614acb9ca595594415a5ec
   react-native-blob-util: e8e8c1cc1e447e24b005e93e9f9bec4b680a9e74
   react-native-date-picker: 3f997d3f1313adc1cd2bd8bc21d872cf012a2322
   react-native-document-picker: 6c85587b689ca761d92f6ee6fa6d041e1100d95b
@@ -2885,7 +2891,7 @@ SPEC CHECKSUMS:
   RNImageCropPicker: 5da91ccf6c390af13acf593306bce0eb6e47b08a
   RNMLKitFaceDetection: c3d95579c042b8937a682a55b04659dc0c4812f8
   RNPermissions: 623cd8791dd5853f53827c09da8650ac7268735b
-  RNReanimated: ca944d18c4f86b74555029716cd75b142740d6b6
+  RNReanimated: 30f82828b566f0e5cfddc356f7b88d8a5af9a264
   RNScreens: 5ec356ebbf743eafa3d263eda1f15d03299a9f64
   RNVectorIcons: ce6c966578fd7134980ba7ceaf27a3c616159052
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

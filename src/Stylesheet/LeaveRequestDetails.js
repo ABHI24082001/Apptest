@@ -4,6 +4,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
+    
   },
   header: {
     backgroundColor: '#FFFFFF',

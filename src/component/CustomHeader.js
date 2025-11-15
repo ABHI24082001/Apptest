@@ -15,7 +15,7 @@ const CustomHeader = ({
   titleStyle,
   backButtonStyle,
   homeButtonStyle,
-  gradientColors = ['#2563EB', '#3B82F6'],
+  gradientColors = ['#2568f7ff', '#1c72fcff'],
 }) => {
   const handleBackPress = () => {
     if (onBackPress) {
@@ -35,7 +35,7 @@ const CustomHeader = ({
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#0034e0e9" />
+      <StatusBar barStyle="light-content" backgroundColor="#1861ffe2" />
       <LinearGradient
         colors={gradientColors}
         start={{x: 0, y: 1}}

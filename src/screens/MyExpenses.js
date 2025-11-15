@@ -22,6 +22,7 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import styles from '../Stylesheet/MyExpenses';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
+import EmptyListComponent from '../component/EmptyListComponent';
 
 const MyExpenses = ({navigation}) => {
   const [fromDate, setFromDate] = useState(null);
@@ -244,16 +245,11 @@ const MyExpenses = ({navigation}) => {
             renderItem={renderExpenseCard}
             contentContainerStyle={styles.cardListContainer}
             ListEmptyComponent={
-              <Card style={styles.emptyCard} elevation={1}>
-                <Card.Content style={{alignItems: 'center'}}>
-                  <MaterialIcon
-                    name="file-document-outline"
-                    size={48}
-                    color="#D1D5DB"
-                  />
-                  <Text style={styles.emptyText}>No records found</Text>
-                </Card.Content>
-              </Card>
+              <EmptyListComponent
+                iconName="receipt-outline"
+                text={`No ${tab} records found`}
+                subText="Try adjusting your date range or check back later"
+              />
             }
           />
         )}
