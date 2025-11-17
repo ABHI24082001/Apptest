@@ -1,6 +1,6 @@
 // components/LeaveBalanceCards.js
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 const LeaveBalanceCards = ({ leaveData }) => {
@@ -13,7 +13,7 @@ const LeaveBalanceCards = ({ leaveData }) => {
       {leaveData.map((item, index) => (
         <View key={index} style={styles.cardWrapper}>
           <LinearGradient
-            colors={['#667EEA', '#764BA2']}
+            colors={['#699dffff', '#518be2ff']}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}
             style={styles.leaveCard}>
@@ -38,25 +38,53 @@ const styles = StyleSheet.create({
   leaveScrollContainer: {
     paddingHorizontal: 20,
     paddingVertical: 15,
+    ...Platform.select({
+      ios: {
+        paddingBottom: 20,
+      },
+      android: {
+        paddingBottom: 15,
+      },
+    }),
   },
   cardWrapper: {
     marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 4,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+    }),
   },
   leaveCard: {
     borderRadius: 16,
-    padding: 20,
+    overflow: 'hidden',
+    padding: Platform.OS === 'ios' ? -7 : 25,
+    // padding: 20,
     minWidth: 140,
-    minHeight: 120,
+    minHeight: Platform.OS === 'ios' ? 70 : 120,
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...Platform.select({
+      android: {
+        backgroundColor: 'transparent', // Ensure gradient shows properly on Android
+      },
+    }),
   },
   leaveType: {
     fontWeight: '800',
@@ -64,6 +92,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: 0.5,
+    ...Platform.select({
+      ios: {
+        fontFamily: 'System',
+      },
+      android: {
+        fontFamily: 'sans-serif-medium',
+      },
+    }),
   },
   divider: {
     width: 30,
@@ -85,6 +121,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     fontSize: 15,
+    ...Platform.select({
+      ios: {
+        fontFamily: 'System',
+      },
+      android: {
+        fontFamily: 'sans-serif-medium',
+      },
+    }),
   },
 });
 

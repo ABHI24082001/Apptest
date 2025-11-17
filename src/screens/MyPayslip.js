@@ -162,34 +162,17 @@ const MyPaySlip = () => {
   }, [user]);
 
  useEffect(() => {
-      // Always log the user object for debugging
-      // console.log('ProfileMenu user:', user);
-      // debugger; // Debug here to inspect user object
-  
-      if (user?.empImage) {
-        // Compose the direct image URL using empImage
-        const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
-        setImageUrl(directImageUrl);
-  
-        // Optionally, check if the image exists on the server
-        const fetchUrl = `http://192.168.29.2:91/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
-        fetch(fetchUrl, { method: 'GET' })
-          .then(response => {
-            console.log('Profile image fetch URL:', fetchUrl);
-            console.log('Profile image fetch response:', response);
-            // debugger; // Debug here to inspect fetch response
-            if (!response.ok) {
-              setImageUrl(null);
-            }
-          })
-          .catch(err => {
-            console.log('Profile image fetch error:', err);
-            setImageUrl(null);
-          });
-      } else {
-        setImageUrl(null);
-      }
-    }, [user?.empImage]);
+    // Always log the user object for debugging
+    // console.log('ProfileMenu user:', user);
+
+    if (user?.empImage) {
+      // Use the static image URL directly
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+      setImageUrl(staticImageUrl);
+    } else {
+      setImageUrl(null);
+    }
+  }, [user?.empImage]);
 
 
   useEffect(() => {
@@ -205,7 +188,6 @@ const MyPaySlip = () => {
   }, [fromDate, toDate, employeeDetails]);
 
 
-    const IMG_BASE_URL = 'http://192.168.29.2:90/assets/UploadImg/';
 
 
   const onRefresh = () => {
@@ -275,7 +257,6 @@ const MyPaySlip = () => {
             name: 'TDS',
             amount: formatCurrency(payslipData.tdsAmt),
           },
-
           {
             name: 'Advance Recovery',
             amount: formatCurrency(payslipData.advancePayment),
@@ -288,18 +269,13 @@ const MyPaySlip = () => {
             name: 'Miscellaneous Deduction',
             amount: formatCurrency(payslipData.miscellaneousDeduction),
           },
-
-          // payslipData.Advancerecovery > 0 && {
-          //   name: 'Advance Recovery',
-          //   amount: formatCurrency(payslipData.AdvanceRecovery)
-          // },
           payslipData.lateComminAmount > 0 && {
-            name: 'Late Comimg Deduction',
+            name: 'Late Coming Deduction',
             amount: formatCurrency(payslipData.lateComminAmount),
           },
           {
             name: 'Early Going Deduction',
-            amount: formatCurrency(payslipData.earlyGoingDeduction ?? 4.23),
+            amount: formatCurrency(payslipData.earlyGoingDeduction ?? 0),
           },
           {
             name: 'Un-Approved Leave Amount',
@@ -328,10 +304,10 @@ const MyPaySlip = () => {
         items
           .map(
             item => `
-      <div class="d-flex justify-content-between px-2 py-1">
-        <p class="mb-1 fw-semibold">${item.name}</p>
-        <p class="mb-1 fw-semibold">${item.amount}</p>
-      </div>
+      <tr>
+        <td class="py-1 px-2">${item.name}</td>
+        <td class="py-1 px-2 text-right">${item.amount}</td>
+      </tr>
     `,
           )
           .join('');
@@ -339,13 +315,47 @@ const MyPaySlip = () => {
       const earningsHtml = generateRows(formattedData.earnings);
       const deductionsHtml = generateRows(formattedData.deductions);
 
-      // Fetch static logo from the server
-      const logoResponse = await axiosinstance.get(STATIC_LOGO_URL, {
-        responseType: 'arraybuffer',
-      });
-      const logoBase64Data = Buffer.from(logoResponse.data).toString('base64');
-      const logoBase64 = `data:image/png;base64,${logoBase64Data}`;
-   
+      // Get user profile image
+      let userImageBase64 = '';
+      if (imageUrl) {
+        try {
+          const userImageResult = await RNFS.downloadFile({
+            fromUrl: imageUrl,
+            toFile: `${RNFS.TemporaryDirectoryPath}/user_image.png`,
+          }).promise;
+
+          if (userImageResult.statusCode === 200) {
+            const userImageData = await RNFS.readFile(
+              `${RNFS.TemporaryDirectoryPath}/user_image.png`,
+              'base64'
+            );
+            userImageBase64 = `data:image/png;base64,${userImageData}`;
+            await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/user_image.png`);
+          }
+        } catch (userImageError) {
+          console.warn('Could not load user image:', userImageError);
+        }
+      }
+
+      // Get company logo
+      let logoBase64 = '';
+      try {
+        const downloadResult = await RNFS.downloadFile({
+          fromUrl: STATIC_LOGO_URL,
+          toFile: `${RNFS.TemporaryDirectoryPath}/company_logo.png`,
+        }).promise;
+
+        if (downloadResult.statusCode === 200) {
+          const logoBase64Data = await RNFS.readFile(
+            `${RNFS.TemporaryDirectoryPath}/company_logo.png`,
+            'base64'
+          );
+          logoBase64 = `data:image/png;base64,${logoBase64Data}`;
+          await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/company_logo.png`);
+        }
+      } catch (logoError) {
+        console.warn('Could not load company logo:', logoError);
+      }
 
       const dynamicHtml = `
 <!DOCTYPE html>
@@ -356,129 +366,120 @@ const MyPaySlip = () => {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: 16px;
+      font-size: 14px;
       color: #000;
-      line-height: 1.8;
+      line-height: 1.6;
+      padding: 20px;
     }
     .payslip {
       width: 100%;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
-      border: 1px solid #ccc;
-      padding: 30px 25px;
+      border: 2px solid #333;
+      padding: 20px;
     }
-    .d-flex { display: flex; }
-    .justify-content-between { justify-content: space-between; }
-    .align-items-start { align-items: flex-start; }
-    .align-items-end { align-items: flex-end; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .company-info h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+    .company-info p { color: #666; font-size: 12px; }
+    .logo { width: 80px; height: 80px; object-fit: contain; }
+    .separator { border-top: 2px solid #333; margin: 15px 0; }
+    .payslip-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+    .employee-info { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; }
+    .employee-details h2 { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+    .employee-details p { margin-bottom: 3px; font-size: 14px; }
+    .employee-image { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd; }
+    .details-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .left-details, .right-details { width: 48%; }
+    .net-pay { font-size: 18px; font-weight: bold; color: #2e7d32; text-align: right; }
+    .earnings-deductions { display: flex; gap: 20px; }
+    .earnings, .deductions { flex: 1; }
+    .section-title { background: #f5f5f5; padding: 8px; font-weight: bold; text-transform: uppercase; border: 1px solid #ddd; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 6px 8px; border: 1px solid #ddd; }
+    .amount { text-align: right; }
+    .total-row { font-weight: bold; background: #f9f9f9; }
     .text-right { text-align: right; }
-    .flex-column { flex-direction: column; }
-    .row { display: flex; flex-wrap: wrap; margin: 0 -10px; }
-    .col-md-6 { width: 50%; padding: 0 10px; }
-    .fw-bold { font-weight: 700; }
-    .fw-semibold { font-weight: 600; }
-    .mb-1 { margin-bottom: 10px; }
-    .mt-2 { margin-top: 18px; }
-    .py-1 { padding: 10px 0; }
-    .py-2 { padding: 14px 0; }
-    .px-2 { padding: 0 14px; }
-    .p-2 { padding: 14px; }
-    .text-center { text-align: center; }
-    .text-muted { color: #777; }
-    .border { border: 1px solid #ddd; }
-    .section-header {
-      background: #f4f4f4;
-      padding: 12px 14px;
-      font-weight: bold;
-      font-size: 17px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    h1 {
-      font-size: 26px;
-      margin-bottom: 10px;
-    }
-    h2 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-    h3 {
-      font-size: 18px;
-      margin-bottom: 6px;
-    }
-    .signature-line {
-      border-top: 1px dashed #000;
-      width: 180px;
-      margin: 30px auto 6px;
-    }
-    .net-pay {
-      font-size: 20px;
-      font-weight: 700;
-      color: #2e7d32;
-    }
+    .py-1 { padding: 6px 0; }
+    .px-2 { padding: 0 8px; }
   </style>
 </head>
 <body>
   <div class="payslip">
-    <div class="d-flex justify-content-between align-items-start">
-      <div>
-        <h1 class="fw-bold mb-1">Honey and Heath Trading</h1>
-        <p class="text-muted">Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum,New Delhi,456123</p>
+    <!-- Header -->
+    <div class="header">
+      <div class="company-info">
+        <h1>Honey and Heath Trading</h1>
+        <p>Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum, New Delhi, 456123</p>
       </div>
-      <img src="${logoBase64}" width="70" />
+      ${logoBase64 ? `<img src="${logoBase64}" class="logo" alt="Company Logo" />` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border: 1px solid #ddd;"></div>'}
     </div>
 
-    <hr class="mt-2 mb-1">
+    <div class="separator"></div>
 
-    <div class="mt-2">
-      <h2 class="fw-bold mb-1">Payslip for the Period: ${
-        formattedData.payPeriod
-      }</h2>
-      <h3 class="mb-1">${formattedData.name} (Emp ID: ${
-        formattedData.empId
-      })</h3>
-      <p class="mb-1">${formattedData.designation}, ${
-        formattedData.department
-      }</p>
-      <p>Date of Joining: ${formattedData.doj}</p>
+    <!-- Payslip Title -->
+    <div class="payslip-title">Payslip for the Period: ${formattedData.payPeriod}</div>
+
+    <!-- Employee Info -->
+    <div class="employee-info">
+      <div class="employee-details">
+        <h2>${formattedData.name} (${formattedData.empId})</h2>
+        <p><strong>${formattedData.designation}, ${formattedData.department}</strong></p>
+        <p>Date of Joining: ${formattedData.doj}</p>
+      </div>
+      ${userImageBase64 ? `<img src="${userImageBase64}" class="employee-image" alt="Employee Photo" />` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border: 2px solid #ddd; border-radius: 8px;"></div>'}
     </div>
 
-    <div class="d-flex justify-content-between align-items-end mt-2" style="flex-wrap: wrap;">
-      <div>
-        <p class="fw-semibold">UAN: ${
-          employeeData.uanno ? employeeData.uanno : 'NA'
-        }</p>
-        <p class="fw-semibold">PF A/C: ${
-          employeeDetails.pfaccNo ? employeeDetails.pfaccNo : 'NA'
-        }</p>
-        <p class="fw-semibold">Bank A/C: ${
-          employeeDetails.bankAcNo ? employeeDetails.bankAcNo : 'NA'
-        }</p>
+    <!-- Details Row -->
+    <div class="details-row">
+      <div class="left-details">
+        <p><strong>UAN Number:</strong> ${employeeData?.uanno || 'NA'}</p>
+        <p><strong>PF A/C Number:</strong> ${employeeDetails?.pfaccNo || 'NA'}</p>
+        <p><strong>Bank Account Number:</strong> ${employeeDetails?.bankAcNo || 'NA'}</p>
       </div>
-      <div class="text-right">
-              <p class="net-pay">Employee Net Pay: ${formattedData.netPay}</p>
-        <p class="fw-semibold">Paid Days: ${formattedData.paidDays || 31}</p>
-        <p class="fw-semibold">LOP Days: ${formattedData.lopDays}</p>
-      
+      <div class="right-details">
+        <div class="net-pay">Employee Net Pay: ${formattedData.netPay}</div>
+        <p class="text-right"><strong>Paid Days:</strong> ${formattedData.paidDays} | <strong>LOP Days:</strong> ${formattedData.lopDays}</p>
       </div>
     </div>
 
-    <div class="row mt-2">
-      <div class="col-md-6">
-        <div class="section-header">Earnings</div>
-        ${earningsHtml}
-        <div class="d-flex justify-content-between px-2 py-1 border">
-          <p class="fw-bold">Total Earnings</p>
-          <p class="fw-bold">${formatCurrency(totalEarnings)}</p>
-        </div>
+    <!-- Earnings and Deductions -->
+    <div class="earnings-deductions">
+      <div class="earnings">
+        <div class="section-title">Earnings</div>
+        <table>
+          <thead>
+            <tr style="background: #f9f9f9;">
+              <td><strong>Component</strong></td>
+              <td class="amount"><strong>Amount</strong></td>
+            </tr>
+          </thead>
+          <tbody>
+            ${earningsHtml}
+            <tr class="total-row">
+              <td><strong>Gross Earnings</strong></td>
+              <td class="amount"><strong>${formatCurrency(totalEarnings)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="col-md-6">
-        <div class="section-header">Deductions</div>
-        ${deductionsHtml}
-        <div class="d-flex justify-content-between px-2 py-1 border">
-          <p class="fw-bold">Total Deductions</p>
-          <p class="fw-bold">${formatCurrency(totalDeductions)}</p>
-        </div>
+
+      <div class="deductions">
+        <div class="section-title">Deductions</div>
+        <table>
+          <thead>
+            <tr style="background: #f9f9f9;">
+              <td><strong>Component</strong></td>
+              <td class="amount"><strong>Amount</strong></td>
+            </tr>
+          </thead>
+          <tbody>
+            ${deductionsHtml}
+            <tr class="total-row">
+              <td><strong>Total Deductions</strong></td>
+              <td class="amount"><strong>${formatCurrency(totalDeductions)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -635,11 +636,13 @@ const MyPaySlip = () => {
         iconName="file-document-outline"
       />
       {/* Show logoBase64 image if available */}
-      {typeof logoBase64 === 'string' && !!logoBase64 && (
+      {(console.log('logoBase64 value:', logoBase64), typeof logoBase64 === 'string' && !!logoBase64) && (
         <Image
           source={{ uri: `data:image/png;base64,${logoBase64}` }}
           style={{ width: 70, height: 70, alignSelf: 'center', marginVertical: 10 }}
           resizeMode="contain"
+          onLoad={() => console.log('Company logo loaded successfully')}
+          onError={(error) => console.log('Company logo load error:', error)}
         />
       )}
 

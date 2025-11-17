@@ -1,12 +1,12 @@
 import {StyleSheet, Platform } from 'react-native';
-const IOS_TOP =  Platform.OS === "ios" ? -30 : 0;
+const IOS_TOP = Platform.OS === "ios" ? 0 : 0; // Remove negative value for iOS
 
 const styles = StyleSheet.create({
  
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    paddingBottom: Platform.OS === 'ios' ? IOS_TOP : 0,  
+    paddingBottom: Platform.OS === 'ios' ? 0 : 0, // Remove negative padding for iOS
   },
   header: {
   paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
@@ -592,7 +592,7 @@ statusTimeText: {
     }),
   },
   shiftInfoGradient: {
-    padding: Platform.OS === 'ios' ? 0 : 16,
+    padding: Platform.OS === 'ios' ? 0 : 16, // Use consistent padding for both platforms
   },
   shiftInfoHeader: {
     flexDirection: 'row',
@@ -671,8 +671,8 @@ statusTimeText: {
     transform: [{ scale: 0.98 }],
   },
   actionButtonGradient: {
-    paddingVertical: Platform.OS === 'ios' ? 0 : 20,
-    paddingHorizontal: Platform.OS === 'ios' ? 0 : 16,
+    paddingVertical: Platform.OS === 'ios' ? 0 : 20, // Use consistent padding for both platforms
+    paddingHorizontal:Platform.OS === 'ios' ? 0 : 16,
   },
   buttonContent: {
     flexDirection: 'row',

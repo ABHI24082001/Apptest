@@ -572,31 +572,33 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-   profile: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    ...Platform.select({
-      android: {
-        elevation: 8,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-        shadowOffset: {width: 0, height: 3},
-      },
-    }),
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-  },
+  //  profile: {
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   paddingVertical: 30,
+  //   paddingHorizontal: 20,
+  //   marginBottom: 10,
+  //   ...Platform.select({
+  //     android: {
+  //       elevation: 8,
+  //     },
+  //     ios: {
+  //       shadowColor: '#000',
+  //       shadowOpacity: 0.15,
+  //       shadowRadius: 10,
+  //       shadowOffset: {width: 0, height: 3},
+  //     },
+  //   }),
+  //   borderBottomLeftRadius: 25,
+  //   borderBottomRightRadius: 25,
+  // },
 
    profileContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    paddingHorizontal: 10,
+    paddingVertical: Platform.OS === 'ios' ? 50 : 20,
   },
    avatarContainer: {
     alignItems: 'center',
