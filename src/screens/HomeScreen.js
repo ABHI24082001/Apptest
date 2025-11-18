@@ -601,83 +601,197 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
   // Face registration handler
   // Replace handleReregisterFace function:
 
+  // const handleReregisterFace = async () => {
+  //   if (!session) {
+  //     Alert.alert('Error', 'Face recognition model not loaded');
+  //     return;
+  //   }
+
+  //   try {
+  //     setIsRegistering(true);
+
+  //     await launchCamera(async res => {
+  //       try {
+  //         if (!res.assets?.[0]?.base64) {
+  //           throw new Error('No image captured');
+  //         }
+
+  //         const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
+
+  //         // Process face embedding with timeout
+  //         const embeddingPromise = getEmbedding(base64Image);
+  //         const timeoutPromise = new Promise((_, reject) =>
+  //           setTimeout(
+  //             () => reject(new Error('Face processing timeout')),
+  //             15000,
+  //           ),
+  //         );
+
+  //         const embedding = await Promise.race([
+  //           embeddingPromise,
+  //           timeoutPromise,
+  //         ]);
+
+  //         if (!embedding) {
+  //           throw new Error('Failed to process face');
+  //         }
+
+  //         // Save to server
+  //         const payload = {
+  //           EmployeeId: employeeDetails?.id,
+  //           BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
+  //         };
+
+  //         const response = await axiosInstance.post(
+  //           `${BASE_URL}/Employee/SaveEmployeeBiometric`,
+  //           payload,
+  //         );
+
+  //         if (!response.data?.isSuccess) {
+  //           throw new Error(
+  //             response.data?.message || 'Failed to save biometric data',
+  //           );
+  //         }
+
+  //         // Update local state
+  //         setRegisteredFace(base64Image);
+  //         setCachedFaceImage(base64Image);
+  //         setShowRegistration(false);
+
+  //         // Cache locally
+  //         await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
+
+  //         Alert.alert('✅ Success', 'Face registered successfully!');
+  //       } catch (error) {
+  //         console.error('Face registration error:', error);
+  //         Alert.alert(
+  //           '❌ Registration Failed',
+  //           error.message || 'Please try again',
+  //         );
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Registration process error:', error);
+  //     Alert.alert('Error', 'Failed to start camera');
+  //   } finally {
+  //     setIsRegistering(false);
+  //   }
+  // };
+
+
   const handleReregisterFace = async () => {
     if (!session) {
-      Alert.alert('Error', 'Face recognition model not loaded');
+      Alert.alert('Error', 'Model not loaded yet');
       return;
     }
 
-    try {
-      setIsRegistering(true);
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Camera access required');
+      return;
+    }
 
-      await launchCamera(async res => {
+    setIsRegistering(true);
+
+    ImagePicker.launchCamera(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+        cameraType: 'front',
+        quality: 0.7,
+        maxWidth: 500,
+        maxHeight: 500,
+      },
+      async res => {
+        if (res.didCancel) {
+          setIsRegistering(false);
+          return;
+        }
+
+        if (!res.assets?.[0]?.base64) {
+          Alert.alert('Error', 'No image captured');
+          setIsRegistering(false);
+          return;
+        }
+
         try {
-          if (!res.assets?.[0]?.base64) {
-            throw new Error('No image captured');
-          }
-
+          setIsProcessing(true);
           const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
 
-          // Process face embedding with timeout
-          const embeddingPromise = getEmbedding(base64Image);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error('Face processing timeout')),
-              15000,
-            ),
+          let embeddingComplete = false;
+          imageProcessingTimeoutRef.current = setTimeout(() => {
+            if (!embeddingComplete) {
+              setIsProcessing(false);
+              setIsRegistering(false);
+              Alert.alert(
+                'Processing Error',
+                'Face processing took too long. Please try again.',
+              );
+            }
+          }, 15000);
+
+          const emb = await getEmbedding(base64Image);
+          embeddingComplete = true;
+
+          if (!emb) throw new Error('Failed to get embedding');
+
+          const buffer = Buffer.from(new Float32Array(emb).buffer);
+          const embeddingBase64 = buffer.toString('base64');
+          const pureBase64 = base64Image.replace(
+            /^data:image\/\w+;base64,/,
+            '',
           );
 
-          const embedding = await Promise.race([
-            embeddingPromise,
-            timeoutPromise,
-          ]);
-
-          if (!embedding) {
-            throw new Error('Failed to process face');
-          }
-
-          // Save to server
           const payload = {
-            EmployeeId: employeeDetails?.id,
-            BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
+            EmployeeId: employeeDetails.id,
+            FaceImage: pureBase64,
+            FaceEmbeding: embeddingBase64,
+            FingerImage: null,
+            FingerEmbeding: null,
+            RetinaImage: null,
+            RetinaEmbeding: null,
+            VoiceRecord: null,
+            VoiceRecordEmbeding: null,
+            CreatedDate: new Date().toISOString(),
+            ModifiedBy: employeeDetails.id,
+            IsDelete: 0,
+            CompanyId: employeeDetails.childCompanyId,
           };
 
-          const response = await axiosInstance.post(
-            `${BASE_URL}/Employee/SaveEmployeeBiometric`,
+          const response = await axios.post(
+            `${BASE_URL}/EmployeeBiomatricRegister/SaveEmployeeImageStringFormat`,
             payload,
           );
 
-          if (!response.data?.isSuccess) {
-            throw new Error(
-              response.data?.message || 'Failed to save biometric data',
+          if (response.data?.isSuccess) {
+            console.log('✅ Face registration successful');
+            // Set all states together
+            setRegisteredFace(base64Image);
+            setCachedFaceImage(base64Image);
+            setShowRegistration(false); // IMPORTANT: Hide registration after success
+            Alert.alert(
+              '✅ Success',
+              'Face registered successfully! You can now check in.',
+            );
+          } else {
+            Alert.alert(
+              'Error',
+              response.data?.message || 'Failed to save face',
             );
           }
-
-          // Update local state
-          setRegisteredFace(base64Image);
-          setCachedFaceImage(base64Image);
-          setShowRegistration(false);
-
-          // Cache locally
-          await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
-
-          Alert.alert('✅ Success', 'Face registered successfully!');
-        } catch (error) {
-          console.error('Face registration error:', error);
-          Alert.alert(
-            '❌ Registration Failed',
-            error.message || 'Please try again',
-          );
+        } catch (err) {
+          console.error('Re-Register Error:', err);
+          Alert.alert('Error', err.message);
+        } finally {
+          if (imageProcessingTimeoutRef.current) {
+            clearTimeout(imageProcessingTimeoutRef.current);
+          }
+          setIsProcessing(false);
+          setIsRegistering(false);
         }
-      });
-    } catch (error) {
-      console.error('Registration process error:', error);
-      Alert.alert('Error', 'Failed to start camera');
-    } finally {
-      setIsRegistering(false);
-    }
+      },
+    );
   };
-
   const launchCamera = async callback => {
     try {
       const hasPermission = await requestCameraPermission();
