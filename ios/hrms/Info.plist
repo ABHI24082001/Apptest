@@ -2,7 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Basic App Info -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -25,8 +24,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-
-	<!-- Security and Networking -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -34,31 +31,22 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-
-	<!-- 👇 Permissions (for react-native-permissions) -->
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app uses the camera to verify your identity during check-in.</string>
-
+	<string>This app uses the camera to take photos for face matching.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>This app uses Face ID for secure check-in.</string>
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show your position on the map.</string>
-
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone for video capture (if any).</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save processed photos to your library (if saving).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to select images for face matching.</string>
-
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We need permission to save processed photos to your library.</string>
-
-	<!-- Optional but recommended (for future permissions) -->
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to your microphone for audio input features.</string>
-
 	<key>NSUserTrackingUsageDescription</key>
 	<string>We use your device ID to provide personalized app experience and analytics.</string>
-
-	<!-- UI Fonts -->
 	<key>UIAppFonts</key>
 	<array>
 		<string>AntDesign.ttf</string>
@@ -77,41 +65,19 @@
 		<string>SimpleLineIcons.ttf</string>
 		<string>Zocial.ttf</string>
 	</array>
-
-	<!-- Launch and Orientation -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
 	</array>
-
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-
-	<key>NSCameraUsageDescription</key>
-<string>This app uses the camera to take photos for face matching.</string>
-
-<key>NSPhotoLibraryUsageDescription</key>
-<string>We need access to your photo library to select images for face matching.</string>
-
-<key>NSPhotoLibraryAddUsageDescription</key>
-<string>We need permission to save processed photos to your library (if saving).</string>
-
-<key>NSMicrophoneUsageDescription</key>
-<string>This app uses the microphone for video capture (if any).</string>
-
-
-	<!-- iOS 17+ setting -->
-	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
 	<false/>
 </dict>
 </plist>

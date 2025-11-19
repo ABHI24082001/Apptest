@@ -598,86 +598,6 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     });
   }, [showRegistration, registeredFace, isFaceLoading, initialLoadComplete]);
 
-  // Face registration handler
-  // Replace handleReregisterFace function:
-
-  // const handleReregisterFace = async () => {
-  //   if (!session) {
-  //     Alert.alert('Error', 'Face recognition model not loaded');
-  //     return;
-  //   }
-
-  //   try {
-  //     setIsRegistering(true);
-
-  //     await launchCamera(async res => {
-  //       try {
-  //         if (!res.assets?.[0]?.base64) {
-  //           throw new Error('No image captured');
-  //         }
-
-  //         const base64Image = `data:image/jpeg;base64,${res.assets[0].base64}`;
-
-  //         // Process face embedding with timeout
-  //         const embeddingPromise = getEmbedding(base64Image);
-  //         const timeoutPromise = new Promise((_, reject) =>
-  //           setTimeout(
-  //             () => reject(new Error('Face processing timeout')),
-  //             15000,
-  //           ),
-  //         );
-
-  //         const embedding = await Promise.race([
-  //           embeddingPromise,
-  //           timeoutPromise,
-  //         ]);
-
-  //         if (!embedding) {
-  //           throw new Error('Failed to process face');
-  //         }
-
-  //         // Save to server
-  //         const payload = {
-  //           EmployeeId: employeeDetails?.id,
-  //           BiometricData: base64Image.split(',')[1], // Remove data:image/jpeg;base64,
-  //         };
-
-  //         const response = await axiosInstance.post(
-  //           `${BASE_URL}/Employee/SaveEmployeeBiometric`,
-  //           payload,
-  //         );
-
-  //         if (!response.data?.isSuccess) {
-  //           throw new Error(
-  //             response.data?.message || 'Failed to save biometric data',
-  //           );
-  //         }
-
-  //         // Update local state
-  //         setRegisteredFace(base64Image);
-  //         setCachedFaceImage(base64Image);
-  //         setShowRegistration(false);
-
-  //         // Cache locally
-  //         await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, base64Image);
-
-  //         Alert.alert('✅ Success', 'Face registered successfully!');
-  //       } catch (error) {
-  //         console.error('Face registration error:', error);
-  //         Alert.alert(
-  //           '❌ Registration Failed',
-  //           error.message || 'Please try again',
-  //         );
-  //       }
-  //     });
-  //   } catch (error) {
-  //     console.error('Registration process error:', error);
-  //     Alert.alert('Error', 'Failed to start camera');
-  //   } finally {
-  //     setIsRegistering(false);
-  //   }
-  // };
-
 
   const handleReregisterFace = async () => {
     if (!session) {
@@ -1168,6 +1088,7 @@ const handleCheckOut = async () => {
         ],
       );
     } else if (bufferEndTime && currentTime.isBetween(shiftEndTime, bufferEndTime)) {
+      console.log('✅ Within buffer time for checkout');
       // Normal check-out within buffer
       Alert.alert(
         'Check Out Confirmation',
@@ -1177,6 +1098,9 @@ const handleCheckOut = async () => {
           { text: 'Check Out', onPress: () => performCheckOut('Manual') },
         ],
       );
+    } else if (bufferEndTime && currentTime.isAfter(bufferEndTime)) {
+      console.log('⚠️ Buffer time exceeded for checkout');
+      performCheckOut('Auto');
     } else {
       // After buffer time exceeded or no buffer defined
       Alert.alert(
@@ -2225,7 +2149,9 @@ const handleCheckOut = async () => {
       </>
     );
   };
-  // Main HomeScreen Header and Content
+
+
+
   return (
     <AppSafeArea>
       <StatusBar  barStyle="light-content" backgroundColor="#1E40AF" />
