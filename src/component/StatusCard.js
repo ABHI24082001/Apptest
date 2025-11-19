@@ -199,9 +199,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerGradient: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
+    borderTopLeftRadius: Platform.OS === 'ios' ? 8 : 16,
+    borderTopRightRadius: Platform.OS === 'ios' ? 8 : 16,
+    padding: Platform.OS === 'ios' ? 5 : 16,
+    // marginBottom: 8,
   },
   headerContent: {
     flexDirection: 'row',

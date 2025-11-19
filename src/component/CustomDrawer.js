@@ -144,7 +144,6 @@ const CustomDrawer = ({navigation}) => {
     );
   };
   const [visible, setVisible] = useState(false);
-
   const [imageUrl, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
@@ -166,18 +165,58 @@ const CustomDrawer = ({navigation}) => {
     fetchEmployeeData();
   }, [user]);
 
-  useEffect(() => {
-    // Always log the user object for debugging
-    // console.log('ProfileMenu user:', user);
+  // Add function to fetch image as base64
+  const fetchImageAsBase64 = async (fileName) => {
+    try {
+      const fetchUrl = `https://hcmv2.anantatek.com/api/UploadDocument/FetchFile?fileNameWithExtension=${fileName}`;
+      console.log('📡 Fetching profile image from drawer:', fetchUrl);
 
-    if (user?.empImage) {
-      // Use the static image URL directly
-      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+      const response = await fetch(fetchUrl, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          
+          if (result.base64File) {
+            // Determine the file extension
+            const extension = fileName.split('.').pop() || 'jpg';
+            const imageUri = `data:image/${extension};base64,${result.base64File}`;
+            setImageUrl(imageUri);
+            console.log('✅ Profile image loaded successfully in drawer');
+            return;
+          }
+        }
+      }
+      
+      // Fallback to static URL if API fetch fails
+      console.log('⚠️ API fetch failed, using static URL');
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
       setImageUrl(staticImageUrl);
+      
+    } catch (error) {
+      console.error('❌ Error fetching profile image:', error);
+      // Fallback to static URL
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
+      setImageUrl(staticImageUrl);
+    }
+  };
+
+  useEffect(() => {
+    // Use employeeData.empImage instead of user.empImage
+    console.log('Employee Details empImage:', employeeData?.empImage);
+
+    if (employeeData?.empImage) {
+      // First try to fetch the image as base64 from the API
+      fetchImageAsBase64(employeeData.empImage);
     } else {
       setImageUrl(null);
     }
-  }, [user?.empImage]);
+  }, [employeeData?.empImage]);
 
   return (
     <AppSafeArea style={styles.container}>

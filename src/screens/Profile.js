@@ -504,6 +504,7 @@ const ChangePasswordModal = ({
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const employeeDetails = useFetchEmployeeDetails();
+  console.log(employeeDetails , 'dkfjnjdinodoidf')
   const insets = useSafeAreaInsets(); // Get safe area insets
   // debugger;
   const [isEditing, setIsEditing] = useState(false);
@@ -520,6 +521,8 @@ const ProfileScreen = () => {
   const [imageUrll, setImageUrl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const {user} = useAuth();
+
+  console.log(user , 'kjdsvhiouerwhioefhioerwhiegrporeop')
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -539,18 +542,57 @@ const ProfileScreen = () => {
   }, [user]);
 
   useEffect(() => {
-    // Always log the user object for debugging
-    // console.log('ProfileMenu user:', user);
+    // Use employeeDetails.empImage instead of user.empImage
+    console.log('Employee Details empImage:', employeeDetails?.empImage);
 
-    if (user?.empImage) {
-      // Use the static image URL directly
-      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
-      setImageUrl(staticImageUrl);
+    if (employeeDetails?.empImage) {
+      // First try to fetch the image as base64 from the API
+      fetchImageAsBase64(employeeDetails.empImage);
     } else {
       setImageUrl(null);
     }
-  }, [user?.empImage]);
+  }, [employeeDetails?.empImage]); // Changed dependency from user?.empImage to employeeDetails?.empImage
 
+  // Add new function to fetch image as base64
+  const fetchImageAsBase64 = async (fileName) => {
+    try {
+      const fetchUrl = `https://hcmv2.anantatek.com/api/UploadDocument/FetchFile?fileNameWithExtension=${fileName}`;
+      console.log('📡 Fetching profile image from:', fetchUrl);
+
+      const response = await fetch(fetchUrl, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          
+          if (result.base64File) {
+            // Determine the file extension
+            const extension = fileName.split('.').pop() || 'jpg';
+            const imageUri = `data:image/${extension};base64,${result.base64File}`;
+            setImageUrl(imageUri);
+            console.log('✅ Profile image loaded successfully');
+            return;
+          }
+        }
+      }
+      
+      // Fallback to static URL if API fetch fails
+      console.log('⚠️ API fetch failed, using static URL');
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
+      setImageUrl(staticImageUrl);
+      
+    } catch (error) {
+      console.error('❌ Error fetching profile image:', error);
+      // Fallback to static URL
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
+      setImageUrl(staticImageUrl);
+    }
+  };
 
   // Refresh functionality
   const onRefresh = useCallback(async () => {
@@ -711,52 +753,77 @@ const ProfileScreen = () => {
         category: 'img',
       };
 
-      console.log('📤 Uploading payload:', payload);
+      console.log('📤 Uploading payload:', {
+        fileName: payload.fileName,
+        extension: payload.extension,
+        category: payload.category,
+        base64FileLength: payload.base64File?.length || 0
+      });
 
-      // ✅ Use http, not https
-      const response = await fetch(
-        'http://192.168.29.2:90/api/UploadDocument/UploadDocument',
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
+      // Use the correct HTTPS URL
+      const uploadUrl = 'https://hcmv2.anantatek.com/api/UploadDocument/UploadDocument';
+      console.log('📡 Upload URL:', uploadUrl);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-      );
+        body: JSON.stringify(payload),
+      });
+
+      console.log('📥 Response status:', response.status);
+
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      console.log('📥 Content-Type:', contentType);
+
+      if (!contentType || !contentType.includes('application/json')) {
+        // If not JSON, get the text response to see what's actually returned
+        const textResponse = await response.text();
+        console.log('📥 Non-JSON response:', textResponse);
+        throw new Error(`Server returned ${contentType || 'unknown content type'}. Expected JSON. Response: ${textResponse.substring(0, 200)}...`);
+      }
 
       const result = await response.json();
       console.log('📥 Server response:', result);
 
       if (response.ok && result.fileName) {
         const uploadedFileName = result.fileName;
-        Alert.alert('Success', 'Profile photo uploaded!');
-        setUploadedPhotoFileName(uploadedFileName);
-
-        // Save filename to employee profile
+        
+        // Save filename to employee profile first
         await saveProfileImage(uploadedFileName);
 
-        // ✅ Now fetch uploaded image as base64
-        const fetchUrl = `http://192.168.29.2:90/api/UploadDocument/FetchFile?fileNameWithExtension=${uploadedFileName}`;
-        console.log('Step 4: Fetching image from:', fetchUrl);
+        // Then fetch and display the uploaded image
+        const imageUri = `data:image/${extension};base64,${base64Data}`;
+        setUploadedPhoto({uri: imageUri});
+        setImageUrl(imageUri); // Update the main image display
+        setUploadedPhotoFileName(uploadedFileName);
 
-        const fileResponse = await fetch(fetchUrl);
-        const fileResult = await fileResponse.json();
-
-        if (fileResponse.ok && fileResult.base64File) {
-          const imageUri = `data:image/${extension};base64,${fileResult.base64File}`;
-          setUploadedPhoto({uri: imageUri});
-          console.log('✅ Image preview URI:', imageUri);
-        } else {
-          throw new Error('Failed to fetch uploaded image');
-        }
+        Alert.alert('Success', 'Profile photo uploaded successfully!');
+        
+        // Refresh the profile data to get updated user info
+        refreshAfterSuccess();
+        
       } else {
-        throw new Error(result?.message || `Server error: ${response.status}`);
+        throw new Error(result?.message || `Upload failed with status: ${response.status}`);
       }
     } catch (error) {
       console.error('❌ UploadDocument error:', error);
-      Alert.alert(
-        'Upload Failed',
-        error.message || 'Could not upload profile photo',
-      );
+      
+      // Provide more specific error messages
+      let errorMessage = 'Could not upload profile photo';
+      
+      if (error.message.includes('JSON Parse error')) {
+        errorMessage = 'Server returned invalid response. Please check your internet connection and try again.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network connection failed. Please check your internet and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Upload Failed', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -766,9 +833,9 @@ const ProfileScreen = () => {
     try {
       const payload = {
         ...employeeDetails,
-        empImage: fileName,
+        EmpImage: fileName, // Use capital E for EmpImage to match backend
         ModifiedDate: formatDateForBackend(new Date()),
-        // Optionally update ModifiedBy, etc.
+        ModifiedBy: employeeDetails.id || 0,
       };
 
       // Remove unwanted keys if needed (like arrays, etc.)
@@ -777,11 +844,7 @@ const ProfileScreen = () => {
       delete payload.tblFinalLeaveApprovals;
       delete payload.tblNotifications;
 
-      console.log(
-        'Sending profile update to:',
-        `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
-      );
-      console.log('Profile payload:', payload);
+      console.log('📤 Saving profile image filename:', fileName);
 
       const response = await axios.post(
         `${BASE_URL}/EmpRegistration/SaveEmpRegistration`,
@@ -789,14 +852,13 @@ const ProfileScreen = () => {
       );
 
       if (response.status >= 200 && response.status < 300) {
-        Alert.alert('Success', 'Profile image updated!');
-        // Optionally refresh profile data here
+        console.log('✅ Profile image filename saved successfully');
       } else {
-        throw new Error('Failed to update profile image');
+        throw new Error('Failed to update profile image in database');
       }
     } catch (error) {
-      console.error('Profile image update error:', error.message);
-      Alert.alert('Error', 'Failed to update profile image');
+      console.error('❌ Profile image update error:', error.message);
+      throw error; // Re-throw to handle in upload function
     }
   };
 
@@ -1180,6 +1242,25 @@ const ProfileScreen = () => {
     setIsEditing(false);
     setEditedFields({});
   };
+
+  // Add the missing getProfileImageSource function
+  const getProfileImageSource = () => {
+    // Priority: uploadedPhoto > imageUrll > employeeDetails static URL > default
+    if (uploadedPhoto?.uri) {
+      return {uri: uploadedPhoto.uri};
+    }
+    if (imageUrll) {
+      return {uri: imageUrll};
+    }
+    // Use employeeDetails.empImage for static URL fallback
+    if (employeeDetails?.empImage) {
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${employeeDetails.empImage}`;
+      return {uri: staticImageUrl};
+    }
+    // Default fallback image
+    return {uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d'};
+  };
+
   if (!employeeDetails) {
     return (
       <AppSafeArea>
@@ -1191,13 +1272,13 @@ const ProfileScreen = () => {
     );
   }
 
-  // Use uploadedPhotoFileName for immediate UI update if available
-  const staticBaseUrl = 'http://192.168.29.2:90/assets/UploadImg/${user}';
-  const imageUrl = uploadedPhotoFileName
-    ? `${staticBaseUrl}${uploadedPhotoFileName}`
-    : employeeDetails?.empImage
-    ? `${staticBaseUrl}${employeeDetails.empImage}`
-    : null;
+  // Remove the unused staticBaseUrl variable since we're using getProfileImageSource
+  // const staticBaseUrl = 'https://hcmv2.anantatek.com/assets/UploadImg/${fileNameWithExtension}';
+  // const imageUrl = uploadedPhotoFileName
+  //   ? `${staticBaseUrl}${uploadedPhotoFileName}`
+  //   : employeeDetails?.empImage
+  //   ? `${staticBaseUrl}${employeeDetails.empImage}`
+  //   : null;
 
   // Data configurations
   const generalInfoData = [
@@ -1384,21 +1465,18 @@ const ProfileScreen = () => {
                 {/* Profile Image Section */}
                 <TouchableOpacity
                   onPress={handleProfilePhotoUpdate}
-                  style={styles.modernProfileImageContainer}>
+                  style={styles.modernProfileImageContainer}
+                  disabled={uploading}>
                   <Image
-                    source={
-                      uploadedPhoto
-                        ? {uri: uploadedPhoto.uri}
-                        : imageUrll
-                        ? {uri: imageUrll}
-                        : {
-                            uri: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d',
-                          }
-                    }
+                    source={getProfileImageSource()}
                     style={styles.modernProfileImage}
                   />
                   <View style={styles.editIconContainer}>
-                    <Icon name="camera" size={14} color="#fff" />
+                    {uploading ? (
+                      <ActivityIndicator size={14} color="#fff" />
+                    ) : (
+                      <Icon name="camera" size={14} color="#fff" />
+                    )}
                   </View>
                 </TouchableOpacity>
 

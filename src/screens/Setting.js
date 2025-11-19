@@ -78,9 +78,17 @@ export default function Setting() {
   // Preprocess image
   const preprocessImage = async base64Image => {
     try {
+      console.log('🔄 Starting image preprocessing...');
+      console.log('📏 Input base64 length:', base64Image.length);
+      
       const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+      console.log('📏 Pure base64 length:', pureBase64.length);
+      
       const filePath = `${RNFS.CachesDirectoryPath}/temp_${Date.now()}.jpg`;
+      console.log('📁 Temp file path:', filePath);
+      
       await RNFS.writeFile(filePath, pureBase64, 'base64');
+      console.log('✅ Temp file written');
 
       const resized = await ImageResizer.createResizedImage(
         filePath,
@@ -93,12 +101,16 @@ export default function Setting() {
         false,
         {mode: 'cover', onlyScaleDown: false},
       );
+      
+      console.log('✅ Image resized:', resized);
 
       const resizedPath = resized.uri.replace('file://', '');
       const resizedBase64 = await RNFS.readFile(resizedPath, 'base64');
+      console.log('✅ Resized base64 length:', resizedBase64.length);
 
       await RNFS.unlink(filePath);
       await RNFS.unlink(resizedPath);
+      console.log('✅ Temp files cleaned up');
 
       return resizedBase64;
     } catch (err) {
@@ -184,12 +196,16 @@ export default function Setting() {
 
   const pickImage = async setter => {
     try {
+      console.log('🔄 Starting image picker...');
+      
       // ✅ iOS: Request photo permission
       if (Platform.OS === 'ios') {
+        console.log('📱 iOS detected, checking photo permissions...');
         const result = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
-        console.log('iOS Photo permission:', result);
+        console.log('📸 iOS Photo permission result:', result);
 
         if (result === 'blocked' || result === 'denied') {
+          console.log('❌ Photo permission denied');
           Alert.alert(
             'Permission Required',
             'Please allow full photo access in Settings → Privacy → Photos to select images.',
@@ -200,12 +216,15 @@ export default function Setting() {
 
       // ✅ Android: Handle Android 13+ photo permission
       if (Platform.OS === 'android') {
+        console.log('🤖 Android detected, checking photo permissions...');
         if (Platform.Version >= 33) {
+          console.log('📱 Android 13+ detected, requesting READ_MEDIA_IMAGES');
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
           );
 
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('❌ READ_MEDIA_IMAGES permission denied');
             Alert.alert(
               'Permission Required',
               'Please allow access to your photos to select an image.',
@@ -213,10 +232,12 @@ export default function Setting() {
             return;
           }
         } else {
+          console.log('📱 Android <13 detected, requesting READ_EXTERNAL_STORAGE');
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
           );
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('❌ READ_EXTERNAL_STORAGE permission denied');
             Alert.alert(
               'Permission Required',
               'Please allow access to your photo library.',
@@ -224,31 +245,69 @@ export default function Setting() {
             return;
           }
         }
+        console.log('✅ Android permissions granted');
       }
 
-      // ✅ Open image picker
-      ImagePicker.launchImageLibrary(
-        {
-          mediaType: 'photo',
-          includeBase64: true,
-          maxWidth: 500,
-          maxHeight: 500,
-          quality: 0.8,
-        },
-        response => {
+      // ✅ Open image picker with promise-based approach
+      console.log('📂 Opening image library...');
+      
+      const options = {
+        mediaType: 'photo',
+        includeBase64: true,
+        maxWidth: 500,
+        maxHeight: 500,
+        quality: 0.8,
+        selectionLimit: 1,
+      };
+
+      console.log('⚙️ Image picker options:', options);
+
+      // Use promise-based approach instead of callback
+      const result = await new Promise((resolve, reject) => {
+        ImagePicker.launchImageLibrary(options, (response) => {
+          console.log('📷 Image picker response:', {
+            didCancel: response.didCancel,
+            errorCode: response.errorCode,
+            errorMessage: response.errorMessage,
+            assetsLength: response.assets ? response.assets.length : 0
+          });
+
           if (response.didCancel) {
-            console.log('User cancelled image picker');
+            console.log('👤 User cancelled image picker');
+            resolve(null);
           } else if (response.errorCode) {
-            console.log('ImagePicker Error: ', response.errorMessage);
-            Alert.alert('Error', response.errorMessage);
-          } else if (response.assets && response.assets[0].base64) {
-            setter(`data:image/jpeg;base64,${response.assets[0].base64}`);
+            console.log('❌ ImagePicker Error:', response.errorMessage);
+            reject(new Error(response.errorMessage));
+          } else if (response.assets && response.assets[0]) {
+            console.log('✅ Image selected successfully');
+            console.log('📊 Image details:', {
+              uri: response.assets[0].uri ? 'present' : 'missing',
+              base64: response.assets[0].base64 ? 'present' : 'missing',
+              width: response.assets[0].width,
+              height: response.assets[0].height,
+              fileSize: response.assets[0].fileSize
+            });
+            resolve(response.assets[0]);
+          } else {
+            console.log('❌ No assets in response');
+            reject(new Error('No image data received'));
           }
-        },
-      );
+        });
+      });
+
+      if (result && result.base64) {
+        const imageUri = `data:image/jpeg;base64,${result.base64}`;
+        console.log('🖼️ Setting image with base64 length:', result.base64.length);
+        setter(imageUri);
+        console.log('✅ Image set successfully');
+      } else if (result) {
+        console.log('❌ No base64 data in result');
+        Alert.alert('Error', 'Failed to get image data');
+      }
+      
     } catch (err) {
-      console.error('Image picker error:', err);
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('❌ Image picker error:', err);
+      Alert.alert('Error', `Failed to pick image: ${err.message}`);
     }
   };
 

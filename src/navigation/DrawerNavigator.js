@@ -91,40 +91,81 @@ const NotificationButton = ({navigation}) => {
 
 // ---------------- Profile Menu ----------------
 const ProfileMenu = ({navigation}) => {
-  const IMG_BASE_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/';
   const [visible, setVisible] = useState(false);
   const {user, logout} = useAuth();
   const [imageUrl, setImageUrl] = useState(null);
+  const [employeeDetails, setEmployeeDetails] = useState(null);
+
+  // Fetch employee details
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        if (user?.id) {
+          const response = await axiosinstance.get(
+            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
+          );
+          setEmployeeDetails(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [user?.id]);
+
+  // Add function to fetch image as base64
+  const fetchImageAsBase64 = async (fileName) => {
+    try {
+      const fetchUrl = `https://hcmv2.anantatek.com/api/UploadDocument/FetchFile?fileNameWithExtension=${fileName}`;
+      console.log('📡 Fetching profile image from:', fetchUrl);
+
+      const response = await fetch(fetchUrl, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          
+          if (result.base64File) {
+            // Determine the file extension
+            const extension = fileName.split('.').pop() || 'jpg';
+            const imageUri = `data:image/${extension};base64,${result.base64File}`;
+            setImageUrl(imageUri);
+            console.log('✅ Profile image loaded successfully in drawer');
+            return;
+          }
+        }
+      }
+      
+      // Fallback to static URL if API fetch fails
+      console.log('⚠️ API fetch failed, using static URL');
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
+      setImageUrl(staticImageUrl);
+      
+    } catch (error) {
+      console.error('❌ Error fetching profile image:', error);
+      // Fallback to static URL
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${fileName}`;
+      setImageUrl(staticImageUrl);
+    }
+  };
 
   useEffect(() => {
-    // Always log the user object for debugging
-    // console.log('ProfileMenu user:', user);
-    // debugger; // Debug here to inspect user object
+    // Use employeeDetails.empImage instead of user.empImage
+    console.log('Employee Details empImage:', employeeDetails?.empImage);
 
-    if (user?.empImage) {
-      // Compose the direct image URL using empImage
-      const directImageUrl = `${IMG_BASE_URL}${user.empImage}`;
-      setImageUrl(directImageUrl);
-
-      // Optionally, check if the image exists on the server
-      const fetchUrl = `https://hcmv2.anantatek.com/UploadDocument/FetchFile?fileNameWithExtension=${user.empImage}`;
-      fetch(fetchUrl, { method: 'GET' })
-        .then(response => {
-          console.log('Profile image fetch URL:', fetchUrl);
-          console.log('Profile image fetch response:', response);
-          // debugger; // Debug here to inspect fetch response
-          if (!response.ok) {
-            setImageUrl(null);
-          }
-        })
-        .catch(err => {
-          console.log('Profile image fetch error:', err);
-          setImageUrl(null);
-        });
+    if (employeeDetails?.empImage) {
+      // First try to fetch the image as base64 from the API
+      fetchImageAsBase64(employeeDetails.empImage);
     } else {
       setImageUrl(null);
     }
-  }, [user?.empImage]);
+  }, [employeeDetails?.empImage]);
   
 const handleLogout = async () => {
     try {
@@ -203,7 +244,7 @@ const handleLogout = async () => {
         title="My Profile"
       />
       
-      {/* <Menu.Item
+      <Menu.Item
         onPress={() => {
           setVisible(false);
           navigation.navigate('Setting');
@@ -216,7 +257,7 @@ const handleLogout = async () => {
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="Setting"
-      /> */}
+      />
       
       <Menu.Item
         onPress={() => {
