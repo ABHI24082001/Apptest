@@ -7,10 +7,12 @@ import Toast from 'react-native-toast-message';
 import CustomToast from './src/component/CustomToast';
 import {AuthProvider} from './src/constants/AuthContext'; // ✅ Auth Context
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import { Provider } from 'react-redux';
+import { store } from './src/store/store';
 
 export default function App() {
   return (
-    <>
+    <Provider store={store}>
       <StatusBar
         barStyle={Platform.OS === 'ios' ? 'dark-content' : 'light-content'}
         backgroundColor={Platform.OS === 'android' ? '#7BC1FF' : '#7BC1FF'}
@@ -34,6 +36,6 @@ export default function App() {
           info: props => <CustomToast {...props} type="info" />,
         }}
       />
-    </>
+    </Provider>
   );
 }

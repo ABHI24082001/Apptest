@@ -2149,9 +2149,7 @@ const handleCheckOut = async () => {
       </>
     );
   };
-
-
-
+  
   return (
     <AppSafeArea>
       <StatusBar  barStyle="light-content" backgroundColor="#1E40AF" />

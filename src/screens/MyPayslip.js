@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   StyleSheet,
@@ -8,65 +8,73 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
-  Pressable,
   Modal,
-  ScrollView,
-  Linking,
-  Image,
   StatusBar,
-  
 } from 'react-native';
-import {Card, Appbar} from 'react-native-paper';
+import {Card} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DatePicker from 'react-native-date-picker';
-import AppSafeArea from '../component/AppSafeArea';
 import {useNavigation} from '@react-navigation/native';
-import LinearGradient from 'react-native-linear-gradient';
-import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
-import BASE_URL from '../constants/apiConfig';
-import axiosinstance from '../utils/axiosInstance';
-import LeaveHeader from '../component/LeaveHeader';
 import moment from 'moment';
-import PDFViewer from '../component/Payslipcomponent';
 import RNFS from 'react-native-fs';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import RNPrint from 'react-native-print';
-import {useAuth } from '../constants/AuthContext';
+
+// Redux imports
+import {useAppDispatch, useAppSelector} from '../hooks/redux';
+import {
+  fetchPayslips,
+  fetchEmployeeData,
+  setFromDate,
+  setToDate,
+  setShowFromPicker,
+  setShowToPicker,
+  setShowPayslipModal,
+  setSelectedPayslip,
+  setDownloadLoading,
+  setPdfError,
+  setImageUrl,
+  clearError,
+} from '../store/slices/payslipSlice';
+
+// Component imports
+import AppSafeArea from '../component/AppSafeArea';
+import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
+import LeaveHeader from '../component/LeaveHeader';
+import PDFViewer from '../component/Payslipcomponent';
+import {useAuth} from '../constants/AuthContext';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
-const STATIC_LOGO_FILENAME = '28072025121916.png';
-const STATIC_LOGO_URL = `https://hcmv2.anantatek.com/assets/UploadImg/${STATIC_LOGO_FILENAME}`; // <-- Set your actual logo hosting path here
+const STATIC_LOGO_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/logo.png';
 
 const MyPaySlip = () => {
   const navigation = useNavigation();
-  const employeeDetails = useFetchEmployeeDetails();
+  const dispatch = useAppDispatch();
   const {user} = useAuth();
+  const employeeDetails = useFetchEmployeeDetails();
 
-  console.log(user, 'User Details from Auth Context');
-  const [apiPayslips, setApiPayslips] = useState([]);
-  const [selectedFilter, setSelectedFilter] = useState(null);
-  const [fromDate, setFromDate] = useState(null);
-  const [toDate, setToDate] = useState(null);
-  const [showFromPicker, setShowFromPicker] = useState(false);
-  const [showToPicker, setShowToPicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedPayslip, setSelectedPayslip] = useState(null);
-  const [showPayslipModal, setShowPayslipModal] = useState(false);
-  const [pdfError, setPdfError] = useState(null);
-  const [downloadLoading, setDownloadLoading] = useState(false);
-  const [logoBase64, setLogoBase64] = useState('');
+  // Redux state selectors
+  const {
+    payslips,
+    isLoading,
+    error,
+    employeeData,
+    employeeLoading,
+    employeeError,
+    fromDate,
+    toDate,
+    showFromPicker,
+    showToPicker,
+    showPayslipModal,
+    selectedPayslip,
+    downloadLoading,
+    pdfError,
+    imageUrl,
+    refreshing,
+  } = useAppSelector(state => state.payslip);
 
-  const formatForDotNet = date => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return `${d.getFullYear()}-${(d.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}T00:00:00`;
-  };
-
+  // Format date for display
   const formatDate = date => {
     return date.toLocaleDateString('en-IN', {
       day: '2-digit',
@@ -75,106 +83,24 @@ const MyPaySlip = () => {
     });
   };
 
-
-  const GradientHeader = ({children, style}) => (
-    <LinearGradient
-      colors={['#2563EB', '#3B82F6']}
-      // style={[{flex: 1}, style]}
-      start={{x: 0, y: 1}}
-      end={{x: 0, y: 0}}>
-      {children}
-    </LinearGradient>
-  );
-  
-  const fetchPayslips = async () => {
-    try {
-      const payload = {
-        EmployeeId: employeeDetails?.id || 0,
-        Month: 0,
-        Year: 0,
-        YearList: null,
-        ChildCompanyId: employeeDetails?.childCompanyId || 0,
-        FromDate: fromDate ? formatForDotNet(fromDate) : null,
-        ToDate: toDate ? formatForDotNet(toDate) : null,
-        BranchName: null,
-        BranchId: 0,
-        EmployeeTypeId: 0,
-        DraftName: null,
-        Did: 0,
-        UserId: 0,
-        status: null,
-        Ids: null,
-        CoverLatter: null,
-        DepartmentId: 0,
-        DesignationId: 0,
-        UserType: 0,
-        CalculationType: 0,
-        childCompanies: null,
-        branchIds: null,
-        departmentsIds: null,
-        designationIds: null,
-        employeeTypeIds: null,
-        employeeIds: null,
-        hasAllReportAccess: false,
-      };
-
-      console.log('📤 Sending Payload to API:', payload);
-
-      const response = await axiosinstance.post(
-        `${BASE_URL}/PayRollRun/GetEmployeePaySlipList`,
-        payload,
-      );
-
-      console.log('✅ API Response:', response.data);
-      setApiPayslips(response.data?.payRollDraftViewModels || []);
-
-      console.log(
-        '📥 Received Payslips:',
-        response.data?.payRollDraftViewModels || [],
-      );
-    } catch (error) {
-      console.error('❌ Error fetching payslip data:', error);
-      if (error.response) {
-        console.error('❌ API Error Response:', error.response.data);
-      }
-    }
-  };
-
-  const [visible, setVisible] = useState(false);
-   const [imageUrl, setImageUrl] = useState(null);
-    const [employeeData, setEmployeeData] = useState(null);
-    // const {user} = useAuth();
+  // Fetch employee data on mount
   useEffect(() => {
-    const fetchEmployeeData = async () => {
-      try {
-        if (user?.id) {
-          const response = await axiosinstance.get(
-            `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
-          );
-          setEmployeeData(response.data);
-        }
-      } catch (error) {
-        console.error('Error fetching employee data:', error);
-      }
-    };
-
-    fetchEmployeeData();
-  }, [user]);
-
- useEffect(() => {
-    // Always log the user object for debugging
-    // console.log('ProfileMenu user:', user);
-
-    if (user?.empImage) {
-      // Use the static image URL directly
-      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
-      setImageUrl(staticImageUrl);
-    } else {
-      setImageUrl(null);
+    if (user?.id) {
+      dispatch(fetchEmployeeData(user.id));
     }
-  }, [user?.empImage]);
+  }, [dispatch, user?.id]);
 
+  // Set image URL when user data changes
+  useEffect(() => {
+    if (user?.empImage) {
+      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
+      dispatch(setImageUrl(staticImageUrl));
+    } else {
+      dispatch(setImageUrl(null));
+    }
+  }, [dispatch, user?.empImage]);
 
+  // Fetch payslips when dates or employee details change
   useEffect(() => {
     if (
       fromDate &&
@@ -182,20 +108,48 @@ const MyPaySlip = () => {
       employeeDetails?.id &&
       employeeDetails?.childCompanyId
     ) {
-      setIsLoading(true);
-      fetchPayslips().finally(() => setIsLoading(false));
+      dispatch(
+        fetchPayslips({
+          employeeId: employeeDetails.id,
+          childCompanyId: employeeDetails.childCompanyId,
+          fromDate,
+          toDate,
+        }),
+      );
     }
-  }, [fromDate, toDate, employeeDetails]);
+  }, [dispatch, fromDate, toDate, employeeDetails]);
 
-
-
-
+  // Refresh handler
   const onRefresh = () => {
-    setRefreshing(true);
-    fetchPayslips().finally(() => setRefreshing(false));
+    if (
+      fromDate &&
+      toDate &&
+      employeeDetails?.id &&
+      employeeDetails?.childCompanyId
+    ) {
+      dispatch(
+        fetchPayslips({
+          employeeId: employeeDetails.id,
+          childCompanyId: employeeDetails.childCompanyId,
+          fromDate,
+          toDate,
+        }),
+      );
+    }
   };
 
+  // Date picker handlers
+  const handleFromDateConfirm = date => {
+    dispatch(setShowFromPicker(false));
+    dispatch(setFromDate(date));
+  };
 
+  const handleToDateConfirm = date => {
+    dispatch(setShowToPicker(false));
+    dispatch(setToDate(date));
+  };
+
+  // PDF generation function (moved from original component)
   const generatePayslipPDF = async payslipData => {
     try {
       const formatCurrency = value => {
@@ -327,7 +281,7 @@ const MyPaySlip = () => {
           if (userImageResult.statusCode === 200) {
             const userImageData = await RNFS.readFile(
               `${RNFS.TemporaryDirectoryPath}/user_image.png`,
-              'base64'
+              'base64',
             );
             userImageBase64 = `data:image/png;base64,${userImageData}`;
             await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/user_image.png`);
@@ -348,7 +302,7 @@ const MyPaySlip = () => {
         if (downloadResult.statusCode === 200) {
           const logoBase64Data = await RNFS.readFile(
             `${RNFS.TemporaryDirectoryPath}/company_logo.png`,
-            'base64'
+            'base64',
           );
           logoBase64 = `data:image/png;base64,${logoBase64Data}`;
           await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/company_logo.png`);
@@ -503,44 +457,38 @@ const MyPaySlip = () => {
     }
   };
 
-  // Add a ref to track if download is cancelled
-  const downloadCancelled = React.useRef(false);
-
-  // Update downloadPayslip to support cancel
+  // Download payslip handler
   const downloadPayslip = async payslipData => {
     try {
-      setDownloadLoading(true);
-      setPdfError(null);
-      downloadCancelled.current = false;
+      dispatch(setDownloadLoading(true));
+      dispatch(setPdfError(null));
 
       const filePath = await generatePayslipPDF(payslipData);
-      if (downloadCancelled.current) return;
 
       if (filePath) {
         await RNPrint.print({filePath});
-        setModalVisible(true);
       }
     } catch (error) {
-      if (downloadCancelled.current) return;
       console.error('Download error:', error);
-      setPdfError(error.message || 'Failed to download PDF');
+      dispatch(setPdfError(error.message || 'Failed to download PDF'));
     } finally {
-      if (!downloadCancelled.current) setDownloadLoading(false);
+      dispatch(setDownloadLoading(false));
     }
+  };
+
+  // Open payslip preview
+  const openPayslipPreview = payslipData => {
+    dispatch(setSelectedPayslip(payslipData));
+    dispatch(setShowPayslipModal(true));
   };
 
   // Cancel download handler
   const handleCancelDownload = () => {
-    downloadCancelled.current = true;
-    setDownloadLoading(false);
-    setPdfError(null);
+    dispatch(setDownloadLoading(false));
+    dispatch(setPdfError(null));
   };
 
-  const openPayslipPreview = payslipData => {
-    setSelectedPayslip(payslipData);
-    setShowPayslipModal(true);
-  };
-
+  // FlatList render item
   const renderItem = ({item}) => (
     <Card style={styles.card}>
       <View style={styles.cardRow}>
@@ -582,12 +530,13 @@ const MyPaySlip = () => {
     </Card>
   );
 
+  // List header component
   const ListHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.dateRow}>
         <TouchableOpacity
           style={styles.dateButton}
-          onPress={() => setShowFromPicker(true)}>
+          onPress={() => dispatch(setShowFromPicker(true))}>
           <View style={styles.dateInputContainer}>
             <Icon name="calendar" size={16} color="#6D75FF" />
             <Text style={styles.dateValue}>
@@ -602,7 +551,7 @@ const MyPaySlip = () => {
 
         <TouchableOpacity
           style={styles.dateButton}
-          onPress={() => setShowToPicker(true)}>
+          onPress={() => dispatch(setShowToPicker(true))}>
           <View style={styles.dateInputContainer}>
             <Icon name="calendar" size={16} color="#6D75FF" />
             <Text style={styles.dateValue}>
@@ -614,6 +563,7 @@ const MyPaySlip = () => {
     </View>
   );
 
+  // Empty state component
   const ListEmptyComponent = () => (
     <View style={styles.emptyState}>
       <Icon name="file-remove-outline" size={48} color="#999" />
@@ -626,29 +576,17 @@ const MyPaySlip = () => {
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-     
       <CustomHeader title="My Payslip" navigation={navigation} />
-
 
       <LeaveHeader
         title="Payslip"
         subtitle="Here's the summary of your monthly earnings and deductions."
         iconName="file-document-outline"
       />
-      {/* Show logoBase64 image if available */}
-      {(console.log('logoBase64 value:', logoBase64), typeof logoBase64 === 'string' && !!logoBase64) && (
-        <Image
-          source={{ uri: `data:image/png;base64,${logoBase64}` }}
-          style={{ width: 70, height: 70, alignSelf: 'center', marginVertical: 10 }}
-          resizeMode="contain"
-          onLoad={() => console.log('Company logo loaded successfully')}
-          onError={(error) => console.log('Company logo load error:', error)}
-        />
-      )}
 
       <ScrollAwareContainer navigation={navigation} currentRoute="MyPayslip">
         <FlatList
-          data={apiPayslips}
+          data={payslips}
           keyExtractor={item => item.id.toString()}
           renderItem={renderItem}
           ListHeaderComponent={ListHeader}
@@ -661,17 +599,14 @@ const MyPaySlip = () => {
         />
       </ScrollAwareContainer>
 
+      {/* Date Pickers */}
       <DatePicker
         modal
         open={showFromPicker}
         date={fromDate || new Date()}
         mode="date"
-        onConfirm={date => {
-          setShowFromPicker(false);
-          setFromDate(date);
-          setSelectedFilter(null);
-        }}
-        onCancel={() => setShowFromPicker(false)}
+        onConfirm={handleFromDateConfirm}
+        onCancel={() => dispatch(setShowFromPicker(false))}
       />
 
       <DatePicker
@@ -679,27 +614,23 @@ const MyPaySlip = () => {
         open={showToPicker}
         date={toDate || new Date()}
         mode="date"
-        onConfirm={date => {
-          setShowToPicker(false);
-          setToDate(date);
-          setSelectedFilter(null);
-        }}
-        onCancel={() => setShowToPicker(false)}
+        onConfirm={handleToDateConfirm}
+        onCancel={() => dispatch(setShowToPicker(false))}
       />
 
-      {/* Error Modal - optional */}
+      {/* Error Modal */}
       {pdfError && (
         <Modal
           transparent={true}
           visible={!!pdfError}
-          onRequestClose={() => setPdfError(null)}>
+          onRequestClose={() => dispatch(setPdfError(null))}>
           <View style={styles.errorModalContainer}>
             <View style={styles.errorModalContent}>
               <Text style={styles.errorModalTitle}>Error</Text>
               <Text style={styles.errorModalText}>{pdfError}</Text>
               <TouchableOpacity
                 style={styles.errorModalButton}
-                onPress={() => setPdfError(null)}>
+                onPress={() => dispatch(setPdfError(null))}>
                 <Text style={styles.errorModalButtonText}>OK</Text>
               </TouchableOpacity>
             </View>
@@ -711,12 +642,12 @@ const MyPaySlip = () => {
       <Modal
         visible={showPayslipModal}
         animationType="slide"
-        onRequestClose={() => setShowPayslipModal(false)}>
+        onRequestClose={() => dispatch(setShowPayslipModal(false))}>
         {selectedPayslip && (
           <PDFViewer
             payslipData={selectedPayslip}
             visible={showPayslipModal}
-            onClose={() => setShowPayslipModal(false)}
+            onClose={() => dispatch(setShowPayslipModal(false))}
             employeeDetails={employeeDetails}
           />
         )}
@@ -755,9 +686,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
+    textShadowOffset: {width: 0, height: 1},
     textShadowRadius: 2,
-    marginLeft: 20
+    marginLeft: 20,
   },
   headerContainer: {
     paddingVertical: 16,
