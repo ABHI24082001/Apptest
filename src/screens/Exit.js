@@ -10,7 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import {Appbar, Button} from 'react-native-paper';
+import {Button} from 'react-native-paper';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -23,23 +23,14 @@ import useFetchEmployeeDetails from '../component/FetchEmployeeDetails';
 import FeedbackModal from '../component/FeedbackModal';
 import LeaveHeader from '../component/LeaveHeader';
 import styles from '../Stylesheet/Exitcss';
-import LinearGradient from 'react-native-linear-gradient';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
 
-const GradientHeader = ({children, style}) => (
-  <LinearGradient
-    colors={['#2563EB', '#3B82F6']}
-    start={{x: 0, y: 1}}
-    end={{x: 0, y: 0}}>
-    {children}
-  </LinearGradient>
-);
+
 
 const ExitApplyScreen = ({navigation}) => {
   const employeeDetails = useFetchEmployeeDetails();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -238,7 +229,6 @@ const ExitApplyScreen = ({navigation}) => {
       console.log('API Resp=============onse:', response.data);
 
       if (response.status === 200) {
-        setSubmitSuccess(true);
         setFeedbackType('success');
         setFeedbackMessage(
           response.data?.message
@@ -247,14 +237,12 @@ const ExitApplyScreen = ({navigation}) => {
         );
         setFeedbackVisible(true);
       } else {
-        setSubmitSuccess(false);
         setFeedbackType('fail');
         setFeedbackMessage('Failed to submit exit application');
         setFeedbackVisible(true);
       }
     } catch (error) {
       console.error('Error submitting exit application:', error);
-      setSubmitSuccess(false);
       setFeedbackType('fail');
 
       // Show backend error message for 400 errors

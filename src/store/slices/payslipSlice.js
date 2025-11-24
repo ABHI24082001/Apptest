@@ -137,6 +137,20 @@ const payslipSlice = createSlice({
   
   // ========== SYNC REDUCERS ==========
   // ये functions तुरंत state update करते हैं (no API calls)
+  // 
+  // SYNC REDUCERS ka matlab:
+  // 1. ये instantly काम करते हैं - कोई waiting नहीं
+  // 2. ये सिर्फ state को change करते हैं - कोई API call नहीं करते
+  // 3. जैसे आप एक switch on/off करते हैं - तुरंत result मिलता है
+  // 4. Redux में ये "pure functions" कहलाते हैं
+  // 
+  // Example: जब आप date picker खोलते हैं, तो showFromPicker तुरंत true हो जाता है
+  //          कोई server se पूछने की जरूरत नहीं
+  // 
+  // ASYNC vs SYNC difference:
+  // - SYNC: तुरंत होता है, जैसे light switch
+  // - ASYNC: time लगता है, जैसे online order (wait करना पड़ता है)
+  
   reducers: {
     // Date actions - तारीख set करना
     setFromDate: (state, action) => {

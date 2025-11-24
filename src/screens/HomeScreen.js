@@ -67,22 +67,17 @@ const HomeScreen = () => {
   const [isFaceLoading, setIsFaceLoading] = useState(true); // Start with true
   const [cachedFaceImage, setCachedFaceImage] = useState(null);
   const [checkInTime, setCheckInTime] = useState(null);
-  const [appState, setAppState] = useState(AppState.currentState);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false); // NEW: Track initial load
   const [leaveData, setLeaveData] = useState([]);
   const [leaveUsers, setLeaveUsers] = useState([]);
   const [totalShiftSeconds, setTotalShiftSeconds] = useState(28800); // Default 8 hours, will be updated dynamically
   const [totalShiftHours, setTotalShiftHours] = useState(8);
-  
-  // Add missing state variables
-  const [shiftBufferTimeEnd, setShiftBufferTimeEnd] = useState(30); // Default 30 minutes buffer
-  const [isExtendedWork, setIsExtendedWork] = useState(false);
-  const [extendedWorkStartTime, setExtendedWorkStartTime] = useState(null);
-  const [extendedWorkTimer, setExtendedWorkTimer] = useState(null);
+  const [autoCheckoutEnabled, setAutoCheckoutEnabled] = useState(false);
 
   const employeeDetails = useFetchEmployeeDetails();
   const progressIntervalRef = useRef(null);
   const imageProcessingTimeoutRef = useRef(null);
+  const sleep = t => new Promise(resolve => setTimeout(resolve, t));
   const appStateSubscriptionRef = useRef(null);
   const {user} = useAuth();
 
@@ -147,6 +142,8 @@ const HomeScreen = () => {
     }
   };
 
+  // Start background service
+
   const startBackgroundService = async () => {
     try {
       // Check if already running
@@ -181,6 +178,8 @@ const HomeScreen = () => {
     }
   };
 
+  // stop background service
+
   const stopBackgroundService = async () => {
     try {
       const isRunning = BackgroundService.isRunning();
@@ -202,6 +201,8 @@ const HomeScreen = () => {
     });
   };
 
+  // format date in Indian format
+
   const formatIndianDate = (date = new Date()) => {
     return date.toLocaleDateString('en-IN', {
       weekday: 'long',
@@ -211,6 +212,8 @@ const HomeScreen = () => {
     });
   };
 
+  // Format time in HH:MM:SS
+
   const formatTime = seconds => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
     const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
@@ -219,6 +222,7 @@ const HomeScreen = () => {
   };
 
   // Format time in hours and minutes
+
   const formatHoursMinutes = seconds => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -226,6 +230,7 @@ const HomeScreen = () => {
   };
 
   // Update current time every second
+
   useEffect(() => {
     const updateCurrentTime = () => {
       setCurrentTime(formatIndianTime());
@@ -237,7 +242,8 @@ const HomeScreen = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check-in state management
+  // Check-in  saveCheckInState
+
   const saveCheckInState = async (
     isCheckedIn,
     startTime = null,
@@ -249,6 +255,15 @@ const HomeScreen = () => {
         checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
       };
       await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
+
+      // Save check-in date for midnight comparison
+      if (isCheckedIn) {
+        const today = moment().format('YYYY-MM-DD');
+        await AsyncStorage.setItem('CHECK_IN_DATE', today);
+      } else {
+        await AsyncStorage.removeItem('CHECK_IN_DATE');
+      }
+
       if (faceData) {
         await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, faceData);
       } else if (!isCheckedIn) {
@@ -260,6 +275,7 @@ const HomeScreen = () => {
   };
 
   // Add: parse and format helpers to normalize various time formats (numbers, ISO strings, or "HH:MM:SS.ffffff")
+
   const parseCheckInTime = val => {
     if (val == null) return null;
     // Already epoch ms
@@ -293,6 +309,8 @@ const HomeScreen = () => {
     return null;
   };
 
+  // Add: format helpers
+
   const formatLoginTime = time => {
     const ms = parseCheckInTime(time);
     if (!ms) return '';
@@ -304,6 +322,7 @@ const HomeScreen = () => {
   };
 
   // Replace: loadCheckInState -> parse stored check-in values robustly
+
   const loadCheckInState = async () => {
     try {
       const [checkInData, faceData] = await Promise.all([
@@ -342,90 +361,94 @@ const HomeScreen = () => {
     }
   };
 
-  
- 
-const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
-  try {
-    let elapsedSeconds = startSeconds;
-    let missedSeconds = 0;
-    let missedPercent = 0;
+  // Add: startShiftProgress
 
-    // Clear any existing interval first
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
+  const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
+    try {
+      let elapsedSeconds = startSeconds;
+      let missedSeconds = 0;
+      let missedPercent = 0;
 
-    // Calculate missed time if shift start time is available and user is checked in
-    if (shiftStartTime && checkInTime) {
-      const shiftStart = new Date(shiftStartTime);
-      const actualCheckIn = new Date(checkInTime);
-      
-      // Only calculate missed time if check-in was after shift start
-      if (actualCheckIn > shiftStart) {
-        missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
-        missedPercent = Math.min(100, (missedSeconds / totalShiftSeconds) * 100);
-        
-        console.log('Progress Missed Time Calculation:', {
-          shiftStart: shiftStart.toLocaleString(),
-          actualCheckIn: actualCheckIn.toLocaleString(),
-          missedSeconds,
-          missedPercent: missedPercent.toFixed(2) + '%',
-          totalShiftSeconds,
-        });
-      }
-      
-      setMissedPercentage(missedPercent);
-    }
-
-    // Helper to compute progress
-    const computeProgress = elapsedSec => {
-      // Calculate progress based on actual work time vs expected work time
-      const expectedWorkSeconds = totalShiftSeconds - missedSeconds;
-      if (expectedWorkSeconds <= 0) return 0;
-      
-      const workProgress = (elapsedSec / totalShiftSeconds) * 100;
-      return Math.min(100 - missedPercent, Math.max(0, workProgress));
-    };
-
-    // Set initial state
-    setElapsedTime(formatTime(elapsedSeconds));
-    setProgressPercentage(computeProgress(elapsedSeconds));
-
-    // Check if already complete
-    if (elapsedSeconds >= totalShiftSeconds) {
-      setElapsedTime(formatTime(totalShiftSeconds));
-      setProgressPercentage(100);
-      return;
-    }
-
-    // Start interval with error handling
-    progressIntervalRef.current = setInterval(() => {
-      try {
-        elapsedSeconds++;
-
-        if (elapsedSeconds >= totalShiftSeconds) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-          setElapsedTime(formatTime(totalShiftSeconds));
-          setProgressPercentage(100);
-          return;
-        }
-
-        setElapsedTime(formatTime(elapsedSeconds));
-        setProgressPercentage(computeProgress(elapsedSeconds));
-      } catch (intervalError) {
-        console.error('Progress interval error:', intervalError);
+      // Clear any existing interval first
+      if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
-    }, 1000);
-  } catch (error) {
-    console.error('Error starting shift progress:', error);
-  }
-};
 
- 
+      // Calculate missed time if shift start time is available and user is checked in
+      if (shiftStartTime && checkInTime) {
+        const shiftStart = new Date(shiftStartTime);
+        const actualCheckIn = new Date(checkInTime);
+
+        // Only calculate missed time if check-in was after shift start
+        if (actualCheckIn > shiftStart) {
+          missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+          missedPercent = Math.min(
+            100,
+            (missedSeconds / totalShiftSeconds) * 100,
+          );
+
+          console.log('Progress Missed Time Calculation:', {
+            shiftStart: shiftStart.toLocaleString(),
+            actualCheckIn: actualCheckIn.toLocaleString(),
+            missedSeconds,
+            missedPercent: missedPercent.toFixed(2) + '%',
+            totalShiftSeconds,
+          });
+        }
+
+        setMissedPercentage(missedPercent);
+      }
+
+      // Helper to compute progress
+      const computeProgress = elapsedSec => {
+        // Calculate progress based on actual work time vs expected work time
+        const expectedWorkSeconds = totalShiftSeconds - missedSeconds;
+        if (expectedWorkSeconds <= 0) return 0;
+
+        const workProgress = (elapsedSec / totalShiftSeconds) * 100;
+        return Math.min(100 - missedPercent, Math.max(0, workProgress));
+      };
+
+      // Set initial state
+      setElapsedTime(formatTime(elapsedSeconds));
+      setProgressPercentage(computeProgress(elapsedSeconds));
+
+      // Check if already complete
+      if (elapsedSeconds >= totalShiftSeconds) {
+        setElapsedTime(formatTime(totalShiftSeconds));
+        setProgressPercentage(100);
+        return;
+      }
+
+      // Start interval with error handling
+      progressIntervalRef.current = setInterval(() => {
+        try {
+          elapsedSeconds++;
+
+          if (elapsedSeconds >= totalShiftSeconds) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+            setElapsedTime(formatTime(totalShiftSeconds));
+            setProgressPercentage(100);
+            return;
+          }
+
+          setElapsedTime(formatTime(elapsedSeconds));
+          setProgressPercentage(computeProgress(elapsedSeconds));
+        } catch (intervalError) {
+          console.error('Progress interval error:', intervalError);
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting shift progress:', error);
+    }
+  };
+
+  // On mount: load check-in state and start background service if needed
+
   useEffect(() => {
     let isMounted = true; // Track component mount status
 
@@ -476,6 +499,8 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     };
   }, []);
 
+  // Load ONNX model on mount
+
   useEffect(() => {
     const loadModel = async () => {
       try {
@@ -509,6 +534,7 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
   }, []);
 
   // FIXED: Face registration logic with better state management
+
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       if (!employeeDetails?.id || !employeeDetails?.childCompanyId) {
@@ -589,6 +615,7 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
   }, [employeeDetails, cachedFaceImage]);
 
   // Debug effect to monitor state changes
+
   useEffect(() => {
     console.log('🔍 STATE UPDATE:', {
       showRegistration,
@@ -598,7 +625,7 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     });
   }, [showRegistration, registeredFace, isFaceLoading, initialLoadComplete]);
 
-
+  // handle re-register face
   const handleReregisterFace = async () => {
     if (!session) {
       Alert.alert('Error', 'Model not loaded yet');
@@ -712,6 +739,9 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
       },
     );
   };
+
+  // handle launch camera with timeout and error handling
+
   const launchCamera = async callback => {
     try {
       const hasPermission = await requestCameraPermission();
@@ -783,6 +813,8 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     }
   };
 
+  // Get formatted local date-time strings
+
   const getFormattedLocalDateTime = () => {
     const now = new Date();
     const pad = n => (n < 10 ? `0${n}` : n);
@@ -801,6 +833,101 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     return {logDate, logTime, logDateTime};
   };
 
+  // Midnight background task for auto checkout
+
+  const midnightBackgroundTask = async ({handleCheckOut}) => {
+    console.log('🌙 Midnight service started...');
+
+    while (BackgroundService.isRunning()) {
+      try {
+        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+
+        if (checkInData) {
+          const parsedData = JSON.parse(checkInData);
+          const checkInDate = await AsyncStorage.getItem('CHECK_IN_DATE');
+          const today = moment().format('YYYY-MM-DD');
+
+          // Check if user is still checked in but date has changed (midnight passed)
+          if (parsedData.checkedIn && checkInDate && checkInDate !== today) {
+            console.log('⏳ MIDNIGHT PASSED →  CHECKOUT TRIGGERED');
+
+            try {
+              await handleCheckOut(true); // true = from background
+            } catch (e) {
+              console.log('Auto checkout failed:', e);
+            }
+
+            // Stop the background service after auto checkout
+            await BackgroundService.stop();
+            break;
+          }
+        }
+      } catch (e) {
+        console.log('Background loop error:', e);
+      }
+
+      await sleep(30 * 1000); // check every 30 seconds
+    }
+  };
+
+  const startMidnightService = async () => {
+    const options = {
+      taskName: 'AutoCheckout',
+      taskTitle: 'Shift Active',
+      taskDesc: 'Monitoring midnight auto-checkout',
+      taskIcon: {name: 'ic_launcher', type: 'mipmap'},
+      color: '#007bff',
+      parameters: {handleCheckOut},
+    };
+
+    try {
+      // Stop existing service if running
+      if (BackgroundService.isRunning()) {
+        await BackgroundService.stop();
+        await sleep(1000);
+      }
+
+      await BackgroundService.start(midnightBackgroundTask, options);
+      console.log('▶ Midnight service STARTED');
+    } catch (e) {
+      console.log('Error starting midnight service:', e);
+    }
+  };
+
+  // Stop midnight background service
+  const stopMidnightService = async () => {
+    try {
+      if (BackgroundService.isRunning()) {
+        await BackgroundService.stop();
+        console.log('⏹ Midnight service STOPPED');
+      }
+    } catch (e) {
+      console.log('Error stopping midnight service:', e);
+    }
+  };
+
+  // On mount: check and restart midnight service if needed
+
+  useEffect(() => {
+    const checkAndRestartMidnightService = async () => {
+      try {
+        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
+        if (checkInData) {
+          const parsedData = JSON.parse(checkInData);
+          if (parsedData.checkedIn) {
+            console.log('User is checked in, starting midnight service...');
+            await startMidnightService();
+          }
+        }
+      } catch (error) {
+        console.error('Error checking midnight service:', error);
+      }
+    };
+
+    checkAndRestartMidnightService();
+  }, []);
+
+  // Handle check-in process.    //////////// ///// / // / / //
   const handleCheckIn = async () => {
     if (!registeredFace) {
       Alert.alert(
@@ -898,8 +1025,8 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
       const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
 
       const attendancePayload = {
-        EmployeeId: String(employeeDetails?.id || '29'),
-        EmployeeCode: String(employeeDetails?.id || '29'),
+        EmployeeId: String(employeeDetails?.id || '9'),
+        EmployeeCode: String(employeeDetails?.id || '9'),
         LogDateTime: logDateTime,
         LogDate: logDate,
         LogTime: logTime,
@@ -939,6 +1066,7 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
       await Promise.all([
         saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
         startBackgroundService(),
+        startMidnightService(), // Add midnight service
       ]);
 
       Alert.alert(
@@ -967,254 +1095,189 @@ const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
     }
   };
 
-  
-const handleCheckOut = async () => {
-  try {
-    setIsLoading(true);
+  const handleCheckOut = async (fromBackground = false) => {
+    try {
+      console.log(
+        '▶ Checkout Triggered:',
+        fromBackground ? '(AUTO)' : '(MANUAL)',
+      );
 
-    const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
-    const employeeId = String(employeeDetails?.id || '29');
+      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+      const employeeId = String(employeeDetails?.id);
+      const current = moment();
 
-    // --- Step 1: Define shift & buffer using available state ---
-    // Parse shift hours to get end time
-    let shiftEndTime = null;
-    if (shiftHours && shiftHours.includes(' - ')) {
-      const endTimeStr = shiftHours.split(' - ')[1];
-      if (endTimeStr) {
-        // Parse time like "5:30 PM" to moment object for today
-        shiftEndTime = moment(endTimeStr, 'h:mm A');
-        if (!shiftEndTime.isValid()) {
-          // Try 24-hour format if 12-hour fails
-          shiftEndTime = moment(endTimeStr, 'HH:mm');
-        }
-      }
-    }
-    
-    const currentTime = moment();
-    const bufferMinutes = shiftBufferTimeEnd || 30;
-    const bufferEndTime = shiftEndTime ? shiftEndTime.clone().add(bufferMinutes, 'minutes') : null;
+      // ----------------------------------------------------
+      // 1️⃣ SIMPLE OT CALCULATION (Only for manual checkout)
+      // ----------------------------------------------------
+      if (!fromBackground) {
+        let minOtMinutes = 30;
 
-    // --- Step 2: Define check-out function ---
-    const performCheckOut = async (checkoutType = 'Manual') => {
-      try {
-        if (isExtendedWork) stopExtendedWork();
+        // Load OT policy
+        try {
+          const policyRes = await axiosInstance.get(
+            `${BASE_URL}/OtPolicyMaster/GetAllOtPolicy/${user?.childCompanyId}`,
+          );
 
-        const attendancePayload = {
-          EmployeeId: employeeId,
-          EmployeeCode: employeeId,
-          LogDateTime: logDateTime,
-          LogDate: logDate,
-          LogTime: logTime,
-          Direction: 'In', // ✅ Correct direction
-          DeviceName: 'Bhubaneswar',
-          SerialNo: '1',
-          VerificationCode: '1',
-        };
+          const otPolicy = policyRes.data?.find(
+            p => p.policyCategory === 'MinOverTime',
+          );
 
-        console.log('📤 Posting check-out attendance:', attendancePayload);
-
-        const response = await Promise.race([
-          axiosInstance.post(`${BASE_URL}/BiomatricAttendance/SaveAttenance`, attendancePayload),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)),
-        ]);
-
-        if (!response.data?.isSuccess) throw new Error(response.data?.message || 'Failed to save attendance');
-
-        // --- Step 3: Reset all states ---
-        await Promise.all([
-          saveCheckInState(false),
-          stopBackgroundService(),
-          AsyncStorage.multiRemove([BG_LAST_ELAPSED_KEY, CAPTURED_FACE_STORAGE_KEY]),
-        ]);
-
-        setCheckedIn(false);
-        setCheckInTime(null);
-        setProgressPercentage(0);
-        setMissedPercentage(0);
-        setElapsedTime('00:00:00');
-        setCapturedFace(null);
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-
-        // --- Step 4: Show success message ---
-        let message = `Logout: ${logDate} ${logTime}\nYour shift has ended. Have a great day!`;
-
-        if (checkoutType === 'Auto') {
-          message = `Auto Logout: ${logDate} ${logTime}\nYou were automatically logged out after exceeding buffer time (${bufferMinutes} mins).`;
-        } else if (checkoutType === 'Early') {
-          message = `Early Logout: ${logDate} ${logTime}\nYou checked out before your shift ended.`;
-        } else if (checkoutType === 'ExtendedWorkComplete') {
-          message = `Extended Work Complete: ${logDate} ${logTime}\nYou worked 5 extra hours. Great job!`;
+          if (otPolicy) minOtMinutes = Number(otPolicy.value) || 30;
+        } catch (e) {
+          console.log('⚠ OT policy failed → using default 30 min');
         }
 
-        Alert.alert('✅ Check-Out Successful', message, [
-          {
-            text: 'OK',
-            onPress: () => {
-              setInitialLoadComplete(false);
-              setTimeout(() => setInitialLoadComplete(true), 1000);
-            },
-          },
-        ]);
-      } catch (err) {
-        console.error('Check-Out Error:', err);
-        Alert.alert('❌ Failed', 'Something went wrong. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        // Parse shift end time
+        let shiftEndTime = null;
 
-    // --- Step 5: Logic Before Checkout ---
-    if (!shiftEndTime || !shiftEndTime.isValid()) {
-      // If no valid shift end time, allow normal checkout
-      Alert.alert(
-        'Check Out Confirmation',
-        'Are you sure you want to check out?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false) },
-          { text: 'Check Out', onPress: () => performCheckOut('Manual') },
-        ],
-      );
-    } else if (currentTime.isBefore(shiftEndTime)) {
-      // Early checkout warning
-      Alert.alert(
-        'Early Checkout',
-        'Your shift is still running. Are you sure you want to check out early?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false) },
+        if (shiftHours && shiftHours.includes(' - ')) {
+          const endStr = shiftHours.split(' - ')[1];
+          shiftEndTime = moment(endStr, 'HH:mm');
+        }
+
+        if (shiftEndTime) {
+          // Early logout → allow
+          if (current.isBefore(shiftEndTime)) {
+            console.log('Early Logout → Allowed');
+          }
+          // Exact time → allow
+          else if (current.isSame(shiftEndTime, 'minute')) {
+            console.log('Exact shift end → Allowed');
+          }
+          // After shift → OT calculation
+          else {
+            const diffMinutes = current.diff(shiftEndTime, 'minutes');
+
+            if (diffMinutes < minOtMinutes) {
+              return Alert.alert(
+                'Minimum OT Required',
+                `Required: ${minOtMinutes} min\nCompleted: ${diffMinutes} min`,
+                [
+                  {text: 'Cancel', style: 'cancel'},
+                  {
+                    text: 'Checkout Anyway',
+                    onPress: () => handleCheckOut(true), // bypass OT for second call
+                  },
+                ],
+              );
+            }
+          }
+        }
+      }
+
+      // ----------------------------------------------------
+      // 2️⃣ SHOW CHECKOUT CONFIRMATION (Before API call)
+      // ----------------------------------------------------
+      const confirmMessage = fromBackground
+        ? `Are you sure you want to check out?`
+        : `Checkout Successful`
+       
+
+      const confirmTitle = fromBackground
+        ? 'Checkout'
+        : 'Are you sure you want to check out?';
+
+      return new Promise(resolve => {
+        Alert.alert(confirmTitle, confirmMessage, [
           {
-            text: 'Yes, Check Out',
-            onPress: () => performCheckOut('Early'),
-          },
-        ],
-      );
-    } else if (bufferEndTime && currentTime.isBetween(shiftEndTime, bufferEndTime)) {
-      console.log('✅ Within buffer time for checkout');
-      // Normal check-out within buffer
-      Alert.alert(
-        'Check Out Confirmation',
-        'Your shift time is over. Do you want to check out now?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setIsLoading(false) },
-          { text: 'Check Out', onPress: () => performCheckOut('Manual') },
-        ],
-      );
-    } else if (bufferEndTime && currentTime.isAfter(bufferEndTime)) {
-      console.log('⚠️ Buffer time exceeded for checkout');
-      performCheckOut('Auto');
-    } else {
-      // After buffer time exceeded or no buffer defined
-      Alert.alert(
-        'Buffer Time Exceeded',
-        'You\'ve exceeded your shift buffer time. Continue working or logout?',
-        [
-          {
-            text: 'Continue Working',
+            text: 'Cancel',
+            style: 'cancel',
             onPress: () => {
-              startExtendedWork(); // start extended work session
-              setIsLoading(false);
+              console.log('Checkout cancelled by user');
+              resolve(false);
             },
           },
           {
-            text: 'Logout Now',
-            onPress: () => performCheckOut('Auto'),
+            text: 'Checkout',
+            style: fromBackground ? 'destructive' : 'default',
+            onPress: async () => {
+              try {
+                // ----------------------------------------------------
+                // 3️⃣ PERFORM ACTUAL CHECKOUT API CALL
+                // ----------------------------------------------------
+                const attendancePayload = {
+                  EmployeeId: String(employeeDetails?.id || '9'),
+                  EmployeeCode: String(employeeDetails?.id || '9'),
+                  LogDateTime: logDateTime,
+                  LogDate: logDate,
+                  LogTime: logTime,
+                  Direction: 'In',
+                  DeviceName: 'Bhubneswar',
+                  SerialNo: '1',
+                  VerificationCode: '1',
+                };
+
+                const response = await Promise.race([
+                  axiosInstance.post(
+                    `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+                    attendancePayload,
+                  ),
+                  new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), 15000),
+                  ),
+                ]);
+
+                if (!response.data?.isSuccess) {
+                  throw new Error(response.data?.message || 'API Failed');
+                }
+
+                // ----------------------------------------------------
+                // 4️⃣ RESET STATES AFTER SUCCESSFUL API CALL
+                // ----------------------------------------------------
+                await Promise.all([
+                  saveCheckInState(false),
+                  stopBackgroundService(),
+                  stopMidnightService(),
+                  AsyncStorage.multiRemove([
+                    BG_LAST_ELAPSED_KEY,
+                    CAPTURED_FACE_STORAGE_KEY,
+                    'CHECK_IN_DATE',
+                  ]),
+                ]);
+
+                setCheckedIn(false);
+                setCheckInTime(null);
+                setProgressPercentage(0);
+                setMissedPercentage(0);
+                setElapsedTime('00:00:00');
+                setCapturedFace(null);
+                setAutoCheckoutEnabled(false);
+
+                if (progressIntervalRef.current) {
+                  clearInterval(progressIntervalRef.current);
+                  progressIntervalRef.current = null;
+                }
+
+                // ----------------------------------------------------
+                // 5️⃣ SHOW SUCCESS ALERT AFTER CHECKOUT
+                // ----------------------------------------------------
+                const successTitle = fromBackground
+                  ? '✔  Checkout Successful'
+                  : '✔ Checkout Successful';
+                const successMessage = `Logout: ${logDate} ${logTime}`;
+
+                Alert.alert(successTitle, successMessage);
+
+                resolve(true);
+              } catch (err) {
+                console.log('Checkout Error:', err);
+                Alert.alert('Error', 'Checkout failed. Please try again.');
+                resolve(false);
+              }
+            },
           },
-        ],
-      );
+        ]);
+      });
+    } catch (err) {
+      console.log('Checkout Error:', err);
+      if (!fromBackground) {
+        Alert.alert('Error', 'Checkout failed. Please try again.');
+      }
+      return false;
+    } finally {
+      if (!fromBackground) setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Checkout Flow Error:', error);
-    Alert.alert('❌ Error', 'Unable to perform checkout.');
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
-  // Add missing extended work functions
-  const startExtendedWork = () => {
-  const extendedHours = 5;
-  const extendedMilliseconds = extendedHours * 60 * 60 * 1000;
-  const startTime = Date.now();
-
-  setExtendedWorkStartTime(startTime);
-  setIsExtendedWork(true);
-  console.log('🔄 Extended work started for 5 hours');
-
-  const timer = setTimeout(async () => {
-    console.log('⏰ Extended work (5 hrs) completed - Auto logout');
-    Alert.alert(
-      'Extended Work Completed',
-      'Your additional 5 hours have completed. You will be automatically logged out now.',
-      [
-        {
-          text: 'Logout',
-          onPress: async () => {
-            await performCheckOut('ExtendedWorkComplete');
-            setIsExtendedWork(false);
-            setExtendedWorkStartTime(null);
-            setExtendedWorkTimer(null);
-          },
-        },
-      ],
-      { cancelable: false },
-    );
-  }, extendedMilliseconds);
-
-  setExtendedWorkTimer(timer);
-  BackgroundService.updateNotification({
-    taskTitle: 'Extended Work',
-    taskDesc: `Extended shift - ${extendedHours} hours remaining...`,
-  }).catch(console.error);
-};
-
-  const stopExtendedWork = () => {
-    if (extendedWorkTimer) {
-      clearTimeout(extendedWorkTimer);
-      setExtendedWorkTimer(null);
-    }
-    setIsExtendedWork(false);
-    setExtendedWorkStartTime(null);
-    console.log('🛑 Extended work stopped');
   };
-
-  // Update background service to handle extended work
-  useEffect(() => {
-    let extendedWorkInterval = null;
-    
-    if (isExtendedWork && extendedWorkStartTime) {
-      // Update notification every minute to show remaining time
-      extendedWorkInterval = setInterval(() => {
-        const now = new Date().getTime();
-        const elapsed = now - extendedWorkStartTime;
-        const fiveHoursMs = 5 * 60 * 60 * 1000;
-        const remaining = Math.max(0, fiveHoursMs - elapsed);
-        
-        if (remaining > 0) {
-          const remainingHours = Math.floor(remaining / (60 * 60 * 1000));
-          const remainingMinutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-          
-          BackgroundService.updateNotification({
-            taskTitle: 'Extended Work in Progress',
-            taskDesc: `Extended shift - ${remainingHours}h ${remainingMinutes}m remaining...`,
-          }).catch(console.error);
-        }
-      }, 60000); // Update every minute
-    }
-    
-    return () => {
-      if (extendedWorkInterval) {
-        clearInterval(extendedWorkInterval);
-      }
-    };
-  }, [isExtendedWork, extendedWorkStartTime]);
-
-  // Cleanup extended work on component unmount
-  useEffect(() => {
-    return () => {
-      stopExtendedWork();
-    };
-  }, []);
-
 
   const normalize = useCallback(vec => {
     const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
@@ -1225,6 +1288,8 @@ const handleCheckOut = async () => {
     }
     return normalized;
   }, []);
+
+  // preprocessImage function
 
   const preprocessImage = useCallback(async base64Image => {
     try {
@@ -1256,6 +1321,8 @@ const handleCheckOut = async () => {
       return null;
     }
   }, []);
+
+  // getEmbedding function. ///===e=e===========================
 
   const getEmbedding = useCallback(
     async base64Image => {
@@ -1332,7 +1399,7 @@ const handleCheckOut = async () => {
     return Math.sqrt(sum);
   }, []);
 
-  // Replace matchFaces function:
+  // Replace matchFaces function:================================
 
   const matchFaces = async (face1, face2) => {
     if (!session) {
@@ -1389,6 +1456,8 @@ const handleCheckOut = async () => {
       setIsProcessing(false);
     }
   };
+
+  // Request camera permission ==============
   const requestCameraPermission = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -1411,6 +1480,8 @@ const handleCheckOut = async () => {
       return false;
     }
   };
+
+  // Request location permission ==============
 
   const requestLocationPermission = async () => {
     try {
@@ -1440,6 +1511,8 @@ const handleCheckOut = async () => {
     }
   };
 
+  // Get current position with fallback options ==============
+
   const getCurrentPositionPromise = async (
     options = {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
   ) => {
@@ -1458,10 +1531,14 @@ const handleCheckOut = async () => {
     }
   };
 
+  // Check.   safeParseFloat ==============
+
   const safeParseFloat = (val, fallback = NaN) => {
     const n = parseFloat(val);
     return Number.isFinite(n) ? n : fallback;
   };
+
+  // Check location against geofences ==============
 
   const checkLocation = async () => {
     try {
@@ -1523,6 +1600,8 @@ const handleCheckOut = async () => {
     }
   };
 
+  // Fetch employees on leave ==============
+
   useEffect(() => {
     const fetchEmployeesOnLeave = async () => {
       try {
@@ -1556,6 +1635,8 @@ const handleCheckOut = async () => {
     fetchEmployeesOnLeave();
   }, [user]);
 
+  // Fetch leave balance data ==============
+
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {
@@ -1583,207 +1664,227 @@ const handleCheckOut = async () => {
   }, [user]);
 
   useEffect(() => {
-     const fetchShiftDetails = async () => {
-  if (!employeeDetails?.id || !user?.childCompanyId) return;
+    const fetchShiftDetails = async () => {
+      if (!employeeDetails?.id || !user?.childCompanyId) return;
 
-  try {
-    const today = new Date();
+      try {
+        const today = new Date();
 
-    // Create date range for API (today plus one day before and after)
-    const fromDate = new Date(today);
-    fromDate.setDate(today.getDate() - 1);
+        // Create date range for API (today plus one day before and after)
+        const fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
 
-    const toDate = new Date(today);
-    toDate.setDate(today.getDate() + 1);
+        const toDate = new Date(today);
+        toDate.setDate(today.getDate() + 1);
 
-    const payload = {
-      EmployeeId: employeeDetails.id,
-      Month: 0,
-      Year: 0,
-      YearList: null,
-      ChildCompanyId: user.childCompanyId,
-      FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
-      ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
-      BranchName: null,
-      BranchId: 0,
-      EmployeeTypeId: 0,
-      DraftName: null,
-      Did: 0,
-      UserId: 0,
-      status: null,
-      Ids: null,
-      CoverLatter: null,
-      DepartmentId: 0,
-      DesignationId: 0,
-      UserType: 0,
-      CalculationType: 0,
-      childCompanies: null,
-      branchIds: null,
-      departmentsIds: null,
-      designationIds: null,
-      employeeTypeIds: null,
-      employeeIds: null,
-      hasAllReportAccess: false,
-    };
-
-    const response = await axiosInstance.post(
-      `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
-      payload,
-    );
-
-    console.log(response.data, 'shift data response');
-
-    if (response.data && Array.isArray(response.data)) {
-      const todayDateStr =
-        today.getDate().toString().padStart(2, '0') +
-        ' ' +
-        today.toLocaleString('en-US', {month: 'short'}) +
-        ' ' +
-        today.getFullYear();
-
-      const todayShift = response.data.find(
-        item => item.date === todayDateStr,
-      );
-
-      if (todayShift) {
-        // Parse shift times correctly for today's date
-        const parseShiftTime = (timeStr) => {
-          if (!timeStr) return null;
-          
-          // If it's already a full datetime, use it directly
-          if (timeStr.includes('T') || timeStr.includes(' ')) {
-            return new Date(timeStr);
-          }
-          
-          // If it's just time (HH:mm:ss), combine with today's date
-          const today = new Date();
-          const timeParts = timeStr.split(':');
-          if (timeParts.length >= 2) {
-            const hours = parseInt(timeParts[0], 10);
-            const minutes = parseInt(timeParts[1], 10);
-            const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
-            
-            return new Date(
-              today.getFullYear(),
-              today.getMonth(),
-              today.getDate(),
-              hours,
-              minutes,
-              seconds
-            );
-          }
-          
-          return null;
+        const payload = {
+          EmployeeId: employeeDetails.id,
+          Month: 0,
+          Year: 0,
+          YearList: null,
+          ChildCompanyId: user.childCompanyId,
+          FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
+          ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
+          BranchName: null,
+          BranchId: 0,
+          EmployeeTypeId: 0,
+          DraftName: null,
+          Did: 0,
+          UserId: 0,
+          status: null,
+          Ids: null,
+          CoverLatter: null,
+          DepartmentId: 0,
+          DesignationId: 0,
+          UserType: 0,
+          CalculationType: 0,
+          childCompanies: null,
+          branchIds: null,
+          departmentsIds: null,
+          designationIds: null,
+          employeeTypeIds: null,
+          employeeIds: null,
+          hasAllReportAccess: false,
         };
 
-        const shiftStart = parseShiftTime(todayShift.shiftStartTime);
-        const shiftEnd = parseShiftTime(todayShift.shiftEndTime);
+        const response = await axiosInstance.post(
+          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
+          payload,
+        );
 
-        // Debug logging
-        console.log('Shift Details:', {
-          shiftStart: shiftStart?.toLocaleString(),
-          shiftEnd: shiftEnd?.toLocaleString(),
-          rawShiftStart: todayShift.shiftStartTime,
-          rawShiftEnd: todayShift.shiftEndTime,
-        });
+        console.log(response.data, 'shift data response');
 
-        // Validate shift times
-        if (shiftStart && shiftEnd && !isNaN(shiftStart.getTime()) && !isNaN(shiftEnd.getTime())) {
-          // Calculate total shift duration in seconds
-          let calculatedTotalShiftSeconds = Math.max(0, (shiftEnd - shiftStart) / 1000);
-          
-          // Handle overnight shifts (if end time is before start time, add 24 hours)
-          if (shiftEnd <= shiftStart) {
-            const nextDayEnd = new Date(shiftEnd);
-            nextDayEnd.setDate(nextDayEnd.getDate() + 1);
-            calculatedTotalShiftSeconds = Math.max(0, (nextDayEnd - shiftStart) / 1000);
-          }
+        if (response.data && Array.isArray(response.data)) {
+          const todayDateStr =
+            today.getDate().toString().padStart(2, '0') +
+            ' ' +
+            today.toLocaleString('en-US', {month: 'short'}) +
+            ' ' +
+            today.getFullYear();
 
-          // Update the state with the calculated shift duration
-          setTotalShiftSeconds(calculatedTotalShiftSeconds);
-          setTotalShiftHours(Math.round(calculatedTotalShiftSeconds / 3600));
+          const todayShift = response.data.find(
+            item => item.date === todayDateStr,
+          );
 
-          console.log('Calculated shift duration:', {
-            calculatedTotalShiftSeconds,
-            hours: (calculatedTotalShiftSeconds / 3600).toFixed(2),
-          });
+          if (todayShift) {
+            // Parse shift times correctly for today's date
+            const parseShiftTime = timeStr => {
+              if (!timeStr) return null;
 
-          // Calculate missed time ONLY if user is checked in
-          if (checkedIn && checkInTime && calculatedTotalShiftSeconds > 0) {
-            const actualCheckIn = new Date(checkInTime);
-            
-            console.log('Time Comparison:', {
-              shiftStartTime: shiftStart.toLocaleString(),
-              actualCheckInTime: actualCheckIn.toLocaleString(),
-              checkInTime: checkInTime,
+              // If it's already a full datetime, use it directly
+              if (timeStr.includes('T') || timeStr.includes(' ')) {
+                return new Date(timeStr);
+              }
+
+              // If it's just time (HH:mm:ss), combine with today's date
+              const today = new Date();
+              const timeParts = timeStr.split(':');
+              if (timeParts.length >= 2) {
+                const hours = parseInt(timeParts[0], 10);
+                const minutes = parseInt(timeParts[1], 10);
+                const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+                return new Date(
+                  today.getFullYear(),
+                  today.getMonth(),
+                  today.getDate(),
+                  hours,
+                  minutes,
+                  seconds,
+                );
+              }
+
+              return null;
+            };
+
+            const shiftStart = parseShiftTime(todayShift.shiftStartTime);
+            const shiftEnd = parseShiftTime(todayShift.shiftEndTime);
+
+            // Debug logging
+            console.log('Shift Details:', {
+              shiftStart: shiftStart?.toLocaleString(),
+              shiftEnd: shiftEnd?.toLocaleString(),
+              rawShiftStart: todayShift.shiftStartTime,
+              rawShiftEnd: todayShift.shiftEndTime,
             });
 
-            // Calculate missed time only if check-in was after shift start
-            const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
-            const missedPercent = Math.min(100, (missedSeconds / calculatedTotalShiftSeconds) * 100);
+            // Validate shift times
+            if (
+              shiftStart &&
+              shiftEnd &&
+              !isNaN(shiftStart.getTime()) &&
+              !isNaN(shiftEnd.getTime())
+            ) {
+              // Calculate total shift duration in seconds
+              let calculatedTotalShiftSeconds = Math.max(
+                0,
+                (shiftEnd - shiftStart) / 1000,
+              );
 
-            console.log('Missed Time Calculations:', {
-              totalShiftSeconds: calculatedTotalShiftSeconds,
-              missedSeconds,
-              missedPercent: missedPercent.toFixed(2) + '%',
-              missedTime: formatHoursMinutes(missedSeconds),
-            });
+              // Handle overnight shifts (if end time is before start time, add 24 hours)
+              if (shiftEnd <= shiftStart) {
+                const nextDayEnd = new Date(shiftEnd);
+                nextDayEnd.setDate(nextDayEnd.getDate() + 1);
+                calculatedTotalShiftSeconds = Math.max(
+                  0,
+                  (nextDayEnd - shiftStart) / 1000,
+                );
+              }
 
-            setMissedPercentage(missedPercent);
-          } else if (!checkedIn) {
-            // If not checked in, reset missed percentage
-            setMissedPercentage(0);
-          }
+              // Update the state with the calculated shift duration
+              setTotalShiftSeconds(calculatedTotalShiftSeconds);
+              setTotalShiftHours(
+                Math.round(calculatedTotalShiftSeconds / 3600),
+              );
 
-          // Format times for display
-          const formatTime = dateTime => {
-            try {
-              if (!dateTime || isNaN(dateTime.getTime())) return 'Invalid time';
-              return dateTime.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
+              console.log('Calculated shift duration:', {
+                calculatedTotalShiftSeconds,
+                hours: (calculatedTotalShiftSeconds / 3600).toFixed(2),
               });
-            } catch (err) {
-              console.error('Time format error:', err);
-              return 'Invalid time';
+
+              // Calculate missed time ONLY if user is checked in
+              if (checkedIn && checkInTime && calculatedTotalShiftSeconds > 0) {
+                const actualCheckIn = new Date(checkInTime);
+
+                console.log('Time Comparison:', {
+                  shiftStartTime: shiftStart.toLocaleString(),
+                  actualCheckInTime: actualCheckIn.toLocaleString(),
+                  checkInTime: checkInTime,
+                });
+
+                // Calculate missed time only if check-in was after shift start
+                const missedSeconds = Math.max(
+                  0,
+                  (actualCheckIn - shiftStart) / 1000,
+                );
+                const missedPercent = Math.min(
+                  100,
+                  (missedSeconds / calculatedTotalShiftSeconds) * 100,
+                );
+
+                console.log('Missed Time Calculations:', {
+                  totalShiftSeconds: calculatedTotalShiftSeconds,
+                  missedSeconds,
+                  missedPercent: missedPercent.toFixed(2) + '%',
+                  missedTime: formatHoursMinutes(missedSeconds),
+                });
+
+                setMissedPercentage(missedPercent);
+              } else if (!checkedIn) {
+                // If not checked in, reset missed percentage
+                setMissedPercentage(0);
+              }
+
+              // Format times for display in 24-hour format
+              const formatTime24Hour = dateTime => {
+                try {
+                  if (!dateTime || isNaN(dateTime.getTime()))
+                    return 'Invalid time';
+                  return dateTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false, // Changed to 24-hour format
+                  });
+                } catch (err) {
+                  console.error('Time format error:', err);
+                  return 'Invalid time';
+                }
+              };
+
+              const startTime = formatTime24Hour(shiftStart);
+              const endTime = formatTime24Hour(shiftEnd);
+
+              if (startTime !== 'Invalid time' && endTime !== 'Invalid time') {
+                setShiftHours(`${startTime} - ${endTime}`);
+              } else {
+                setShiftHours('Shift times not available');
+              }
+
+              setShiftName(todayShift.shiftName || 'N/A');
+
+              // If user is checked in, restart the shift progress with updated duration
+              if (checkedIn && checkInTime) {
+                const now = Date.now();
+                const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
+                startShiftProgress(elapsedSeconds, shiftStart.getTime());
+              }
+            } else {
+              console.error('Invalid shift times:', {
+                start: todayShift.shiftStartTime,
+                end: todayShift.shiftEndTime,
+              });
+              setShiftHours('Invalid shift times');
             }
-          };
-
-          const startTime = formatTime(shiftStart);
-          const endTime = formatTime(shiftEnd);
-
-          if (startTime !== 'Invalid time' && endTime !== 'Invalid time') {
-            setShiftHours(`${startTime} - ${endTime}`);
           } else {
-            setShiftHours('Shift times not available');
+            console.log('No shift found for today:', todayDateStr);
+            setShiftHours('No shift assigned for today');
           }
-
-          setShiftName(todayShift.shiftName || 'N/A');
-
-          // If user is checked in, restart the shift progress with updated duration
-          if (checkedIn && checkInTime) {
-            const now = Date.now();
-            const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
-            startShiftProgress(elapsedSeconds, shiftStart.getTime());
-          }
-        } else {
-          console.error('Invalid shift times:', {
-            start: todayShift.shiftStartTime,
-            end: todayShift.shiftEndTime,
-          });
-          setShiftHours('Invalid shift times');
         }
-      } else {
-        console.log('No shift found for today:', todayDateStr);
-        setShiftHours('No shift assigned for today');
+      } catch (error) {
+        console.error('Error fetching shift details:', error);
+        setShiftHours('Error loading shift');
       }
-    }
-  } catch (error) {
-    console.error('Error fetching shift details:', error);
-    setShiftHours('Error loading shift');
-  }
-};
+    };
 
     fetchShiftDetails();
   }, [employeeDetails?.id, user?.childCompanyId, checkInTime]);
@@ -1991,8 +2092,8 @@ const handleCheckOut = async () => {
 
             <View style={styles.progressDetailCard}>
               <View style={styles.detailContent}>
-                <Text style={styles.progressDetailLabel}>Shift Hours</Text>
-                <Text style={styles.progressDetailValue}>
+                <Text style={styles.shiftDetailsLebal}>Shift Hours</Text>
+                <Text style={styles.shiftDetailValue}>
                   {shiftHours || 'No shift assigned'}
                 </Text>
               </View>
@@ -2149,10 +2250,12 @@ const handleCheckOut = async () => {
       </>
     );
   };
-  
+
+  // Main render function
+
   return (
     <AppSafeArea>
-      <StatusBar  barStyle="light-content" backgroundColor="#1E40AF" />
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>

@@ -611,33 +611,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  //  profile: {
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   paddingVertical: 30,
-  //   paddingHorizontal: 20,
-  //   marginBottom: 10,
-  //   ...Platform.select({
-  //     android: {
-  //       elevation: 8,
-  //     },
-  //     ios: {
-  //       shadowColor: '#000',
-  //       shadowOpacity: 0.15,
-  //       shadowRadius: 10,
-  //       shadowOffset: {width: 0, height: 3},
-  //     },
-  //   }),
-  //   borderBottomLeftRadius: 25,
-  //   borderBottomRightRadius: 25,
-  // },
-
    profileContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     paddingHorizontal: 10,
-    paddingVertical: Platform.OS === 'ios' ? 50 : 20,
+    paddingVertical: Platform.OS === 'ios' ? 65 : 67,
   },
    avatarContainer: {
     alignItems: 'center',
@@ -646,8 +625,10 @@ const styles = StyleSheet.create({
   },
   
   avatar: {
-    width: 96,
-    height: 96,
+    // margin: 10,
+    width: 120,
+    marginLeft: 4,
+    height: 120,
     borderRadius: 48,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.9)',

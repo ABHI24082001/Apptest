@@ -540,11 +540,27 @@ statusTimeText: {
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  shiftDetailsLebal:{
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '700',
+    marginBottom: 8,
+    fontFamily: 'Poppins-Bold',
+    textTransform: 'uppercase',
+
+  },
   progressDetailValue: {
     fontSize: 12,
     fontWeight: '700',
     color: '#0F172A',
     lineHeight: 18,
+  },
+   shiftDetailValue: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#739bf9ff',
+    lineHeight: 38,
+    
   },
   timeDisplayRow: {
     flexDirection: 'row',
