@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#37474F',
   },
-employeeInfo: {
+  employeeInfo: {
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',

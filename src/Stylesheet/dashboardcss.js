@@ -160,20 +160,22 @@ statusTimeText: {
 },
 
   content: {
-    padding: 20,
-    paddingTop: 10,
+    padding: Platform.OS === 'ios' ? 0 : 20,
+    paddingTop: Platform.OS === 'ios' ? 0 : 10,
   },
   registrationCard: {
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Platform.OS === 'ios' ? 4 : 20,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: Platform.OS === 'ios' ? 6 : 10,
+    marginHorizontal: Platform.OS === 'ios' ? 4 : 0,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        marginBottom: 10,
+        shadowOffset: {width: 0, height: 8},
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        marginBottom: 16,
       },
       android: {
         elevation: 4,
@@ -181,24 +183,30 @@ statusTimeText: {
     }),
   },
   registrationGradient: {
-    padding: 30,
+    padding: Platform.OS === 'ios' ? 3 : 30,
     alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 4 : 30,
+    paddingBottom: Platform.OS === 'ios' ? 4 : 30,
   },
   registrationIconWrapper: {
-    marginBottom: 20,
+    marginBottom: Platform.OS === 'ios' ? 0 : 20,
+    alignItems: 'center',
   },
   registrationIconBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
+    width: Platform.OS === 'ios' ? 0 : 80,
+    height: Platform.OS === 'ios' ? 0 : 80,
+    borderRadius: Platform.OS === 'ios' ? 44 : 40,
+    backgroundColor: Platform.OS === 'ios' ? '#F0F4FF' : '#FFFFFF',
+    justifyContent: Platform.OS === 'ios' ? 'center' : 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
         shadowColor: '#3B82F6',
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOffset: {width: 0, height: 6},
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        borderWidth: 0.5,
+        borderColor: '#E0E7FF',
       },
       android: {
         elevation: 8,
@@ -206,50 +214,48 @@ statusTimeText: {
     }),
   },
   registrationIconText: {
-    fontSize: 36,
+    fontSize: Platform.OS === 'ios' ? 38 : 36,
+    color: Platform.OS === 'ios' ? '#3B82F6' : '#000',
   },
   registrationTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: Platform.OS === 'ios' ? 24 : 20,
+    fontWeight: Platform.OS === 'ios' ? '800' : '700',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: Platform.OS === 'ios' ? 16 : 12,
     textAlign: 'center',
+    letterSpacing: Platform.OS === 'ios' ? -0.3 : 0,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'default',
   },
   registrationDescription: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'ios' ? 16 : 14,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-    paddingHorizontal: 10,
+    lineHeight: Platform.OS === 'ios' ? 24 : 20,
+    marginBottom: Platform.OS === 'ios' ? 32 : 24,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 10,
+    fontWeight: Platform.OS === 'ios' ? '500' : '400',
+    letterSpacing: Platform.OS === 'ios' ? 0.1 : 0,
   },
   registerButton: {
     width: '100%',
-    borderRadius: 12,
+    height: Platform.OS === 'ios' ? 66 : 52,
+    borderRadius: Platform.OS === 'ios' ? 16 : 12,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#3B82F6',
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    
   },
   registerButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: Platform.OS === 'ios' ? 20 : 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 24 : 16,
+    gap: Platform.OS === 'ios' ? 12 : 8,
   },
   registerButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Platform.OS === 'ios' ? 18 : 16,
+    fontWeight: Platform.OS === 'ios' ? '700' : '600',
     color: '#fff',
+    letterSpacing: Platform.OS === 'ios' ? 0.2 : 0,
   },
 
   // Progress card 
@@ -756,6 +762,81 @@ statusTimeText: {
   },
   actionButton: {
     display: 'none', // Hide old style
+  },
+
+  // Location Processing Modal Styles
+  locationModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  locationModalContainer: {
+    width: '100%',
+    backgroundColor: '#000',
+    maxWidth: 350,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+  },
+  locationModalContent: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  lottieContainer: {
+    width: 150,
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  lottieAnimation: {
+    width: '120%',
+    height: '120%',
+  },
+  locationProcessingTextContainer: {
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  locationProcessingTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  locationProcessingDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 10,
+  },
+  locationProgressText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  locationCancelButton: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  locationCancelButtonText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '600',
   },
 });
 

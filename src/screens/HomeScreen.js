@@ -11,6 +11,7 @@ import {
   AppState,
   Image,
   StatusBar,
+  Modal,
 } from 'react-native';
 import styles from '../Stylesheet/dashboardcss';
 import LinearGradient from 'react-native-linear-gradient';
@@ -33,6 +34,8 @@ import axiosInstance from '../utils/axiosInstance';
 import LeaveStatus from '../component/LeaveStatus';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import moment from 'moment';
+import LottieView from 'lottie-react-native';
+
 // Icons
 const CheckIcon = () => <Text style={styles.icon}>✓</Text>;
 const CameraIcon = () => <Text style={styles.icon}>📷</Text>;
@@ -73,6 +76,7 @@ const HomeScreen = () => {
   const [totalShiftSeconds, setTotalShiftSeconds] = useState(28800); // Default 8 hours, will be updated dynamically
   const [totalShiftHours, setTotalShiftHours] = useState(8);
   const [autoCheckoutEnabled, setAutoCheckoutEnabled] = useState(false);
+  const [isLocationProcessing, setIsLocationProcessing] = useState(false);
 
   const employeeDetails = useFetchEmployeeDetails();
   const progressIntervalRef = useRef(null);
@@ -927,7 +931,7 @@ const HomeScreen = () => {
     checkAndRestartMidnightService();
   }, []);
 
-  // Handle check-in process.    //////////// ///// / // / / //
+  // Handle check-in process with Lottie animation
   const handleCheckIn = async () => {
     if (!registeredFace) {
       Alert.alert(
@@ -941,7 +945,9 @@ const HomeScreen = () => {
     setIsLoading(true);
 
     try {
-      // Step 1: Check location with timeout
+      // Step 1: Check location with Lottie animation
+      setIsLocationProcessing(true);
+      
       const locationPromise = checkLocation();
       const locationTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Location check timeout')), 20000),
@@ -951,6 +957,8 @@ const HomeScreen = () => {
         locationPromise,
         locationTimeout,
       ]);
+
+      setIsLocationProcessing(false);
 
       if (!locationResult.inside) {
         const nearest = locationResult.nearestFence
@@ -1092,6 +1100,7 @@ const HomeScreen = () => {
       Alert.alert('❌ Check-In Failed', errorMessage);
     } finally {
       setIsLoading(false);
+      setIsLocationProcessing(false);
     }
   };
 
@@ -2251,8 +2260,56 @@ const HomeScreen = () => {
     );
   };
 
-  // Main render function
+  // Render location processing modal
+  const renderLocationModal = () => (
+    <Modal
+      visible={isLocationProcessing}
+      transparent={true}
+      animationType="fade"
+      statusBarTranslucent={true}>
+      <View style={styles.locationModalOverlay}>
+        <View style={styles.locationModalContainer}>
+          <LinearGradient
+            colors={['#FFFFFF', '#F8FAFC']}
+            style={styles.locationModalContent}>
+            
+            {/* Lottie Animation */}
+            <View style={styles.lottieContainer}>
+              <LottieView
+                source={require('../lotti/Location Pin.json')}
+                autoPlay
+                loop
+                style={styles.lottieAnimation}
+                speed={0.8}
+              />
+            </View>
 
+            {/* Processing Text */}
+            <View style={styles.locationProcessingTextContainer}>
+              <Text style={styles.locationProcessingTitle}>
+                Getting Your Location
+              </Text>
+              <Text style={styles.locationProcessingDescription}>
+                Please wait while we verify your location for check-in
+              </Text>
+            </View>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.locationCancelButton}
+              onPress={() => {
+                setIsLocationProcessing(false);
+                setIsLoading(false);
+              }}>
+              <Text style={styles.locationCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Main render function
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
@@ -2301,6 +2358,9 @@ const HomeScreen = () => {
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>
       </ScrollView>
+      
+      {/* Location Processing Modal */}
+      {renderLocationModal()}
     </AppSafeArea>
   );
 };
