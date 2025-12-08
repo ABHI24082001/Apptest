@@ -332,6 +332,12 @@ const ApplyLeaveScreen = ({navigation, route}) => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
+
+               <LeaveHeader
+            title="Apply Leave"
+            subtitle="Please fill in the details below to submit your leave request."
+            iconName="calendar-account-outline"
+          />
         <ScrollView
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
