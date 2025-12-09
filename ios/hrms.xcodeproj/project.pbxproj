@@ -870,7 +870,6 @@
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* hrms.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hrms.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = hrms/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = hrms/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		640070202ECC7332002A6073 /* Pods.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Pods.xcodeproj; path = Pods/Pods.xcodeproj; sourceTree = "<group>"; };
 		64B5C0BF2E911D120064E7BC /* tiny_model.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = tiny_model.onnx; sourceTree = "<group>"; };
@@ -907,7 +906,6 @@
 		13B07FAE1A68108700A75B9A /* hrms */ = {
 			isa = PBXGroup;
 			children = (
-				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				64B5C0BF2E911D120064E7BC /* tiny_model.onnx */,
 				64F35B7F2E97E5B50056F823 /* Info.plist */,
@@ -916,7 +914,7 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 			);
 			name = hrms;
-			sourceTree = "<group>";
+			sourceTree = SOURCE_ROOT;
 			usesTabs = 0;
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
@@ -2106,8 +2104,7 @@
 			baseConfigurationReference = B0E1AE28AFCA6BBF4A4265EC /* Pods-hrms.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
@@ -2150,8 +2147,7 @@
 			baseConfigurationReference = B6192CBD2FB68BC015087B0C /* Pods-hrms.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
