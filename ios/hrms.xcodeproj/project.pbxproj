@@ -8,7 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		3E9F3FA5DB65EF6C9E520A09 /* libPods-hrms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FDB311B122ADE42FFFF5D932 /* libPods-hrms.a */; };
+		6429D53B2EE7FE3B00C7A932 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 64F35B7F2E97E5B50056F823 /* Info.plist */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		EB05BB70DF195F93FDD355B3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1099,6 +1101,7 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				C16D1406AD40EF3C1C667333 /* [CP] Copy Pods Resources */,
 				510286319FAD3C0EE255F602 /* [CP] Embed Pods Frameworks */,
+				E178E429FA969357B49034A2 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -2005,6 +2008,18 @@
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E178E429FA969357B49034A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6429D53B2EE7FE3B00C7A932 /* Info.plist in Resources */,
+				EB05BB70DF195F93FDD355B3 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */ = {
