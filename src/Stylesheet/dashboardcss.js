@@ -5,14 +5,15 @@ const styles = StyleSheet.create({
  
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#ffffffff',
+    marginBottom: Platform.OS === 'ios' ? 0 : -10, // Remove negative margin for iOS
     paddingBottom: Platform.OS === 'ios' ? 0 : 0, // Remove negative padding for iOS
   },
   header: {
   paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
-  marginBottom: 20,
+  marginBottom: -10,
   paddingTop: Platform.OS === 'ios' ? IOS_TOP : 20,
-  paddingBottom: 20,
+  paddingBottom: 30,
   borderBottomLeftRadius: 30,
   borderBottomRightRadius: 30,
 },
@@ -799,8 +800,8 @@ statusTimeText: {
     marginBottom: 20,
   },
   lottieAnimation: {
-    width: '120%',
-    height: '120%',
+    width: '300%',
+    height: '300%',
   },
   locationProcessingTextContainer: {
     alignItems: 'center',

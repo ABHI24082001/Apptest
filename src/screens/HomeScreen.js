@@ -79,6 +79,8 @@ const HomeScreen = () => {
   const [isLocationProcessing, setIsLocationProcessing] = useState(false);
 
   const employeeDetails = useFetchEmployeeDetails();
+
+  
   const progressIntervalRef = useRef(null);
   const imageProcessingTimeoutRef = useRef(null);
   const sleep = t => new Promise(resolve => setTimeout(resolve, t));
@@ -2295,14 +2297,14 @@ const HomeScreen = () => {
             </View>
 
             {/* Cancel Button */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.locationCancelButton}
               onPress={() => {
                 setIsLocationProcessing(false);
                 setIsLoading(false);
               }}>
               <Text style={styles.locationCancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </LinearGradient>
         </View>
       </View>

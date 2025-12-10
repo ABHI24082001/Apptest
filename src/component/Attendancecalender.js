@@ -79,10 +79,19 @@ export default function MonthCalendarWithAgenda({
         BranchId: employeeDetails?.branchId || branchId,
         FromDate: currentMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
         ToDate: currentMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
-       
       };
 
-      const [response, shiftResponse] = await Promise.all([
+      // Check if we need next month data (for +1 logic)
+      const nextMonth = currentMonth.clone().add(1, 'month');
+      const nextMonthRequestData = {
+        ...requestData,
+        Month: nextMonth.month() + 1,
+        Year: nextMonth.year(),
+        FromDate: nextMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
+        ToDate: nextMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
+      };
+
+      const [response, shiftResponse, nextMonthShiftResponse] = await Promise.all([
         axiosInstance.post(
           `${BASE_URL}/BiomatricAttendance/GetCalendorForSingleEmployee`,
           requestData,
@@ -91,11 +100,18 @@ export default function MonthCalendarWithAgenda({
           `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
           requestData,
         ),
+        axiosInstance.post(
+          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
+          nextMonthRequestData,
+        ),
       ]);
 
-      console.log('📅 Attendance data=============== fetched:', response.data, shiftResponse);
+      console.log('📅 Attendance data=============== fetched:', response.data, shiftResponse, nextMonthShiftResponse);
+      
       // Process shift data into a map keyed by date
       const shiftMap = {};
+      
+      // Process current month shift data
       shiftResponse.data.forEach(shift => {
         const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
         shiftMap[date] = {
@@ -105,7 +121,23 @@ export default function MonthCalendarWithAgenda({
           halfDayStartTime: moment(shift.halfDayStartTime).format('HH:mm'),
           halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
           loginTime: shift.loginTime,
-          logoutTime: shift.logoutTime
+          logoutTime: shift.logoutTime,
+          isNextMonth: false
+        };
+      });
+
+      // Process next month shift data
+      nextMonthShiftResponse.data.forEach(shift => {
+        const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
+        shiftMap[date] = {
+          shiftName: shift.shiftName,
+          shiftStartTime: moment(shift.shiftStartTime).format('HH:mm'),
+          shiftEndTime: moment(shift.shiftEndTime).format('HH:mm'),
+          halfDayStartTime: moment(shift.halfDayStartTime).format('HH:mm'),
+          halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
+          loginTime: shift.loginTime,
+          logoutTime: shift.logoutTime,
+          isNextMonth: true
         };
       });
 
@@ -284,12 +316,8 @@ export default function MonthCalendarWithAgenda({
     setCurrentMonth(cm => cm.clone().add(dir === 'prev' ? -1 : 1, 'month'));
   };
 
-  // Year picker handler
-  const pickYear = y => {
-    setPickerYear(y);
-    setCurrentMonth(cm => cm.clone().year(y));
-    setShowPicker(false);
-  };
+
+ 
 
   // When daysInMonth changes, try to scroll FlatList to today's date index safely
   useEffect(() => {
@@ -416,6 +444,24 @@ export default function MonthCalendarWithAgenda({
     </View>
   );
 
+  // Helper function to get shift name with +1 logic
+  const getShiftNameDisplay = (dayShift, dateKey) => {
+    if (!dayShift) return "general";
+    
+    const selectedMoment = moment(dateKey);
+    const currentMonthStart = currentMonth.startOf('month');
+    
+    // Check if the selected date is in the next month
+    const isNextMonth = selectedMoment.isAfter(currentMonth.endOf('month'));
+    
+    // If shift data indicates it's from next month or date is in next month, show +1
+    if (dayShift.isNextMonth || isNextMonth) {
+      return `${dayShift.shiftName || "general"} +1`;
+    }
+    
+    return dayShift.shiftName || "general";
+  };
+
   // Optimized event rendering
   const renderEvent = useCallback(
     ({item: evt, showDate = false}) => {
@@ -512,7 +558,7 @@ export default function MonthCalendarWithAgenda({
               <View style={styles.infoRow}>
                 <MaterialIcons name="schedule" size={16} color="#666" />
                 <Text style={styles.infoLabel}>Shift</Text>
-                <Text style={styles.infoValue}>{dayShift.shiftName}</Text>
+                <Text style={styles.infoValue}>{getShiftNameDisplay(dayShift, dateKey)}</Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -569,7 +615,7 @@ export default function MonthCalendarWithAgenda({
         </View>
       );
     },
-    [eventTypes, leaveColors, shiftData, selectedDate]
+    [eventTypes, leaveColors, shiftData, selectedDate, currentMonth, getShiftNameDisplay]
   );
 
   // Combined agenda/list view

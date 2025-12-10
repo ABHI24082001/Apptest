@@ -125,7 +125,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP Faild status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -204,7 +204,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP Faild status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -323,7 +323,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP Faild! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -403,7 +403,7 @@ const ExitRequestStatusScreen = ({navigation, route}) => {
       );
 
       if (!exitResponse.ok) {
-        throw new Error(`HTTP error! status: ${exitResponse.status}`);
+        throw new Error(`HTTP Faild! status: ${exitResponse.status}`);
       }
 
       const allExitRequests = await exitResponse.json();

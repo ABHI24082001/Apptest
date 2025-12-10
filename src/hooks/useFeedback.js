@@ -50,7 +50,7 @@ const useFeedback = () => {
     showFeedback({ type: 'success', message, title });
   };
 
-  const showError = (message, title = 'Error!') => {
+  const showError = (message, title = 'Failed!') => {
     showFeedback({ type: 'fail', message, title });
   };
 
