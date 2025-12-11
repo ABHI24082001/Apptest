@@ -2315,7 +2315,7 @@ const HomeScreen = () => {
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
           <View style={styles.headerContent}>
@@ -2356,7 +2356,7 @@ const HomeScreen = () => {
             </View>
           </View>
         </LinearGradient>
-
+ 
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>
       </ScrollView>

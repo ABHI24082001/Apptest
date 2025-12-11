@@ -9,6 +9,9 @@ const styles = StyleSheet.create({
     marginBottom: Platform.OS === 'ios' ? 0 : -10, // Remove negative margin for iOS
     paddingBottom: Platform.OS === 'ios' ? 0 : 0, // Remove negative padding for iOS
   },
+
+// ui check 
+
   header: {
   paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
   marginBottom: -10,

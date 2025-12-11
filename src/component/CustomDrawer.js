@@ -221,13 +221,20 @@ const CustomDrawer = ({navigation}) => {
   return (
     <AppSafeArea style={styles.container}>
       <View style={styles.contentContainer}>
+        {/* // StatusBar for better header ui  */}
         <ScrollView
           visible={visible}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
+         
+         
+
           <LinearGradient
-            colors={['#1E40AF', '#2563EB', '#3B82F6']}
-            style={[styles.profile]}>
+            colors={['#1E40AF', '#2563EB', '#3B82F6', '#60A5FA']}
+            style={[styles.profile]}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 1}}
+          >
             <Animated.View style={[avatarStyle, styles.profileContainer]}>
               <View style={styles.avatarContainer}>
                 <TouchableOpacity

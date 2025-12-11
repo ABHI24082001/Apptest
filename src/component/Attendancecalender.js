@@ -90,6 +90,8 @@ export default function MonthCalendarWithAgenda({
         FromDate: nextMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
         ToDate: nextMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
       };
+debugger;
+ console.log('Request Data:', requestData, 'Next Month Request Data:', nextMonthRequestData);      
 
       const [response, shiftResponse, nextMonthShiftResponse] = await Promise.all([
         axiosInstance.post(
@@ -106,11 +108,11 @@ export default function MonthCalendarWithAgenda({
         ),
       ]);
 
-      console.log('📅 Attendance data=============== fetched:', response.data, shiftResponse, nextMonthShiftResponse);
+      console.log('📅 Attendance data=============== fetched:', response.data, "sjhdsjsd", shiftResponse,  " jhlacsiubfswdioub;feqwibj;feqwkbjcqwbjkacskabjcs" ,nextMonthShiftResponse);
       
       // Process shift data into a map keyed by date
       const shiftMap = {};
-      
+debugger;   
       // Process current month shift data
       shiftResponse.data.forEach(shift => {
         const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
@@ -122,7 +124,9 @@ export default function MonthCalendarWithAgenda({
           halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
           loginTime: shift.loginTime,
           logoutTime: shift.logoutTime,
-          isNextMonth: false
+          isNextMonth: false,
+          holidayName: shift.holidayName,
+          leaveName: shift.leaveName
         };
       });
 
@@ -137,7 +141,9 @@ export default function MonthCalendarWithAgenda({
           halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
           loginTime: shift.loginTime,
           logoutTime: shift.logoutTime,
-          isNextMonth: true
+          isNextMonth: true,
+          holidayName: shift.holidayName,
+          leaveName: shift.leaveName
         };
       });
 
@@ -446,7 +452,13 @@ export default function MonthCalendarWithAgenda({
 
   // Helper function to get shift name with +1 logic
   const getShiftNameDisplay = (dayShift, dateKey) => {
-    if (!dayShift) return "general";
+    if (!dayShift) return "General";
+    
+    // Handle case where shiftName is "--" or empty
+    let shiftName = dayShift.shiftName;
+    if (!shiftName || shiftName === "--" || shiftName.trim() === "") {
+      shiftName = "General";
+    }
     
     const selectedMoment = moment(dateKey);
     const currentMonthStart = currentMonth.startOf('month');
@@ -456,10 +468,10 @@ export default function MonthCalendarWithAgenda({
     
     // If shift data indicates it's from next month or date is in next month, show +1
     if (dayShift.isNextMonth || isNextMonth) {
-      return `${dayShift.shiftName || "general"} +1`;
+      return `${shiftName} +1`;
     }
     
-    return dayShift.shiftName || "general";
+    return shiftName;
   };
 
   // Optimized event rendering
@@ -497,28 +509,33 @@ export default function MonthCalendarWithAgenda({
 
       // Helper function to determine which shift time to display
       const getShiftTimeDisplay = () => {
-        if (!dayShift) return { startTime: '', endTime: '', isHalfDay: false };
+        if (!dayShift) return { startTime: 'N/A', endTime: 'N/A', isHalfDay: false };
         
-        // Check if half day times are available and not 00:00
+        // Check if times are valid (not 00:00)
+        const hasValidShiftTimes = dayShift.shiftStartTime && 
+                                  dayShift.shiftEndTime && 
+                                  dayShift.shiftStartTime !== '00:00' && 
+                                  dayShift.shiftEndTime !== '00:00';
+        
         const hasValidHalfDayTimes = dayShift.halfDayStartTime && 
-                                   dayShift.halfDayEndTime && 
-                                   dayShift.halfDayStartTime !== '00:00' && 
-                                   dayShift.halfDayEndTime !== '00:00';
+                                    dayShift.halfDayEndTime && 
+                                    dayShift.halfDayStartTime !== '00:00' && 
+                                    dayShift.halfDayEndTime !== '00:00';
         
         if (hasValidHalfDayTimes) {
-          // Use half day times if they are available and valid
           return {
             startTime: dayShift.halfDayStartTime,
             endTime: dayShift.halfDayEndTime,
             isHalfDay: true
           };
-        } else {
-          // Use full day times as fallback
+        } else if (hasValidShiftTimes) {
           return {
             startTime: dayShift.shiftStartTime,
             endTime: dayShift.shiftEndTime,
             isHalfDay: false
           };
+        } else {
+          return { startTime: 'N/A', endTime: 'N/A', isHalfDay: false };
         }
       };
 
@@ -572,6 +589,17 @@ export default function MonthCalendarWithAgenda({
                 </Text>
               </View>
 
+              {/* Show holiday or leave info if available */}
+              {(dayShift.holidayName || dayShift.leaveName) && (
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="info" size={16} color="#FF9800" />
+                  <Text style={styles.infoLabel}>Note</Text>
+                  <Text style={styles.infoValue}>
+                    {dayShift.holidayName || dayShift.leaveName || 'N/A'}
+                  </Text>
+                </View>
+              )}
+
               {times.length >= 2 && (
                 <>
                   <View style={styles.infoRow}>
@@ -601,15 +629,26 @@ export default function MonthCalendarWithAgenda({
                     </Text>
                   </View>
 
-                   <View style={styles.infoRow}>
+                  <View style={styles.infoRow}>
                     <MaterialIcons name="timer" size={16} color="#666" />
                     <Text style={styles.infoLabel}>Required</Text>
                     <Text style={[styles.infoValue]}>
-                      {formatHoursToHHMM(requiredHours) || '00:00'} hrs
+                      {shiftTimeDisplay.startTime !== 'N/A' ? formatHoursToHHMM(requiredHours) || '00:00' : 'N/A'} hrs
                     </Text>
                   </View>
                 </>
-              )}             
+              )}
+
+              {/* Show message when no attendance data available */}
+              {times.length < 2 && (
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="info-outline" size={16} color="#999" />
+                  <Text style={styles.infoLabel}>Status</Text>
+                  <Text style={[styles.infoValue, {color: '#999'}]}>
+                    No attendance data available
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
