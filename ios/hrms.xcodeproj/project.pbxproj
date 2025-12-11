@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		3E9F3FA5DB65EF6C9E520A09 /* libPods-hrms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FDB311B122ADE42FFFF5D932 /* libPods-hrms.a */; };
+		64E9DF4B2EE9A82300D374FF /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 64E9DF4A2EE9A82300D374FF /* Images.xcassets */; };
 		65A5FE2D820F756DF6E2C30D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
@@ -874,6 +875,7 @@
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = hrms/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		640070202ECC7332002A6073 /* Pods.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Pods.xcodeproj; path = Pods/Pods.xcodeproj; sourceTree = "<group>"; };
 		64B5C0BF2E911D120064E7BC /* tiny_model.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = tiny_model.onnx; sourceTree = "<group>"; };
+		64E9DF4A2EE9A82300D374FF /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = hrms/Images.xcassets; sourceTree = "<group>"; };
 		64F35B7F2E97E5B50056F823 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = hrms/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = hrms/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -908,6 +910,7 @@
 			isa = PBXGroup;
 			children = (
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				64E9DF4A2EE9A82300D374FF /* Images.xcassets */,
 				64B5C0BF2E911D120064E7BC /* tiny_model.onnx */,
 				64F35B7F2E97E5B50056F823 /* Info.plist */,
 				640070202ECC7332002A6073 /* Pods.xcodeproj */,
@@ -2011,6 +2014,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				64E9DF4B2EE9A82300D374FF /* Images.xcassets in Resources */,
 				65A5FE2D820F756DF6E2C30D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2117,13 +2121,15 @@
 			baseConfigurationReference = B0E1AE28AFCA6BBF4A4265EC /* Pods-hrms.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				"DEBUG_INFORMATION_FORMAT[sdk=*]" = "dwarf-with-dsym";
 				DEBUG_INFORMATION_VERSION = "compiler-default";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 4A3HAZ4274;
@@ -2160,13 +2166,15 @@
 			baseConfigurationReference = B6192CBD2FB68BC015087B0C /* Pods-hrms.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[arch=*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				"DEBUG_INFORMATION_FORMAT[sdk=*]" = "dwarf-with-dsym";
 				DEBUG_INFORMATION_VERSION = "compiler-default";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 4A3HAZ4274;
@@ -2202,6 +2210,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				EXCLUDED_ARCHS = arm64;
 				"EXCLUDED_ARCHS[sdk=*]" = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
@@ -2214,6 +2223,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
