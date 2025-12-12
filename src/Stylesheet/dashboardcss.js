@@ -14,7 +14,7 @@ const styles = StyleSheet.create({
 
   header: {
   paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
-  marginBottom: -10,
+
   paddingTop: Platform.OS === 'ios' ? IOS_TOP : 20,
   paddingBottom: 30,
   borderBottomLeftRadius: 30,

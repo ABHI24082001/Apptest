@@ -22,6 +22,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import NotificationScreen from '../screens/NotificationScreen';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {useAuth} from '../constants/AuthContext';
+import {GradientHeader} from '../component/HeaderSection';
 
 import BASE_URL from '../constants/apiConfig';
 import axiosinstance from '../utils/axiosInstance';
@@ -277,15 +278,9 @@ const handleLogout = async () => {
   );
 };
 
-// Create a custom header component with gradient
-const GradientHeader = ({children, style}) => (
-  <LinearGradient
-    colors={['#1E40AF', '#2563EB']}
-    style={[{flex: 1}, style]}
-    start={{x: 0, y: 0}}
-    end={{x: 0, y: 1}}>
-    {children}
-  </LinearGradient>
+// Create a custom header component with gradient - Updated
+const CustomGradientHeader = ({children, style}) => (
+  <GradientHeader style={[{flex: 1}, style]} />
 );
 
 // ---------------- Drawer Navigator ----------------
@@ -296,13 +291,26 @@ export default function DrawerNavigator() {
         drawerContent={props => <CustomDrawer {...props} />}
         screenOptions={({navigation}) => ({
           headerShown: true,
-          headerBackground: () => (
-            <GradientHeader style={{borderBottomLeftRadius: 0, borderBottomRightRadius: 0}} />
-          ),
+          headerBackground: () => <CustomGradientHeader />,
           headerTintColor: '#FFFFFF',
           headerTitleStyle: {
             color: '#FFFFFF',
             fontWeight: '600',
+            fontSize: 18,
+          },
+          headerStyle: {
+            height: Platform.OS === 'ios' ? 100 : 80,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#1E40AF',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+              },
+              android: {
+                elevation: 6,
+              },
+            }),
           },
           drawerStyle: {
             width: 300,

@@ -14,8 +14,8 @@ export default function App() {
   return (
     <Provider store={store}>
       <StatusBar
-        barStyle={Platform.OS === 'ios' ? 'dark-content' : 'light-content'}
-        backgroundColor={Platform.OS === 'android' ? '#7BC1FF' : '#7BC1FF'}
+        barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'}
+        backgroundColor={Platform.OS === 'android' ? '#3c9cf1ff' : '#7BC1FF'}
         translucent={Platform.OS === 'android' ? false : true}
         animated={true}
       />
