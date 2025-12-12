@@ -245,7 +245,7 @@ const handleLogout = async () => {
         title="My Profile"
       />
       
-      <Menu.Item
+      {/* <Menu.Item
         onPress={() => {
           setVisible(false);
           navigation.navigate('Setting');
@@ -258,7 +258,7 @@ const handleLogout = async () => {
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="Setting"
-      />
+      /> */}
       
       <Menu.Item
         onPress={() => {
