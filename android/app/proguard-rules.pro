@@ -13,6 +13,23 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.swmansion.gesturehandler.** { *; }
 
+# --- Coil v3 ---
+-keep class coil3.** { *; }
+-dontwarn coil3.**
+
+# --- FindBugs annotations ---
+-keep class edu.umd.cs.findbugs.annotations.** { *; }
+-dontwarn edu.umd.cs.findbugs.annotations.**
+
+# --- ByteBuddy ---
+-keep class net.bytebuddy.** { *; }
+-dontwarn net.bytebuddy.**
+
+
+# --- ByteBuddy ---
+-keep class net.bytebuddy.** { *; }
+-dontwarn net.bytebuddy.**
+
 # ===== VisionCamera =====
 -keep class com.mrousavy.camera.** { *; }
 -keep class com.mrousavy.** { *; }
@@ -59,6 +76,28 @@
 
 # ===== Vector Icons =====
 -keep class com.oblador.vectoricons.** { *; }
+# React Native
+-keep class com.facebook.react.** { *; }
+-dontwarn com.facebook.react.**
+
+# ONNX Runtime
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# Coil v3
+-keep class coil3.** { *; }
+-dontwarn coil3.**
+
+# FindBugs annotations
+-keep class edu.umd.cs.findbugs.annotations.** { *; }
+-dontwarn edu.umd.cs.findbugs.annotations.**
+
+# ByteBuddy
+-keep class net.bytebuddy.** { *; }
+-dontwarn net.bytebuddy.**
+
+# Kotlin metadata
+-keep class kotlin.Metadata { *; }
 
 # ===== OkHttp / Axios =====
 -keep class okhttp3.** { *; }
