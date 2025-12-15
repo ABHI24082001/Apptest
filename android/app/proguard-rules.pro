@@ -20,6 +20,8 @@
 
 # ===== ONNX Runtime (for AI / Face detection) =====
 -keep class ai.onnxruntime.** { *; }
+-keep class com.microsoft.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
 
 # ===== Async Storage =====
 -keep class com.reactnativecommunity.asyncstorage.** { *; }
@@ -32,16 +34,45 @@
 
 # ===== Image Picker =====
 -keep class com.imagepicker.** { *; }
+-keep class com.reactnativecommunity.imagepicker.** { *; }
+-dontwarn com.imagepicker.**
+
+# ===== RNFS (File System) =====
+-keep class com.rnfs.** { *; }
+-dontwarn com.rnfs.**
+
+# ===== Image Resizer =====
+-keep class fr.bamlab.rnimageresizer.** { *; }
+-dontwarn fr.bamlab.rnimageresizer.**
+
+# ===== Camera & Media =====
+-keep class android.hardware.camera2.** { *; }
+-keep class android.media.** { *; }
+-dontwarn android.hardware.camera2.**
+
+# ===== Lottie =====
+-keep class com.airbnb.lottie.** { *; }
+-dontwarn com.airbnb.lottie.**
+
+# ===== Linear Gradient =====
+-keep class com.BV.LinearGradient.** { *; }
+
+# ===== Vector Icons =====
+-keep class com.oblador.vectoricons.** { *; }
 
 # ===== OkHttp / Axios =====
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**
 
 # ===== JS Bridge / View Manager =====
 -keepattributes *Annotation*
 -keep class * extends com.facebook.react.bridge.JavaScriptModule { *; }
 -keep class * extends com.facebook.react.bridge.NativeModule { *; }
 -keep class * extends com.facebook.react.uimanager.ViewManager { *; }
+-keepclassmembers,includedescriptorclasses class * { native <methods>; }
+-keepclassmembers class *  { @com.facebook.react.uimanager.annotations.ReactProp <methods>; }
+-keepclassmembers class *  { @com.facebook.react.uimanager.annotations.ReactPropGroup <methods>; }
 
 # ===== Promise / Async Handling =====
 -keep class java.util.concurrent.** { *; }
@@ -109,15 +140,22 @@
 -dontwarn com.facebook.react.**
 -keep,includedescriptorclasses class com.facebook.react.bridge.** { *; }
 
-# ===== Vector Icons =====
--keep class com.oblador.vectoricons.** { *; }
-
 # ===== Hermes =====
 -keep class com.facebook.hermes.unicode.** { *; }
 -keep class com.facebook.jni.** { *; }
 
 # ===== Application classes =====
 -keep class com.cloudtree.hrms.** { *; }
+
+# ===== Buffer & Data Processing =====
+-keep class java.nio.** { *; }
+-keep class java.util.concurrent.** { *; }
+-dontwarn java.nio.**
+-dontwarn java.util.concurrent.**
+
+# ===== Suppress Common Warnings =====
+-dontwarn javax.annotation.**
+-dontwarn org.codehaus.mojo.animal_sniffer.*
 
 ############################################################
 # ✅ Notes:
