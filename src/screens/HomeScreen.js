@@ -507,37 +507,79 @@ const HomeScreen = () => {
 
   // Load ONNX model on mount
 
+  // useEffect(() => {
+  //   const loadModel = async () => {
+  //     try {
+  //       let modelPath = '';
+  //       if (Platform.OS === 'android') {
+  //         modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+  //         if (!(await RNFS.exists(modelPath))) {
+  //           await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+  //         }
+  //       } else {
+  //        const modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
+  //         if (!(await RNFS.exists(modelPath))) {
+  //           console.error('Model file not found in bundle');
+  //           return;
+  //         }
+  //         modelPath = `file://${rawPath}`;
+  //       }
+
+  //       const s = await ort.InferenceSession.create(modelPath, {
+  //         executionProviders: ['cpu'],
+  //         graphOptimizationLevel: 'all',
+  //       });
+  //       setSession(s);
+  //     } catch (e) {
+  //       console.error('Model load error:', e);
+  //       Alert.alert('Error', `Failed to load model: ${e.message}`);
+  //     }
+  //   };
+
+  //   loadModel();
+  // }, []);
+
+
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        let modelPath = '';
-        if (Platform.OS === 'android') {
-          modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-          if (!(await RNFS.exists(modelPath))) {
-            await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
-          }
-        } else {
-          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
-          if (!(await RNFS.exists(rawPath))) {
-            console.error('Model file not found in bundle');
-            return;
-          }
-          modelPath = `file://${rawPath}`;
+  const loadModel = async () => {
+    try {
+      let modelPath = '';
+      
+      if (Platform.OS === 'android') {
+        modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+        if (!(await RNFS.exists(modelPath))) {
+          await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
         }
-
-        const s = await ort.InferenceSession.create(modelPath, {
-          executionProviders: ['cpu'],
-          graphOptimizationLevel: 'all',
-        });
-        setSession(s);
-      } catch (e) {
-        console.error('Model load error:', e);
-        Alert.alert('Error', `Failed to load model: ${e.message}`);
+      } else {
+        // iOS
+        modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
+        if (!(await RNFS.exists(modelPath))) {
+          console.error('Model file not found in bundle');
+          Alert.alert('Error', 'iOS model file not found in bundle');
+          return;
+        }
       }
-    };
 
-    loadModel();
-  }, []);
+      console.log(`Loading model from: ${modelPath}`);
+      
+      const s = await ort.InferenceSession.create(modelPath, {
+        executionProviders: ['cpu'],
+        graphOptimizationLevel: 'all',
+      });
+      
+      setSession(s);
+      console.log('✅ Model loaded successfully!');
+      console.log('Inputs:', s.inputNames);
+      console.log('Outputs:', s.outputNames);
+      
+    } catch (e) {
+      console.error('Model load error:', e);
+      Alert.alert('Error', `Failed to load model: ${e.message}`);
+    }
+  };
+
+  loadModel();
+}, []);
 
   // FIXED: Face registration logic with better state management
 
