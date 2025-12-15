@@ -11,7 +11,6 @@ import {
   AppState,
   Image,
   StatusBar,
-  Modal,
 } from 'react-native';
 import styles from '../Stylesheet/dashboardcss';
 import LinearGradient from 'react-native-linear-gradient';
@@ -34,8 +33,6 @@ import axiosInstance from '../utils/axiosInstance';
 import LeaveStatus from '../component/LeaveStatus';
 import OnLeaveUsers from '../component/OnLeaveUsers';
 import moment from 'moment';
-import LottieView from 'lottie-react-native';
-
 // Icons
 const CheckIcon = () => <Text style={styles.icon}>✓</Text>;
 const CameraIcon = () => <Text style={styles.icon}>📷</Text>;
@@ -76,14 +73,15 @@ const HomeScreen = () => {
   const [totalShiftSeconds, setTotalShiftSeconds] = useState(28800); // Default 8 hours, will be updated dynamically
   const [totalShiftHours, setTotalShiftHours] = useState(8);
   const [autoCheckoutEnabled, setAutoCheckoutEnabled] = useState(false);
-  const [isLocationProcessing, setIsLocationProcessing] = useState(false);
 
-  const employeeDetails = useFetchEmployeeDetails();
+  const [checkOutTime, setCheckOutTime] = useState(null);
+  const midnightTimeoutRef = useRef(null);
 
   
+  const employeeDetails = useFetchEmployeeDetails();
   const progressIntervalRef = useRef(null);
   const imageProcessingTimeoutRef = useRef(null);
-  const sleep = t => new Promise(resolve => setTimeout(resolve, t));
+  const sleep = (t) => new Promise((resolve) => setTimeout(resolve, t));
   const appStateSubscriptionRef = useRef(null);
   const {user} = useAuth();
 
@@ -148,8 +146,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Start background service
-
   const startBackgroundService = async () => {
     try {
       // Check if already running
@@ -184,8 +180,6 @@ const HomeScreen = () => {
     }
   };
 
-  // stop background service
-
   const stopBackgroundService = async () => {
     try {
       const isRunning = BackgroundService.isRunning();
@@ -207,8 +201,6 @@ const HomeScreen = () => {
     });
   };
 
-  // format date in Indian format
-
   const formatIndianDate = (date = new Date()) => {
     return date.toLocaleDateString('en-IN', {
       weekday: 'long',
@@ -218,8 +210,6 @@ const HomeScreen = () => {
     });
   };
 
-  // Format time in HH:MM:SS
-
   const formatTime = seconds => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
     const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
@@ -228,7 +218,6 @@ const HomeScreen = () => {
   };
 
   // Format time in hours and minutes
-
   const formatHoursMinutes = seconds => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -236,7 +225,6 @@ const HomeScreen = () => {
   };
 
   // Update current time every second
-
   useEffect(() => {
     const updateCurrentTime = () => {
       setCurrentTime(formatIndianTime());
@@ -248,8 +236,7 @@ const HomeScreen = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check-in  saveCheckInState
-
+  // Check-in state management
   const saveCheckInState = async (
     isCheckedIn,
     startTime = null,
@@ -261,13 +248,13 @@ const HomeScreen = () => {
         checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
       };
       await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
-
+      
       // Save check-in date for midnight comparison
       if (isCheckedIn) {
-        const today = moment().format('YYYY-MM-DD');
-        await AsyncStorage.setItem('CHECK_IN_DATE', today);
+        const today = moment().format("YYYY-MM-DD");
+        await AsyncStorage.setItem("CHECK_IN_DATE", today);
       } else {
-        await AsyncStorage.removeItem('CHECK_IN_DATE');
+        await AsyncStorage.removeItem("CHECK_IN_DATE");
       }
 
       if (faceData) {
@@ -281,7 +268,6 @@ const HomeScreen = () => {
   };
 
   // Add: parse and format helpers to normalize various time formats (numbers, ISO strings, or "HH:MM:SS.ffffff")
-
   const parseCheckInTime = val => {
     if (val == null) return null;
     // Already epoch ms
@@ -315,8 +301,6 @@ const HomeScreen = () => {
     return null;
   };
 
-  // Add: format helpers
-
   const formatLoginTime = time => {
     const ms = parseCheckInTime(time);
     if (!ms) return '';
@@ -328,7 +312,6 @@ const HomeScreen = () => {
   };
 
   // Replace: loadCheckInState -> parse stored check-in values robustly
-
   const loadCheckInState = async () => {
     try {
       const [checkInData, faceData] = await Promise.all([
@@ -367,94 +350,90 @@ const HomeScreen = () => {
     }
   };
 
-  // Add: startShiftProgress
+  
+ 
+const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
+  try {
+    let elapsedSeconds = startSeconds;
+    let missedSeconds = 0;
+    let missedPercent = 0;
 
-  const startShiftProgress = (startSeconds = 0, shiftStartTime = null) => {
-    try {
-      let elapsedSeconds = startSeconds;
-      let missedSeconds = 0;
-      let missedPercent = 0;
+    // Clear any existing interval first
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
 
-      // Clear any existing interval first
-      if (progressIntervalRef.current) {
+    // Calculate missed time if shift start time is available and user is checked in
+    if (shiftStartTime && checkInTime) {
+      const shiftStart = new Date(shiftStartTime);
+      const actualCheckIn = new Date(checkInTime);
+      
+      // Only calculate missed time if check-in was after shift start
+      if (actualCheckIn > shiftStart) {
+        missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+        missedPercent = Math.min(100, (missedSeconds / totalShiftSeconds) * 100);
+        
+        console.log('Progress Missed Time Calculation:', {
+          shiftStart: shiftStart.toLocaleString(),
+          actualCheckIn: actualCheckIn.toLocaleString(),
+          missedSeconds,
+          missedPercent: missedPercent.toFixed(2) + '%',
+          totalShiftSeconds,
+        });
+      }
+      
+      setMissedPercentage(missedPercent);
+    }
+
+    // Helper to compute progress
+    const computeProgress = elapsedSec => {
+      // Calculate progress based on actual work time vs expected work time
+      const expectedWorkSeconds = totalShiftSeconds - missedSeconds;
+      if (expectedWorkSeconds <= 0) return 0;
+      
+      const workProgress = (elapsedSec / totalShiftSeconds) * 100;
+      return Math.min(100 - missedPercent, Math.max(0, workProgress));
+    };
+
+    // Set initial state
+    setElapsedTime(formatTime(elapsedSeconds));
+    setProgressPercentage(computeProgress(elapsedSeconds));
+
+    // Check if already complete
+    if (elapsedSeconds >= totalShiftSeconds) {
+      setElapsedTime(formatTime(totalShiftSeconds));
+      setProgressPercentage(100);
+      return;
+    }
+
+    // Start interval with error handling
+    progressIntervalRef.current = setInterval(() => {
+      try {
+        elapsedSeconds++;
+
+        if (elapsedSeconds >= totalShiftSeconds) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+          setElapsedTime(formatTime(totalShiftSeconds));
+          setProgressPercentage(100);
+          return;
+        }
+
+        setElapsedTime(formatTime(elapsedSeconds));
+        setProgressPercentage(computeProgress(elapsedSeconds));
+      } catch (intervalError) {
+        console.error('Progress interval error:', intervalError);
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
+    }, 1000);
+  } catch (error) {
+    console.error('Error starting shift progress:', error);
+  }
+};
 
-      // Calculate missed time if shift start time is available and user is checked in
-      if (shiftStartTime && checkInTime) {
-        const shiftStart = new Date(shiftStartTime);
-        const actualCheckIn = new Date(checkInTime);
-
-        // Only calculate missed time if check-in was after shift start
-        if (actualCheckIn > shiftStart) {
-          missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
-          missedPercent = Math.min(
-            100,
-            (missedSeconds / totalShiftSeconds) * 100,
-          );
-
-          console.log('Progress Missed Time Calculation:', {
-            shiftStart: shiftStart.toLocaleString(),
-            actualCheckIn: actualCheckIn.toLocaleString(),
-            missedSeconds,
-            missedPercent: missedPercent.toFixed(2) + '%',
-            totalShiftSeconds,
-          });
-        }
-
-        setMissedPercentage(missedPercent);
-      }
-
-      // Helper to compute progress
-      const computeProgress = elapsedSec => {
-        // Calculate progress based on actual work time vs expected work time
-        const expectedWorkSeconds = totalShiftSeconds - missedSeconds;
-        if (expectedWorkSeconds <= 0) return 0;
-
-        const workProgress = (elapsedSec / totalShiftSeconds) * 100;
-        return Math.min(100 - missedPercent, Math.max(0, workProgress));
-      };
-
-      // Set initial state
-      setElapsedTime(formatTime(elapsedSeconds));
-      setProgressPercentage(computeProgress(elapsedSeconds));
-
-      // Check if already complete
-      if (elapsedSeconds >= totalShiftSeconds) {
-        setElapsedTime(formatTime(totalShiftSeconds));
-        setProgressPercentage(100);
-        return;
-      }
-
-      // Start interval with error handling
-      progressIntervalRef.current = setInterval(() => {
-        try {
-          elapsedSeconds++;
-
-          if (elapsedSeconds >= totalShiftSeconds) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-            setElapsedTime(formatTime(totalShiftSeconds));
-            setProgressPercentage(100);
-            return;
-          }
-
-          setElapsedTime(formatTime(elapsedSeconds));
-          setProgressPercentage(computeProgress(elapsedSeconds));
-        } catch (intervalError) {
-          console.error('Progress interval error:', intervalError);
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-        }
-      }, 1000);
-    } catch (error) {
-      console.error('Error starting shift progress:', error);
-    }
-  };
-
-  // On mount: load check-in state and start background service if needed
-
+ 
   useEffect(() => {
     let isMounted = true; // Track component mount status
 
@@ -505,84 +484,39 @@ const HomeScreen = () => {
     };
   }, []);
 
-  // Load ONNX model on mount
-
-  // useEffect(() => {
-  //   const loadModel = async () => {
-  //     try {
-  //       let modelPath = '';
-  //       if (Platform.OS === 'android') {
-  //         modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-  //         if (!(await RNFS.exists(modelPath))) {
-  //           await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
-  //         }
-  //       } else {
-  //        const modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
-  //         if (!(await RNFS.exists(modelPath))) {
-  //           console.error('Model file not found in bundle');
-  //           return;
-  //         }
-  //         modelPath = `file://${rawPath}`;
-  //       }
-
-  //       const s = await ort.InferenceSession.create(modelPath, {
-  //         executionProviders: ['cpu'],
-  //         graphOptimizationLevel: 'all',
-  //       });
-  //       setSession(s);
-  //     } catch (e) {
-  //       console.error('Model load error:', e);
-  //       Alert.alert('Error', `Failed to load model: ${e.message}`);
-  //     }
-  //   };
-
-  //   loadModel();
-  // }, []);
-
-
   useEffect(() => {
-  const loadModel = async () => {
-    try {
-      let modelPath = '';
-      
-      if (Platform.OS === 'android') {
-        modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-        if (!(await RNFS.exists(modelPath))) {
-          await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+    const loadModel = async () => {
+      try {
+        let modelPath = '';
+        if (Platform.OS === 'android') {
+          modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(modelPath))) {
+            await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
+          }
+        } else {
+          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(rawPath))) {
+            console.error('Model file not found in bundle');
+            return;
+          }
+          modelPath = `file://${rawPath}`;
         }
-      } else {
-        // iOS
-        modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
-        if (!(await RNFS.exists(modelPath))) {
-          console.error('Model file not found in bundle');
-          Alert.alert('Error', 'iOS model file not found in bundle');
-          return;
-        }
+
+        const s = await ort.InferenceSession.create(modelPath, {
+          executionProviders: ['cpu'],
+          graphOptimizationLevel: 'all',
+        });
+        setSession(s);
+      } catch (e) {
+        console.error('Model load error:', e);
+        Alert.alert('Error', `Failed to load model: ${e.message}`);
       }
+    };
 
-      console.log(`Loading model from: ${modelPath}`);
-      
-      const s = await ort.InferenceSession.create(modelPath, {
-        executionProviders: ['cpu'],
-        graphOptimizationLevel: 'all',
-      });
-      
-      setSession(s);
-      console.log('✅ Model loaded successfully!');
-      console.log('Inputs:', s.inputNames);
-      console.log('Outputs:', s.outputNames);
-      
-    } catch (e) {
-      console.error('Model load error:', e);
-      Alert.alert('Error', `Failed to load model: ${e.message}`);
-    }
-  };
-
-  loadModel();
-}, []);
+    loadModel();
+  }, []);
 
   // FIXED: Face registration logic with better state management
-
   useEffect(() => {
     const fetchBiometricDetails = async () => {
       if (!employeeDetails?.id || !employeeDetails?.childCompanyId) {
@@ -663,7 +597,6 @@ const HomeScreen = () => {
   }, [employeeDetails, cachedFaceImage]);
 
   // Debug effect to monitor state changes
-
   useEffect(() => {
     console.log('🔍 STATE UPDATE:', {
       showRegistration,
@@ -673,7 +606,7 @@ const HomeScreen = () => {
     });
   }, [showRegistration, registeredFace, isFaceLoading, initialLoadComplete]);
 
-  // handle re-register face
+
   const handleReregisterFace = async () => {
     if (!session) {
       Alert.alert('Error', 'Model not loaded yet');
@@ -787,9 +720,6 @@ const HomeScreen = () => {
       },
     );
   };
-
-  // handle launch camera with timeout and error handling
-
   const launchCamera = async callback => {
     try {
       const hasPermission = await requestCameraPermission();
@@ -861,8 +791,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Get formatted local date-time strings
-
   const getFormattedLocalDateTime = () => {
     const now = new Date();
     const pad = n => (n < 10 ? `0${n}` : n);
@@ -881,28 +809,200 @@ const HomeScreen = () => {
     return {logDate, logTime, logDateTime};
   };
 
-  // Midnight background task for auto checkout
+  // const handleCheckIn = async () => {
+  //   if (!registeredFace) {
+  //     Alert.alert(
+  //       'Registration Required',
+  //       'Please register your face first to enable check-in.',
+  //     );
+  //     setShowRegistration(true);
+  //     return;
+  //   }
 
-  const midnightBackgroundTask = async ({handleCheckOut}) => {
-    console.log('🌙 Midnight service started...');
+  //   setIsLoading(true);
+
+  //   try {
+  //     // Step 1: Check location with timeout
+  //     const locationPromise = checkLocation();
+  //     const locationTimeout = new Promise((_, reject) =>
+  //       setTimeout(() => reject(new Error('Location check timeout')), 20000),
+  //     );
+
+  //     const locationResult = await Promise.race([
+  //       locationPromise,
+  //       locationTimeout,
+  //     ]);
+
+  //     if (!locationResult.inside) {
+  //       const nearest = locationResult.nearestFence
+  //         ? `${locationResult.nearestFence.geoLocationName} (${Math.round(
+  //             locationResult.nearestFence.distance,
+  //           )}m away)`
+  //         : 'Unknown area';
+
+  //       Alert.alert(
+  //         '❌ Location Failed',
+  //         `You are not within the required area.\nNearest: ${nearest}`,
+  //       );
+  //       return;
+  //     }
+
+  //     // Step 2: Face verification with proper Promise handling
+  //     const faceVerificationResult = await new Promise((resolve, reject) => {
+  //       Alert.alert(
+  //         'Face Verification',
+  //         'Please capture your face for verification',
+  //         [
+  //           {
+  //             text: 'Cancel',
+  //             style: 'cancel',
+  //             onPress: () => reject(new Error('User cancelled verification')),
+  //           },
+  //           {
+  //             text: 'Capture',
+  //             onPress: async () => {
+  //               try {
+  //                 await launchCamera(async res => {
+  //                   try {
+  //                     const capturedImage = `data:image/jpeg;base64,${res.assets[0].base64}`;
+  //                     setCapturedFace(capturedImage);
+
+  //                     // Match faces with timeout
+  //                     const matchPromise = matchFaces(
+  //                       registeredFace,
+  //                       capturedImage,
+  //                     );
+  //                     const matchTimeout = new Promise((_, reject) =>
+  //                       setTimeout(
+  //                         () => reject(new Error('Face matching timeout')),
+  //                         20000,
+  //                       ),
+  //                     );
+
+  //                     const result = await Promise.race([
+  //                       matchPromise,
+  //                       matchTimeout,
+  //                     ]);
+
+  //                     if (!result?.isMatch) {
+  //                       throw new Error('Face verification failed');
+  //                     }
+
+  //                     resolve({capturedImage, matchResult: result});
+  //                   } catch (error) {
+  //                     reject(error);
+  //                   }
+  //                 });
+  //               } catch (error) {
+  //                 reject(error);
+  //               }
+  //             },
+  //           },
+  //         ],
+  //       );
+  //     });
+
+  //     // Step 3: Save attendance with proper error handling
+  //     const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+
+  //     const attendancePayload = {
+  //       EmployeeId: String(employeeDetails?.id || '29'),
+  //       EmployeeCode: String(employeeDetails?.id || '29'),
+  //       LogDateTime: logDateTime,
+  //       LogDate: logDate,
+  //       LogTime: logTime,
+  //       Direction: 'In',
+  //       DeviceName: 'Bhubneswar',
+  //       SerialNo: '1',
+  //       VerificationCode: '1',
+  //     };
+
+  //     const attendancePromise = axiosInstance.post(
+  //       `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
+  //       attendancePayload,
+  //     );
+
+  //     console.log('📤 Posting check-in attendance:', attendancePayload);
+
+  //     const attendanceTimeout = new Promise((_, reject) =>
+  //       setTimeout(() => reject(new Error('Attendance save timeout')), 15000),
+  //     );
+
+  //     const attendanceResponse = await Promise.race([
+  //       attendancePromise,
+  //       attendanceTimeout,
+  //     ]);
+
+  //     if (!attendanceResponse.data?.isSuccess) {
+  //       throw new Error(
+  //         attendanceResponse.data?.message || 'Failed to save attendance',
+  //       );
+  //     }
+
+  //     // Step 4: Update state and start services
+  //     const checkInMs = new Date().getTime();
+  //     setCheckedIn(true);
+  //     setCheckInTime(checkInMs);
+
+  //     await Promise.all([
+  //       saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
+  //       startBackgroundService(),
+  //       startMidnightService(), // Add midnight service
+  //     ]);
+
+  //     Alert.alert(
+  //       '✅ Check-In Successful',
+  //       `Login: ${logDate} ${logTime}\nWelcome! Your shift has started.`,
+  //     );
+
+  //     // Start progress tracking
+  //     startShiftProgress(0);
+  //   } catch (error) {
+  //     console.error('Check-in error:', error);
+  //     let errorMessage = 'Something went wrong during check-in.';
+
+  //     if (error.message?.includes('timeout')) {
+  //       errorMessage =
+  //         'Request timed out. Please check your connection and try again.';
+  //     } else if (error.message?.includes('cancelled')) {
+  //       errorMessage = 'Check-in was cancelled.';
+  //     } else if (error.message?.includes('verification failed')) {
+  //       errorMessage = 'Face verification failed. Please try again.';
+  //     }
+
+  //     Alert.alert('❌ Check-In Failed', errorMessage);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  // Add sleep function for background service
+  // const sleep = (t) => new Promise((resolve) => setTimeout(resolve, t));
+
+  // Background task: Runs every 30 sec → checks if midnight passed
+  
+  
+  
+  const midnightBackgroundTask = async ({ performCheckOut }) => {
+    console.log("🌙 Midnight service started...");
 
     while (BackgroundService.isRunning()) {
       try {
         const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-
+        
         if (checkInData) {
           const parsedData = JSON.parse(checkInData);
-          const checkInDate = await AsyncStorage.getItem('CHECK_IN_DATE');
-          const today = moment().format('YYYY-MM-DD');
+          const checkInDate = await AsyncStorage.getItem("CHECK_IN_DATE");
+          const today = moment().format("YYYY-MM-DD");
 
           // Check if user is still checked in but date has changed (midnight passed)
           if (parsedData.checkedIn && checkInDate && checkInDate !== today) {
-            console.log('⏳ MIDNIGHT PASSED →  CHECKOUT TRIGGERED');
+            console.log("⏳ MIDNIGHT PASSED → AUTO CHECKOUT TRIGGERED");
 
             try {
-              await handleCheckOut(true); // true = from background
+              await performCheckOut(true); // true = from background
             } catch (e) {
-              console.log('Auto checkout failed:', e);
+              console.log("Auto checkout failed:", e);
             }
 
             // Stop the background service after auto checkout
@@ -911,21 +1011,22 @@ const HomeScreen = () => {
           }
         }
       } catch (e) {
-        console.log('Background loop error:', e);
+        console.log("Background loop error:", e);
       }
 
       await sleep(30 * 1000); // check every 30 seconds
     }
   };
 
+  // Start midnight background service
   const startMidnightService = async () => {
     const options = {
-      taskName: 'AutoCheckout',
-      taskTitle: 'Shift Active',
-      taskDesc: 'Monitoring midnight auto-checkout',
-      taskIcon: {name: 'ic_launcher', type: 'mipmap'},
-      color: '#007bff',
-      parameters: {handleCheckOut},
+      taskName: "AutoCheckout",
+      taskTitle: "Shift Active",
+      taskDesc: "Monitoring midnight auto-checkout",
+      taskIcon: { name: "ic_launcher", type: "mipmap" },
+      color: "#007bff",
+      parameters: { performCheckOut },
     };
 
     try {
@@ -936,9 +1037,9 @@ const HomeScreen = () => {
       }
 
       await BackgroundService.start(midnightBackgroundTask, options);
-      console.log('▶ Midnight service STARTED');
+      console.log("▶ Midnight service STARTED");
     } catch (e) {
-      console.log('Error starting midnight service:', e);
+      console.log("Error starting midnight service:", e);
     }
   };
 
@@ -947,15 +1048,45 @@ const HomeScreen = () => {
     try {
       if (BackgroundService.isRunning()) {
         await BackgroundService.stop();
-        console.log('⏹ Midnight service STOPPED');
+        console.log("⏹ Midnight service STOPPED");
       }
     } catch (e) {
-      console.log('Error stopping midnight service:', e);
+      console.log("Error stopping midnight service:", e);
     }
   };
 
-  // On mount: check and restart midnight service if needed
+  // Enhanced check-in state management with date tracking
+  // const saveCheckInState = async (
+  //   isCheckedIn,
+  //   startTime = null,
+  //   faceData = null,
+  // ) => {
+  //   try {
+  //     const data = {
+  //       checkedIn: isCheckedIn,
+  //       checkInTime: startTime || (isCheckedIn ? new Date().getTime() : null),
+  //     };
+  //     await AsyncStorage.setItem(CHECK_IN_STORAGE_KEY, JSON.stringify(data));
+      
+  //     // Save check-in date for midnight comparison
+  //     if (isCheckedIn) {
+  //       const today = moment().format("YYYY-MM-DD");
+  //       await AsyncStorage.setItem("CHECK_IN_DATE", today);
+  //     } else {
+  //       await AsyncStorage.removeItem("CHECK_IN_DATE");
+  //     }
 
+  //     if (faceData) {
+  //       await AsyncStorage.setItem(CAPTURED_FACE_STORAGE_KEY, faceData);
+  //     } else if (!isCheckedIn) {
+  //       await AsyncStorage.removeItem(CAPTURED_FACE_STORAGE_KEY);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error saving check-in state:', error);
+  //   }
+  // };
+
+  // Check if user is checked in on app start and restart midnight service
   useEffect(() => {
     const checkAndRestartMidnightService = async () => {
       try {
@@ -963,19 +1094,19 @@ const HomeScreen = () => {
         if (checkInData) {
           const parsedData = JSON.parse(checkInData);
           if (parsedData.checkedIn) {
-            console.log('User is checked in, starting midnight service...');
+            console.log("User is checked in, starting midnight service...");
             await startMidnightService();
           }
         }
       } catch (error) {
-        console.error('Error checking midnight service:', error);
+        console.error("Error checking midnight service:", error);
       }
     };
 
     checkAndRestartMidnightService();
   }, []);
 
-  // Handle check-in process with Lottie animation
+  // Enhanced handleCheckIn to start midnight service
   const handleCheckIn = async () => {
     if (!registeredFace) {
       Alert.alert(
@@ -989,9 +1120,7 @@ const HomeScreen = () => {
     setIsLoading(true);
 
     try {
-      // Step 1: Check location with Lottie animation
-      setIsLocationProcessing(true);
-      
+      // Step 1: Check location with timeout
       const locationPromise = checkLocation();
       const locationTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Location check timeout')), 20000),
@@ -1001,8 +1130,6 @@ const HomeScreen = () => {
         locationPromise,
         locationTimeout,
       ]);
-
-      setIsLocationProcessing(false);
 
       if (!locationResult.inside) {
         const nearest = locationResult.nearestFence
@@ -1077,8 +1204,8 @@ const HomeScreen = () => {
       const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
 
       const attendancePayload = {
-        EmployeeId: String(employeeDetails?.id || '9'),
-        EmployeeCode: String(employeeDetails?.id || '9'),
+        EmployeeId: String(employeeDetails?.id || '29'),
+        EmployeeCode: String(employeeDetails?.id || '29'),
         LogDateTime: logDateTime,
         LogDate: logDate,
         LogTime: logTime,
@@ -1144,191 +1271,89 @@ const HomeScreen = () => {
       Alert.alert('❌ Check-In Failed', errorMessage);
     } finally {
       setIsLoading(false);
-      setIsLocationProcessing(false);
     }
   };
 
-  const handleCheckOut = async (fromBackground = false) => {
+  // Universal checkout function (Manual + Midnight auto)
+  const performCheckOut = async (fromBackground = false) => {
     try {
-      console.log(
-        '▶ Checkout Triggered:',
-        fromBackground ? '(AUTO)' : '(MANUAL)',
-      );
+      console.log("▶ Performing Checkout...", fromBackground ? "(Auto)" : "(Manual)");
 
-      const {logDate, logTime, logDateTime} = getFormattedLocalDateTime();
+      const { logDate, logTime, logDateTime } = getFormattedLocalDateTime();
       const employeeId = String(employeeDetails?.id);
-      const current = moment();
 
-      // ----------------------------------------------------
-      // 1️⃣ SIMPLE OT CALCULATION (Only for manual checkout)
-      // ----------------------------------------------------
-      if (!fromBackground) {
-        let minOtMinutes = 30;
+      // SEND CHECKOUT API
+      const attendancePayload = {
+        EmployeeId: employeeId,
+        EmployeeCode: employeeId,
+        LogDateTime: logDateTime,
+        LogDate: logDate,
+        LogTime: logTime,
+        Direction: "Out", // Changed to "Out" for checkout
+        DeviceName: "Bhubaneswar",
+        SerialNo: "1",
+        VerificationCode: "1",
+      };
 
-        // Load OT policy
-        try {
-          const policyRes = await axiosInstance.get(
-            `${BASE_URL}/OtPolicyMaster/GetAllOtPolicy/${user?.childCompanyId}`,
-          );
+      console.log("Checkout Payload:", attendancePayload);
 
-          const otPolicy = policyRes.data?.find(
-            p => p.policyCategory === 'MinOverTime',
-          );
+      const response = await Promise.race([
+        axiosInstance.post(`${BASE_URL}/BiomatricAttendance/SaveAttenance`, attendancePayload),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 15000)),
+      ]);
 
-          if (otPolicy) minOtMinutes = Number(otPolicy.value) || 30;
-        } catch (e) {
-          console.log('⚠ OT policy failed → using default 30 min');
-        }
-
-        // Parse shift end time
-        let shiftEndTime = null;
-
-        if (shiftHours && shiftHours.includes(' - ')) {
-          const endStr = shiftHours.split(' - ')[1];
-          shiftEndTime = moment(endStr, 'HH:mm');
-        }
-
-        if (shiftEndTime) {
-          // Early logout → allow
-          if (current.isBefore(shiftEndTime)) {
-            console.log('Early Logout → Allowed');
-          }
-          // Exact time → allow
-          else if (current.isSame(shiftEndTime, 'minute')) {
-            console.log('Exact shift end → Allowed');
-          }
-          // After shift → OT calculation
-          else {
-            const diffMinutes = current.diff(shiftEndTime, 'minutes');
-
-            if (diffMinutes < minOtMinutes) {
-              return Alert.alert(
-                'Minimum OT Required',
-                `Required: ${minOtMinutes} min\nCompleted: ${diffMinutes} min`,
-                [
-                  {text: 'Cancel', style: 'cancel'},
-                  {
-                    text: 'Checkout Anyway',
-                    onPress: () => handleCheckOut(true), // bypass OT for second call
-                  },
-                ],
-              );
-            }
-          }
-        }
+      if (!response.data?.isSuccess) {
+        throw new Error(response.data?.message || "Failed to checkout");
       }
 
-      // ----------------------------------------------------
-      // 2️⃣ SHOW CHECKOUT CONFIRMATION (Before API call)
-      // ----------------------------------------------------
-      const confirmMessage = fromBackground
-        ? `Are you sure you want to check out?`
-        : `Checkout Successful`
-       
+      // RESET ALL STATES
+      await Promise.all([
+        saveCheckInState(false),
+        stopBackgroundService(),
+        stopMidnightService(), // Stop midnight service
+        AsyncStorage.multiRemove([BG_LAST_ELAPSED_KEY, CAPTURED_FACE_STORAGE_KEY, "CHECK_IN_DATE"]),
+      ]);
 
-      const confirmTitle = fromBackground
-        ? 'Checkout'
-        : 'Are you sure you want to check out?';
+      setCheckedIn(false);
+      setCheckInTime(null);
+      setProgressPercentage(0);
+      setMissedPercentage(0);
+      setElapsedTime("00:00:00");
+      setCapturedFace(null);
+      setAutoCheckoutEnabled(false);
 
-      return new Promise(resolve => {
-        Alert.alert(confirmTitle, confirmMessage, [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              console.log('Checkout cancelled by user');
-              resolve(false);
-            },
-          },
-          {
-            text: 'Checkout',
-            style: fromBackground ? 'destructive' : 'default',
-            onPress: async () => {
-              try {
-                // ----------------------------------------------------
-                // 3️⃣ PERFORM ACTUAL CHECKOUT API CALL
-                // ----------------------------------------------------
-                const attendancePayload = {
-                  EmployeeId: String(employeeDetails?.id || '9'),
-                  EmployeeCode: String(employeeDetails?.id || '9'),
-                  LogDateTime: logDateTime,
-                  LogDate: logDate,
-                  LogTime: logTime,
-                  Direction: 'In',
-                  DeviceName: 'Bhubneswar',
-                  SerialNo: '1',
-                  VerificationCode: '1',
-                };
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
 
-                const response = await Promise.race([
-                  axiosInstance.post(
-                    `${BASE_URL}/BiomatricAttendance/SaveAttenance`,
-                    attendancePayload,
-                  ),
-                  new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Timeout')), 15000),
-                  ),
-                ]);
-
-                if (!response.data?.isSuccess) {
-                  throw new Error(response.data?.message || 'API Failed');
-                }
-
-                // ----------------------------------------------------
-                // 4️⃣ RESET STATES AFTER SUCCESSFUL API CALL
-                // ----------------------------------------------------
-                await Promise.all([
-                  saveCheckInState(false),
-                  stopBackgroundService(),
-                  stopMidnightService(),
-                  AsyncStorage.multiRemove([
-                    BG_LAST_ELAPSED_KEY,
-                    CAPTURED_FACE_STORAGE_KEY,
-                    'CHECK_IN_DATE',
-                  ]),
-                ]);
-
-                setCheckedIn(false);
-                setCheckInTime(null);
-                setProgressPercentage(0);
-                setMissedPercentage(0);
-                setElapsedTime('00:00:00');
-                setCapturedFace(null);
-                setAutoCheckoutEnabled(false);
-
-                if (progressIntervalRef.current) {
-                  clearInterval(progressIntervalRef.current);
-                  progressIntervalRef.current = null;
-                }
-
-                // ----------------------------------------------------
-                // 5️⃣ SHOW SUCCESS ALERT AFTER CHECKOUT
-                // ----------------------------------------------------
-                const successTitle = fromBackground
-                  ? '✔  Checkout Successful'
-                  : '✔ Checkout Successful';
-                const successMessage = `Logout: ${logDate} ${logTime}`;
-
-                Alert.alert(successTitle, successMessage);
-
-                resolve(true);
-              } catch (err) {
-                console.log('Checkout Error:', err);
-                Alert.alert('Error', 'Checkout failed. Please try again.');
-                resolve(false);
-              }
-            },
-          },
-        ]);
-      });
-    } catch (err) {
-      console.log('Checkout Error:', err);
       if (!fromBackground) {
-        Alert.alert('Error', 'Checkout failed. Please try again.');
+        Alert.alert(
+          "✔ Checkout Successful",
+          `Logout: ${logDate} ${logTime}`,
+          [{ text: "OK" }]
+        );
+      } else {
+        console.log("🌙 Auto Checkout Completed at Midnight");
+        // Show notification for background checkout
+        Alert.alert(
+          "🌙 Automatic Checkout",
+          `Your shift was automatically ended at midnight.\nLogout: ${logDate} ${logTime}`,
+          [{ text: "OK" }]
+        );
+      }
+
+      return true;
+    } catch (err) {
+      console.log("Checkout error:", err);
+      if (!fromBackground) {
+        Alert.alert("Error", "Failed to checkout. Please try again.");
       }
       return false;
     } finally {
-      if (!fromBackground) setIsLoading(false);
+      if (!fromBackground) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -1341,8 +1366,6 @@ const HomeScreen = () => {
     }
     return normalized;
   }, []);
-
-  // preprocessImage function
 
   const preprocessImage = useCallback(async base64Image => {
     try {
@@ -1374,8 +1397,6 @@ const HomeScreen = () => {
       return null;
     }
   }, []);
-
-  // getEmbedding function. ///===e=e===========================
 
   const getEmbedding = useCallback(
     async base64Image => {
@@ -1452,7 +1473,7 @@ const HomeScreen = () => {
     return Math.sqrt(sum);
   }, []);
 
-  // Replace matchFaces function:================================
+  // Replace matchFaces function:
 
   const matchFaces = async (face1, face2) => {
     if (!session) {
@@ -1509,8 +1530,6 @@ const HomeScreen = () => {
       setIsProcessing(false);
     }
   };
-
-  // Request camera permission ==============
   const requestCameraPermission = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -1533,8 +1552,6 @@ const HomeScreen = () => {
       return false;
     }
   };
-
-  // Request location permission ==============
 
   const requestLocationPermission = async () => {
     try {
@@ -1564,8 +1581,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Get current position with fallback options ==============
-
   const getCurrentPositionPromise = async (
     options = {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
   ) => {
@@ -1584,14 +1599,10 @@ const HomeScreen = () => {
     }
   };
 
-  // Check.   safeParseFloat ==============
-
   const safeParseFloat = (val, fallback = NaN) => {
     const n = parseFloat(val);
     return Number.isFinite(n) ? n : fallback;
   };
-
-  // Check location against geofences ==============
 
   const checkLocation = async () => {
     try {
@@ -1653,8 +1664,6 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch employees on leave ==============
-
   useEffect(() => {
     const fetchEmployeesOnLeave = async () => {
       try {
@@ -1688,8 +1697,6 @@ const HomeScreen = () => {
     fetchEmployeesOnLeave();
   }, [user]);
 
-  // Fetch leave balance data ==============
-
   useEffect(() => {
     const fetchLeaveData = async () => {
       try {
@@ -1717,227 +1724,207 @@ const HomeScreen = () => {
   }, [user]);
 
   useEffect(() => {
-    const fetchShiftDetails = async () => {
-      if (!employeeDetails?.id || !user?.childCompanyId) return;
+     const fetchShiftDetails = async () => {
+  if (!employeeDetails?.id || !user?.childCompanyId) return;
 
-      try {
-        const today = new Date();
+  try {
+    const today = new Date();
 
-        // Create date range for API (today plus one day before and after)
-        const fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 1);
+    // Create date range for API (today plus one day before and after)
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - 1);
 
-        const toDate = new Date(today);
-        toDate.setDate(today.getDate() + 1);
+    const toDate = new Date(today);
+    toDate.setDate(today.getDate() + 1);
 
-        const payload = {
-          EmployeeId: employeeDetails.id,
-          Month: 0,
-          Year: 0,
-          YearList: null,
-          ChildCompanyId: user.childCompanyId,
-          FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
-          ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
-          BranchName: null,
-          BranchId: 0,
-          EmployeeTypeId: 0,
-          DraftName: null,
-          Did: 0,
-          UserId: 0,
-          status: null,
-          Ids: null,
-          CoverLatter: null,
-          DepartmentId: 0,
-          DesignationId: 0,
-          UserType: 0,
-          CalculationType: 0,
-          childCompanies: null,
-          branchIds: null,
-          departmentsIds: null,
-          designationIds: null,
-          employeeTypeIds: null,
-          employeeIds: null,
-          hasAllReportAccess: false,
+    const payload = {
+      EmployeeId: employeeDetails.id,
+      Month: 0,
+      Year: 0,
+      YearList: null,
+      ChildCompanyId: user.childCompanyId,
+      FromDate: fromDate.toISOString().split('T')[0] + 'T00:00:00',
+      ToDate: toDate.toISOString().split('T')[0] + 'T00:00:00',
+      BranchName: null,
+      BranchId: 0,
+      EmployeeTypeId: 0,
+      DraftName: null,
+      Did: 0,
+      UserId: 0,
+      status: null,
+      Ids: null,
+      CoverLatter: null,
+      DepartmentId: 0,
+      DesignationId: 0,
+      UserType: 0,
+      CalculationType: 0,
+      childCompanies: null,
+      branchIds: null,
+      departmentsIds: null,
+      designationIds: null,
+      employeeTypeIds: null,
+      employeeIds: null,
+      hasAllReportAccess: false,
+    };
+
+    const response = await axiosInstance.post(
+      `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
+      payload,
+    );
+
+    console.log(response.data, 'shift data response');
+
+    if (response.data && Array.isArray(response.data)) {
+      const todayDateStr =
+        today.getDate().toString().padStart(2, '0') +
+        ' ' +
+        today.toLocaleString('en-US', {month: 'short'}) +
+        ' ' +
+        today.getFullYear();
+
+      const todayShift = response.data.find(
+        item => item.date === todayDateStr,
+      );
+
+      if (todayShift) {
+        // Parse shift times correctly for today's date
+        const parseShiftTime = (timeStr) => {
+          if (!timeStr) return null;
+          
+          // If it's already a full datetime, use it directly
+          if (timeStr.includes('T') || timeStr.includes(' ')) {
+            return new Date(timeStr);
+          }
+          
+          // If it's just time (HH:mm:ss), combine with today's date
+          const today = new Date();
+          const timeParts = timeStr.split(':');
+          if (timeParts.length >= 2) {
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+            
+            return new Date(
+              today.getFullYear(),
+              today.getMonth(),
+              today.getDate(),
+              hours,
+              minutes,
+              seconds
+            );
+          }
+          
+          return null;
         };
 
-        const response = await axiosInstance.post(
-          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
-          payload,
-        );
+        const shiftStart = parseShiftTime(todayShift.shiftStartTime);
+        const shiftEnd = parseShiftTime(todayShift.shiftEndTime);
 
-        console.log(response.data, 'shift data response');
+        // Debug logging
+        console.log('Shift Details:', {
+          shiftStart: shiftStart?.toLocaleString(),
+          shiftEnd: shiftEnd?.toLocaleString(),
+          rawShiftStart: todayShift.shiftStartTime,
+          rawShiftEnd: todayShift.shiftEndTime,
+        });
 
-        if (response.data && Array.isArray(response.data)) {
-          const todayDateStr =
-            today.getDate().toString().padStart(2, '0') +
-            ' ' +
-            today.toLocaleString('en-US', {month: 'short'}) +
-            ' ' +
-            today.getFullYear();
+        // Validate shift times
+        if (shiftStart && shiftEnd && !isNaN(shiftStart.getTime()) && !isNaN(shiftEnd.getTime())) {
+          // Calculate total shift duration in seconds
+          let calculatedTotalShiftSeconds = Math.max(0, (shiftEnd - shiftStart) / 1000);
+          
+          // Handle overnight shifts (if end time is before start time, add 24 hours)
+          if (shiftEnd <= shiftStart) {
+            const nextDayEnd = new Date(shiftEnd);
+            nextDayEnd.setDate(nextDayEnd.getDate() + 1);
+            calculatedTotalShiftSeconds = Math.max(0, (nextDayEnd - shiftStart) / 1000);
+          }
 
-          const todayShift = response.data.find(
-            item => item.date === todayDateStr,
-          );
+          // Update the state with the calculated shift duration
+          setTotalShiftSeconds(calculatedTotalShiftSeconds);
+          setTotalShiftHours(Math.round(calculatedTotalShiftSeconds / 3600));
 
-          if (todayShift) {
-            // Parse shift times correctly for today's date
-            const parseShiftTime = timeStr => {
-              if (!timeStr) return null;
+          console.log('Calculated shift duration:', {
+            calculatedTotalShiftSeconds,
+            hours: (calculatedTotalShiftSeconds / 3600).toFixed(2),
+          });
 
-              // If it's already a full datetime, use it directly
-              if (timeStr.includes('T') || timeStr.includes(' ')) {
-                return new Date(timeStr);
-              }
-
-              // If it's just time (HH:mm:ss), combine with today's date
-              const today = new Date();
-              const timeParts = timeStr.split(':');
-              if (timeParts.length >= 2) {
-                const hours = parseInt(timeParts[0], 10);
-                const minutes = parseInt(timeParts[1], 10);
-                const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
-
-                return new Date(
-                  today.getFullYear(),
-                  today.getMonth(),
-                  today.getDate(),
-                  hours,
-                  minutes,
-                  seconds,
-                );
-              }
-
-              return null;
-            };
-
-            const shiftStart = parseShiftTime(todayShift.shiftStartTime);
-            const shiftEnd = parseShiftTime(todayShift.shiftEndTime);
-
-            // Debug logging
-            console.log('Shift Details:', {
-              shiftStart: shiftStart?.toLocaleString(),
-              shiftEnd: shiftEnd?.toLocaleString(),
-              rawShiftStart: todayShift.shiftStartTime,
-              rawShiftEnd: todayShift.shiftEndTime,
+          // Calculate missed time ONLY if user is checked in
+          if (checkedIn && checkInTime && calculatedTotalShiftSeconds > 0) {
+            const actualCheckIn = new Date(checkInTime);
+            
+            console.log('Time Comparison:', {
+              shiftStartTime: shiftStart.toLocaleString(),
+              actualCheckInTime: actualCheckIn.toLocaleString(),
+              checkInTime: checkInTime,
             });
 
-            // Validate shift times
-            if (
-              shiftStart &&
-              shiftEnd &&
-              !isNaN(shiftStart.getTime()) &&
-              !isNaN(shiftEnd.getTime())
-            ) {
-              // Calculate total shift duration in seconds
-              let calculatedTotalShiftSeconds = Math.max(
-                0,
-                (shiftEnd - shiftStart) / 1000,
-              );
+            // Calculate missed time only if check-in was after shift start
+            const missedSeconds = Math.max(0, (actualCheckIn - shiftStart) / 1000);
+            const missedPercent = Math.min(100, (missedSeconds / calculatedTotalShiftSeconds) * 100);
 
-              // Handle overnight shifts (if end time is before start time, add 24 hours)
-              if (shiftEnd <= shiftStart) {
-                const nextDayEnd = new Date(shiftEnd);
-                nextDayEnd.setDate(nextDayEnd.getDate() + 1);
-                calculatedTotalShiftSeconds = Math.max(
-                  0,
-                  (nextDayEnd - shiftStart) / 1000,
-                );
-              }
+            console.log('Missed Time Calculations:', {
+              totalShiftSeconds: calculatedTotalShiftSeconds,
+              missedSeconds,
+              missedPercent: missedPercent.toFixed(2) + '%',
+              missedTime: formatHoursMinutes(missedSeconds),
+            });
 
-              // Update the state with the calculated shift duration
-              setTotalShiftSeconds(calculatedTotalShiftSeconds);
-              setTotalShiftHours(
-                Math.round(calculatedTotalShiftSeconds / 3600),
-              );
-
-              console.log('Calculated shift duration:', {
-                calculatedTotalShiftSeconds,
-                hours: (calculatedTotalShiftSeconds / 3600).toFixed(2),
-              });
-
-              // Calculate missed time ONLY if user is checked in
-              if (checkedIn && checkInTime && calculatedTotalShiftSeconds > 0) {
-                const actualCheckIn = new Date(checkInTime);
-
-                console.log('Time Comparison:', {
-                  shiftStartTime: shiftStart.toLocaleString(),
-                  actualCheckInTime: actualCheckIn.toLocaleString(),
-                  checkInTime: checkInTime,
-                });
-
-                // Calculate missed time only if check-in was after shift start
-                const missedSeconds = Math.max(
-                  0,
-                  (actualCheckIn - shiftStart) / 1000,
-                );
-                const missedPercent = Math.min(
-                  100,
-                  (missedSeconds / calculatedTotalShiftSeconds) * 100,
-                );
-
-                console.log('Missed Time Calculations:', {
-                  totalShiftSeconds: calculatedTotalShiftSeconds,
-                  missedSeconds,
-                  missedPercent: missedPercent.toFixed(2) + '%',
-                  missedTime: formatHoursMinutes(missedSeconds),
-                });
-
-                setMissedPercentage(missedPercent);
-              } else if (!checkedIn) {
-                // If not checked in, reset missed percentage
-                setMissedPercentage(0);
-              }
-
-              // Format times for display in 24-hour format
-              const formatTime24Hour = dateTime => {
-                try {
-                  if (!dateTime || isNaN(dateTime.getTime()))
-                    return 'Invalid time';
-                  return dateTime.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false, // Changed to 24-hour format
-                  });
-                } catch (err) {
-                  console.error('Time format error:', err);
-                  return 'Invalid time';
-                }
-              };
-
-              const startTime = formatTime24Hour(shiftStart);
-              const endTime = formatTime24Hour(shiftEnd);
-
-              if (startTime !== 'Invalid time' && endTime !== 'Invalid time') {
-                setShiftHours(`${startTime} - ${endTime}`);
-              } else {
-                setShiftHours('Shift times not available');
-              }
-
-              setShiftName(todayShift.shiftName || 'N/A');
-
-              // If user is checked in, restart the shift progress with updated duration
-              if (checkedIn && checkInTime) {
-                const now = Date.now();
-                const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
-                startShiftProgress(elapsedSeconds, shiftStart.getTime());
-              }
-            } else {
-              console.error('Invalid shift times:', {
-                start: todayShift.shiftStartTime,
-                end: todayShift.shiftEndTime,
-              });
-              setShiftHours('Invalid shift times');
-            }
-          } else {
-            console.log('No shift found for today:', todayDateStr);
-            setShiftHours('No shift assigned for today');
+            setMissedPercentage(missedPercent);
+          } else if (!checkedIn) {
+            // If not checked in, reset missed percentage
+            setMissedPercentage(0);
           }
+
+          // Format times for display in 24-hour format
+          const formatTime24Hour = dateTime => {
+            try {
+              if (!dateTime || isNaN(dateTime.getTime())) return 'Invalid time';
+              return dateTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false, // Changed to 24-hour format
+              });
+            } catch (err) {
+              console.error('Time format error:', err);
+              return 'Invalid time';
+            }
+          };
+
+          const startTime = formatTime24Hour(shiftStart);
+          const endTime = formatTime24Hour(shiftEnd);
+
+          if (startTime !== 'Invalid time' && endTime !== 'Invalid time') {
+            setShiftHours(`${startTime} - ${endTime}`);
+          } else {
+            setShiftHours('Shift times not available');
+          }
+
+          setShiftName(todayShift.shiftName || 'N/A');
+
+          // If user is checked in, restart the shift progress with updated duration
+          if (checkedIn && checkInTime) {
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - checkInTime) / 1000);
+            startShiftProgress(elapsedSeconds, shiftStart.getTime());
+          }
+        } else {
+          console.error('Invalid shift times:', {
+            start: todayShift.shiftStartTime,
+            end: todayShift.shiftEndTime,
+          });
+          setShiftHours('Invalid shift times');
         }
-      } catch (error) {
-        console.error('Error fetching shift details:', error);
-        setShiftHours('Error loading shift');
+      } else {
+        console.log('No shift found for today:', todayDateStr);
+        setShiftHours('No shift assigned for today');
       }
-    };
+    }
+  } catch (error) {
+    console.error('Error fetching shift details:', error);
+    setShiftHours('Error loading shift');
+  }
+};
 
     fetchShiftDetails();
   }, [employeeDetails?.id, user?.childCompanyId, checkInTime]);
@@ -2146,7 +2133,7 @@ const HomeScreen = () => {
             <View style={styles.progressDetailCard}>
               <View style={styles.detailContent}>
                 <Text style={styles.shiftDetailsLebal}>Shift Hours</Text>
-                <Text style={styles.shiftDetailValue}>
+                <Text style={styles.shiftDetailValue}>                 
                   {shiftHours || 'No shift assigned'}
                 </Text>
               </View>
@@ -2232,7 +2219,7 @@ const HomeScreen = () => {
                   ? styles.checkOutButtonActive
                   : styles.actionButtonDisabled,
               ]}
-              onPress={handleCheckOut}
+              onPress={performCheckOut}
               disabled={!checkedIn || isLoading}
               activeOpacity={0.8}>
               <LinearGradient
@@ -2303,61 +2290,11 @@ const HomeScreen = () => {
       </>
     );
   };
-
-  // Render location processing modal
-  const renderLocationModal = () => (
-    <Modal
-      visible={isLocationProcessing}
-      transparent={true}
-      animationType="fade"
-      statusBarTranslucent={true}>
-      <View style={styles.locationModalOverlay}>
-        <View style={styles.locationModalContainer}>
-          <LinearGradient
-            colors={['#FFFFFF', '#F8FAFC']}
-            style={styles.locationModalContent}>
-            
-            {/* Lottie Animation */}
-            <View style={styles.lottieContainer}>
-              <LottieView
-                source={require('../lotti/Location Pin.json')}
-                autoPlay
-                loop
-                style={styles.lottieAnimation}
-                speed={0.8}
-              />
-            </View>
-
-            {/* Processing Text */}
-            <View style={styles.locationProcessingTextContainer}>
-              <Text style={styles.locationProcessingTitle}>
-                Getting Your Location
-              </Text>
-              <Text style={styles.locationProcessingDescription}>
-                Please wait while we verify your location for check-in
-              </Text>
-            </View>
-
-            {/* Cancel Button */}
-            {/* <TouchableOpacity
-              style={styles.locationCancelButton}
-              onPress={() => {
-                setIsLocationProcessing(false);
-                setIsLoading(false);
-              }}>
-              <Text style={styles.locationCancelButtonText}>Cancel</Text>
-            </TouchableOpacity> */}
-          </LinearGradient>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  // Main render function
+  
   return (
     <AppSafeArea>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-    
+      <StatusBar  barStyle="light-content" backgroundColor="#1E40AF" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
           <View style={styles.headerContent}>
@@ -2398,13 +2335,10 @@ const HomeScreen = () => {
             </View>
           </View>
         </LinearGradient>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>
       </ScrollView>
-      
-      {/* Location Processing Modal */}
-      {renderLocationModal()}
     </AppSafeArea>
   );
 };
