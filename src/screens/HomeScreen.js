@@ -1169,19 +1169,124 @@ const HomeScreen = () => {
       // Start progress tracking
       startShiftProgress(0);
     } catch (error) {
-      console.error('Check-in error:', error);
-      let errorMessage = 'Something went wrong during check-in.';
+      // Enhanced error logging for both debug and release
+      console.error('Check-in error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config?.url,
+      });
 
-      if (error.message?.includes('timeout')) {
-        errorMessage =
-          'Request timed out. Please check your connection and try again.';
-      } else if (error.message?.includes('cancelled')) {
-        errorMessage = 'Check-in was cancelled.';
-      } else if (error.message?.includes('verification failed')) {
-        errorMessage = 'Face verification failed. Please try again.';
+      let errorMessage = 'Check-in failed. Please try again.';
+      let errorTitle = '❌ Check-In Failed';
+
+      // More robust error categorization
+      const errorMsg = error.message?.toLowerCase() || '';
+      const errorCode = error.code?.toLowerCase() || '';
+      const responseStatus = error.response?.status;
+      const responseData = error.response?.data;
+
+      // Network and connectivity errors
+      if (errorCode.includes('network') || 
+          errorMsg.includes('network error') || 
+          errorMsg.includes('err_network') ||
+          errorCode === 'enotfound' ||
+          errorCode === 'econnrefused' ||
+          errorCode === 'etimedout') {
+        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+      }
+      // Timeout errors
+      else if (errorMsg.includes('timeout') || 
+               errorMsg.includes('timed out') ||
+               errorCode.includes('timeout')) {
+        errorMessage = 'Request timed out. Please check your connection and try again.';
+      }
+      // User cancellation
+      else if (errorMsg.includes('cancelled') || 
+               errorMsg.includes('canceled') ||
+               errorMsg.includes('user cancelled')) {
+        errorMessage = 'Check-in was cancelled by user.';
+        errorTitle = 'Check-In Cancelled';
+      }
+      // Face verification errors
+      else if (errorMsg.includes('verification failed') || 
+               errorMsg.includes('face verification') ||
+               errorMsg.includes('face matching') ||
+               errorMsg.includes('embedding')) {
+        errorMessage = 'Face verification failed. Please ensure good lighting and try again.';
+      }
+      // Location errors
+      else if (errorMsg.includes('location') || 
+               errorMsg.includes('geofence') ||
+               errorMsg.includes('position')) {
+        errorMessage = 'Location verification failed. Please ensure you are within the designated area.';
+      }
+      // Camera errors
+      else if (errorMsg.includes('camera') || 
+               errorMsg.includes('permission denied') ||
+               errorCode.includes('camera')) {
+        errorMessage = 'Camera access failed. Please check camera permissions and try again.';
+      }
+      // HTTP status errors
+      else if (responseStatus) {
+        switch (responseStatus) {
+          case 400:
+            errorMessage = responseData?.message || 'Invalid request. Please check your input and try again.';
+            break;
+          case 401:
+            errorMessage = 'Authentication failed. Please log in again.';
+            break;
+          case 403:
+            errorMessage = 'Access denied. Please contact your administrator.';
+            break;
+          case 404:
+            errorMessage = 'Service not found. Please contact support.';
+            break;
+          case 409:
+            errorMessage = 'Conflict detected. You may already be checked in.';
+            break;
+          case 422:
+            errorMessage = responseData?.message || 'Invalid data provided. Please try again.';
+            break;
+          case 429:
+            errorMessage = 'Too many requests. Please wait a moment and try again.';
+            break;
+          case 500:
+          case 502:
+          case 503:
+          case 504:
+            errorMessage = 'Server error occurred. Please try again later or contact support.';
+            break;
+          default:
+            errorMessage = responseData?.message || `Server error (${responseStatus}). Please try again.`;
+        }
+      }
+      // API response errors
+      else if (responseData?.message) {
+        errorMessage = responseData.message;
+      }
+      // Specific known errors
+      else if (errorMsg.includes('model not loaded')) {
+        errorMessage = 'Face recognition not ready. Please wait a moment and try again.';
+      }
+      else if (errorMsg.includes('no image')) {
+        errorMessage = 'No image captured. Please try taking the photo again.';
+      }
+      else if (errorMsg.includes('permission')) {
+        errorMessage = 'Permission denied. Please grant required permissions and try again.';
+      }
+      // Fallback to original error message if available
+      else if (error.message && error.message !== 'undefined') {
+        errorMessage = error.message;
       }
 
-      Alert.alert('❌ Check-In Failed', errorMessage);
+      // Log the final error message for debugging
+      console.error('Final error message:', errorMessage);
+
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setIsLoading(false);
       setIsLocationProcessing(false);

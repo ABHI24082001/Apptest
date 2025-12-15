@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		3E9F3FA5DB65EF6C9E520A09 /* libPods-hrms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FDB311B122ADE42FFFF5D932 /* libPods-hrms.a */; };
-		64BBEC702EEC439D006B6CDC /* tiny_model.onnx in Resources */ = {isa = PBXBuildFile; fileRef = 64B5C0BF2E911D120064E7BC /* tiny_model.onnx */; };
 		64E9DF4B2EE9A82300D374FF /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 64E9DF4A2EE9A82300D374FF /* Images.xcassets */; };
 		65A5FE2D820F756DF6E2C30D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
@@ -2015,7 +2014,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				64BBEC702EEC439D006B6CDC /* tiny_model.onnx in Resources */,
 				64E9DF4B2EE9A82300D374FF /* Images.xcassets in Resources */,
 				65A5FE2D820F756DF6E2C30D /* PrivacyInfo.xcprivacy in Resources */,
 			);
