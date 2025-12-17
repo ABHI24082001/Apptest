@@ -505,81 +505,39 @@ const HomeScreen = () => {
     };
   }, []);
 
-  // Load ONNX model on mount with better error handling
+  // Load ONNX model on mount
+
   useEffect(() => {
     const loadModel = async () => {
       try {
         let modelPath = '';
-        
         if (Platform.OS === 'android') {
-          // Try multiple model locations for Android
-          const possiblePaths = [
-            `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`,
-            `${RNFS.MainBundlePath}/assets/mobilefacenet.onnx`,
-            'android.resource://com.cloudtree.hrms/raw/mobilefacenet'
-          ];
-          
-          let modelFound = false;
-          for (const path of possiblePaths) {
-            try {
-              if (await RNFS.exists(path)) {
-                modelPath = path;
-                modelFound = true;
-                break;
-              }
-            } catch (e) {
-              console.log(`Path check failed for ${path}:`, e.message);
-            }
-          }
-          
-          // If not found, try to copy from assets
-          if (!modelFound) {
-            try {
-              modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
-              await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
-              console.log('✅ Model copied from assets to:', modelPath);
-            } catch (copyError) {
-              console.error('❌ Failed to copy model from assets:', copyError);
-              Alert.alert('Error', 'Face recognition model not found. Please reinstall the app.');
-              return;
-            }
+          modelPath = `${RNFS.DocumentDirectoryPath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(modelPath))) {
+            await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
           }
         } else {
-          // iOS
-          modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
-          if (!(await RNFS.exists(modelPath))) {
-            console.error('❌ iOS model file not found in bundle');
-            Alert.alert('Error', 'Face recognition model not found.');
+          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+          if (!(await RNFS.exists(rawPath))) {
+            console.error('Model file not found in bundle');
             return;
           }
+          modelPath = `file://${rawPath}`;
         }
 
-        console.log(`🔄 Loading model from: ${modelPath}`);
-        
         const s = await ort.InferenceSession.create(modelPath, {
           executionProviders: ['cpu'],
           graphOptimizationLevel: 'all',
-          enableCpuMemArena: false, // Important for release builds
-          enableMemPattern: false,
         });
-        
         setSession(s);
-        console.log('✅ Model loaded successfully!');
-        console.log('📊 Input names:', s.inputNames);
-        console.log('📊 Output names:', s.outputNames);
-        
       } catch (e) {
-        console.error('❌ Model load error:', e);
-        Alert.alert(
-          'Model Error',
-          `Failed to load face recognition model: ${e.message}. Face recognition features will be disabled.`
-        );
+        console.error('Model load error:', e);
+        Alert.alert('Error', `Failed to load model: ${e.message}`);
       }
     };
 
     loadModel();
   }, []);
-
 
   // FIXED: Face registration logic with better state management
 
@@ -809,23 +767,17 @@ const HomeScreen = () => {
           reject(new Error('Camera operation timed out'));
         }, 30000);
 
-        const cameraOptions = {
-          mediaType: 'photo',
-          includeBase64: true,
-          cameraType: 'front',
-          maxWidth: 800,
-          maxHeight: 800,
-          quality: 0.8,
-          saveToPhotos: false,
-          storageOptions: {
-            skipBackup: true,
-            path: 'images',
+        ImagePicker.launchCamera(
+          {
+            mediaType: 'photo',
+            includeBase64: true,
+            cameraType: 'front',
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 0.8,
+            saveToPhotos: false, // Important for production
           },
-        };
-
-        // Add error boundary for ImagePicker
-        try {
-          ImagePicker.launchCamera(cameraOptions, response => {
+          response => {
             clearTimeout(timeoutId);
 
             try {
@@ -834,69 +786,35 @@ const HomeScreen = () => {
                 return;
               }
 
-              if (response.errorCode) {
-                console.error('Camera error code:', response.errorCode);
-                console.error('Camera error message:', response.errorMessage);
-                
-                let userMessage = 'Camera error occurred';
-                switch (response.errorCode) {
-                  case 'camera_unavailable':
-                    userMessage = 'Camera is not available on this device';
-                    break;
-                  case 'permission':
-                    userMessage = 'Camera permission denied';
-                    break;
-                  case 'others':
-                    userMessage = response.errorMessage || 'Unknown camera error';
-                    break;
-                  default:
-                    userMessage = response.errorMessage || 'Camera error';
-                }
-                
-                reject(new Error(userMessage));
+              if (response.errorCode || response.errorMessage) {
+                reject(new Error(response.errorMessage || 'Camera error'));
                 return;
               }
 
-              if (!response.assets?.[0]) {
-                reject(new Error('No image was captured'));
-                return;
-              }
-
-              const asset = response.assets[0];
-              if (!asset.base64) {
-                reject(new Error('Failed to get image data'));
+              if (!response.assets?.[0]?.base64) {
+                reject(new Error('No image captured'));
                 return;
               }
 
               // Validate image size (prevent memory issues)
-              const imageSize = asset.base64.length;
-              const maxSize = 10 * 1024 * 1024; // 10MB limit
-              if (imageSize > maxSize) {
-                reject(new Error('Image too large. Please try again with lower quality.'));
+              const imageSize = response.assets[0].base64.length;
+              if (imageSize > 5000000) {
+                // 5MB limit
+                reject(new Error('Image too large. Please try again.'));
                 return;
               }
-
-              console.log('✅ Image captured successfully:', {
-                width: asset.width,
-                height: asset.height,
-                size: `${Math.round(imageSize / 1024)}KB`,
-              });
 
               const result = callback(response);
               resolve(result);
             } catch (error) {
-              console.error('❌ Camera callback error:', error);
+              console.error('Camera callback error:', error);
               reject(error);
             }
-          });
-        } catch (launchError) {
-          clearTimeout(timeoutId);
-          console.error('❌ Failed to launch camera:', launchError);
-          reject(new Error('Failed to open camera. Please try again.'));
-        }
+          },
+        );
       });
     } catch (error) {
-      console.error('❌ Camera launch error:', error);
+      console.error('Camera launch error:', error);
       throw error;
     }
   };
@@ -1169,124 +1087,19 @@ const HomeScreen = () => {
       // Start progress tracking
       startShiftProgress(0);
     } catch (error) {
-      // Enhanced error logging for both debug and release
-      console.error('Check-in error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: error.config?.url,
-      });
+      console.error('Check-in error:', error);
+      let errorMessage = 'Something went wrong during check-in.';
 
-      let errorMessage = 'Check-in failed. Please try again.';
-      let errorTitle = '❌ Check-In Failed';
-
-      // More robust error categorization
-      const errorMsg = error.message?.toLowerCase() || '';
-      const errorCode = error.code?.toLowerCase() || '';
-      const responseStatus = error.response?.status;
-      const responseData = error.response?.data;
-
-      // Network and connectivity errors
-      if (errorCode.includes('network') || 
-          errorMsg.includes('network error') || 
-          errorMsg.includes('err_network') ||
-          errorCode === 'enotfound' ||
-          errorCode === 'econnrefused' ||
-          errorCode === 'etimedout') {
-        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
-      }
-      // Timeout errors
-      else if (errorMsg.includes('timeout') || 
-               errorMsg.includes('timed out') ||
-               errorCode.includes('timeout')) {
-        errorMessage = 'Request timed out. Please check your connection and try again.';
-      }
-      // User cancellation
-      else if (errorMsg.includes('cancelled') || 
-               errorMsg.includes('canceled') ||
-               errorMsg.includes('user cancelled')) {
-        errorMessage = 'Check-in was cancelled by user.';
-        errorTitle = 'Check-In Cancelled';
-      }
-      // Face verification errors
-      else if (errorMsg.includes('verification failed') || 
-               errorMsg.includes('face verification') ||
-               errorMsg.includes('face matching') ||
-               errorMsg.includes('embedding')) {
-        errorMessage = 'Face verification failed. Please ensure good lighting and try again.';
-      }
-      // Location errors
-      else if (errorMsg.includes('location') || 
-               errorMsg.includes('geofence') ||
-               errorMsg.includes('position')) {
-        errorMessage = 'Location verification failed. Please ensure you are within the designated area.';
-      }
-      // Camera errors
-      else if (errorMsg.includes('camera') || 
-               errorMsg.includes('permission denied') ||
-               errorCode.includes('camera')) {
-        errorMessage = 'Camera access failed. Please check camera permissions and try again.';
-      }
-      // HTTP status errors
-      else if (responseStatus) {
-        switch (responseStatus) {
-          case 400:
-            errorMessage = responseData?.message || 'Invalid request. Please check your input and try again.';
-            break;
-          case 401:
-            errorMessage = 'Authentication failed. Please log in again.';
-            break;
-          case 403:
-            errorMessage = 'Access denied. Please contact your administrator.';
-            break;
-          case 404:
-            errorMessage = 'Service not found. Please contact support.';
-            break;
-          case 409:
-            errorMessage = 'Conflict detected. You may already be checked in.';
-            break;
-          case 422:
-            errorMessage = responseData?.message || 'Invalid data provided. Please try again.';
-            break;
-          case 429:
-            errorMessage = 'Too many requests. Please wait a moment and try again.';
-            break;
-          case 500:
-          case 502:
-          case 503:
-          case 504:
-            errorMessage = 'Server error occurred. Please try again later or contact support.';
-            break;
-          default:
-            errorMessage = responseData?.message || `Server error (${responseStatus}). Please try again.`;
-        }
-      }
-      // API response errors
-      else if (responseData?.message) {
-        errorMessage = responseData.message;
-      }
-      // Specific known errors
-      else if (errorMsg.includes('model not loaded')) {
-        errorMessage = 'Face recognition not ready. Please wait a moment and try again.';
-      }
-      else if (errorMsg.includes('no image')) {
-        errorMessage = 'No image captured. Please try taking the photo again.';
-      }
-      else if (errorMsg.includes('permission')) {
-        errorMessage = 'Permission denied. Please grant required permissions and try again.';
-      }
-      // Fallback to original error message if available
-      else if (error.message && error.message !== 'undefined') {
-        errorMessage = error.message;
+      if (error.message?.includes('timeout')) {
+        errorMessage =
+          'Request timed out. Please check your connection and try again.';
+      } else if (error.message?.includes('cancelled')) {
+        errorMessage = 'Check-in was cancelled.';
+      } else if (error.message?.includes('verification failed')) {
+        errorMessage = 'Face verification failed. Please try again.';
       }
 
-      // Log the final error message for debugging
-      console.error('Final error message:', errorMessage);
-
-      Alert.alert(errorTitle, errorMessage);
+      Alert.alert('❌ Check-In Failed', errorMessage);
     } finally {
       setIsLoading(false);
       setIsLocationProcessing(false);
@@ -2502,7 +2315,7 @@ const HomeScreen = () => {
   return (
     <AppSafeArea>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
-    
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
           <View style={styles.headerContent}>
@@ -2543,7 +2356,7 @@ const HomeScreen = () => {
             </View>
           </View>
         </LinearGradient>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>
       </ScrollView>
