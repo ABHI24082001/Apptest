@@ -532,35 +532,42 @@ const MyPaySlip = () => {
 
   // List header component
   const ListHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => dispatch(setShowFromPicker(true))}>
-          <View style={styles.dateInputContainer}>
-            <Icon name="calendar" size={16} color="#6D75FF" />
-            <Text style={styles.dateValue}>
-              {fromDate ? formatDate(fromDate) : 'From Date'}
-            </Text>
-          </View>
-        </TouchableOpacity>
+    <>
+      <LeaveHeader
+        title="Payslip"
+        subtitle="Here's the summary of your monthly earnings and deductions."
+        iconName="file-document-outline"
+      />
+      <View style={styles.headerContainer}>
+        <View style={styles.dateRow}>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => dispatch(setShowFromPicker(true))}>
+            <View style={styles.dateInputContainer}>
+              <Icon name="calendar" size={16} color="#6D75FF" />
+              <Text style={styles.dateValue}>
+                {fromDate ? formatDate(fromDate) : 'From Date'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-        <View style={styles.dateIconWrapper}>
-          <Icon name="arrow-right" size={16} color="#666" />
+          <View style={styles.dateIconWrapper}>
+            <Icon name="arrow-right" size={16} color="#666" />
+          </View>
+
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => dispatch(setShowToPicker(true))}>
+            <View style={styles.dateInputContainer}>
+              <Icon name="calendar" size={16} color="#6D75FF" />
+              <Text style={styles.dateValue}>
+                {toDate ? formatDate(toDate) : 'To Date'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => dispatch(setShowToPicker(true))}>
-          <View style={styles.dateInputContainer}>
-            <Icon name="calendar" size={16} color="#6D75FF" />
-            <Text style={styles.dateValue}>
-              {toDate ? formatDate(toDate) : 'To Date'}
-            </Text>
-          </View>
-        </TouchableOpacity>
       </View>
-    </View>
+    </>
   );
 
   // Empty state component
@@ -575,15 +582,7 @@ const MyPaySlip = () => {
 
   return (
     <AppSafeArea>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       <CustomHeader title="My Payslip" navigation={navigation} />
-
-      <LeaveHeader
-        title="Payslip"
-        subtitle="Here's the summary of your monthly earnings and deductions."
-        iconName="file-document-outline"
-      />
-
       <ScrollAwareContainer navigation={navigation} currentRoute="MyPayslip">
         <FlatList
           data={payslips}

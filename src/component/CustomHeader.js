@@ -17,7 +17,7 @@ const CustomHeader = ({
   backButtonStyle,
   homeButtonStyle,
   rightComponent, // Add rightComponent prop
-  gradientColors = ['#2568f7ff', '#1c72fcff'],
+  gradientColors = ['#427cf8ff', '#5292faff'],
 }) => {
   const handleBackPress = () => {
     if (onBackPress) {
@@ -37,26 +37,17 @@ const CustomHeader = ({
 
   return (
     <>
-      <StatusBar 
+      {/* <StatusBar 
         barStyle="light-content" 
         backgroundColor={Platform.OS === 'ios' ? 'transparent' : '#1861ffe2'}
         translucent={true}
-      />
+      /> */}
       <SafeAreaView style={{ backgroundColor: gradientColors[0] }} edges={['top']}>
         <LinearGradient
           colors={gradientColors}
           start={{x: 0, y: 1}}
           end={{x: 0, y: 0}}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 2,
-            },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 5,
-          }}>
+          style={{}}>
           <View
             style={{
               flexDirection: 'row',
@@ -76,10 +67,9 @@ const CustomHeader = ({
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backdropFilter: 'blur(10px)',
                     },
                     backButtonStyle,
                   ]}
@@ -90,17 +80,17 @@ const CustomHeader = ({
             </View>
 
             {/* Title Container */}
-            <View style={{flex: 1, justifyContent: 'center',}}>
+            <View style={{flex: 1, justifyContent: 'center'}}>
               <Appbar.Content
                 title={title}
                 titleStyle={[
                   {
                     color: '#FFFFFF',
                     fontSize: 18,
-                    fontWeight: '800',
+                    fontWeight: '600',
                     textTransform: 'capitalize',
                     marginHorizontal: 12,
-                    marginVertical: 4,           
+                    marginVertical: 4,
                     letterSpacing: 0.5,
                   },
                   titleStyle,
@@ -119,10 +109,9 @@ const CustomHeader = ({
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backdropFilter: 'blur(10px)',
                     },
                     homeButtonStyle,
                   ]}

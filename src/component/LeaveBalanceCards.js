@@ -1,135 +1,141 @@
 // components/LeaveBalanceCards.js
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 
-const LeaveBalanceCards = ({ leaveData }) => {
+const LeaveBalanceCards = ({ leaveData = [] }) => {
+  const cardColors = [
+    '#4A90E2', // Blue
+    '#50C878', // Green
+    '#FF6B6B', // Red
+    '#9B59B6', // Purple
+    '#F39C12', // Orange
+    '#1ABC9C', // Teal
+  ];
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.leaveScrollContainer}>
-        
+      contentContainerStyle={styles.leaveScrollContainer}
+      bounces={false}
+      overScrollMode="never">
+
       {leaveData.map((item, index) => (
         <View key={index} style={styles.cardWrapper}>
-          <LinearGradient
-            colors={['#699dffff', '#518be2ff']}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 1}}
-            style={styles.leaveCard}>
-            <Text style={styles.leaveType}>{item.label}</Text>
-            {/* <View style={styles.divider} /> */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.leaveInfo}>
-                Available: <Text style={styles.leaveBold}>{item.available}</Text>
-              </Text>
-              <Text style={styles.leaveInfo}>
-                Used: <Text style={styles.leaveBold}>{item.used}</Text>
+          <View 
+            style={[
+              styles.leaveCard, 
+              { backgroundColor: cardColors[index % cardColors.length] }
+            ]}>
+
+            <View style={styles.tableHeader}>
+              <Text style={styles.leaveType} numberOfLines={2}>
+                {item.label}
               </Text>
             </View>
-          </LinearGradient>
+
+            <View style={styles.tableBody}>
+              <View style={styles.tableRow}>
+                <Text style={styles.tableLabel}>Available</Text>
+                <Text style={styles.tableValue}>{item.available}</Text>
+              </View>
+              
+              <View style={styles.tableDivider} />
+              
+              <View style={styles.tableRow}>
+                <Text style={styles.tableLabel}>Used</Text>
+                <Text style={styles.tableValue}>{item.used}</Text>
+              </View>
+            </View>
+
+          </View>
         </View>
       ))}
     </ScrollView>
   );
 };
 
+export default LeaveBalanceCards;
+
+
 const styles = StyleSheet.create({
   leaveScrollContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    ...Platform.select({
-      ios: {
-        paddingBottom: 20,
-      },
-      android: {
-        paddingBottom: 15,
-      },
-    }),
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
+
   cardWrapper: {
     marginRight: 16,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 4,
-        },
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.15,
-        shadowRadius: 8,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 6,
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        elevation: 8,
       },
     }),
   },
+
   leaveCard: {
-    borderRadius: 16,
+    width: 180,
+    height: 130,
+    borderRadius: 20,
+    padding: 0,
     overflow: 'hidden',
-    padding: Platform.OS === 'ios' ? -7 : 25,
-    // padding: 20,
-    minWidth: 140,
-    minHeight: Platform.OS === 'ios' ? 70 : 120,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...Platform.select({
-      android: {
-        backgroundColor: 'transparent', // Ensure gradient shows properly on Android
-      },
-    }),
   },
+
+  tableHeader: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+
   leaveType: {
-    fontWeight: '800',
-    fontSize: 18,
-    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
     textAlign: 'center',
     letterSpacing: 0.5,
-    ...Platform.select({
-      ios: {
-        fontFamily: 'System',
-      },
-      android: {
-        fontFamily: 'sans-serif-medium',
-      },
-    }),
+    lineHeight: 20,
   },
-  divider: {
-    width: 30,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 1,
-    marginVertical: 8,
+
+  tableBody: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    justifyContent: 'center',
   },
-  infoContainer: {
+
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
+    paddingVertical: 8,
   },
-  leaveInfo: {
-    fontSize: 14,
+
+  tableDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginVertical: 6,
+  },
+
+  tableLabel: {
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
+    fontWeight: '500',
   },
-  leaveBold: {
+
+  tableValue: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
-    fontSize: 15,
-    ...Platform.select({
-      ios: {
-        fontFamily: 'System',
-      },
-      android: {
-        fontFamily: 'sans-serif-medium',
-      },
-    }),
+    color: '#fff',
   },
 });
-
-export default LeaveBalanceCards;

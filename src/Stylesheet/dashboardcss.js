@@ -6,15 +6,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffffff',
-    marginBottom: Platform.OS === 'ios' ? 0 : -10, // Remove negative margin for iOS
-    paddingBottom: Platform.OS === 'ios' ? 0 : 0, // Remove negative padding for iOS
+    
   },
 
 // ui check 
 
   header: {
   paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
-
+  backgroundColor: '#2563EB',
   paddingTop: Platform.OS === 'ios' ? IOS_TOP : 20,
   paddingBottom: 30,
   borderBottomLeftRadius: 30,
@@ -604,7 +603,7 @@ statusTimeText: {
   shiftInfoCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: Platform.OS === 'ios' ? 0 : 24,
     ...Platform.select({
       ios: {
         shadowColor: '#3B82F6',
@@ -624,9 +623,11 @@ statusTimeText: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+      paddingVertical: Platform.OS === 'ios' ? 12 : 0,
   },
   shiftIconContainer: {
     backgroundColor: '#3B82F6',
+    marginLeft: Platform.OS === 'ios' ? 20 : 0,
     width: 48,
     height: 48,
     borderRadius: 16,
@@ -716,6 +717,8 @@ statusTimeText: {
   },
   buttonTextContainer: {
     alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
+    paddingTop: Platform.OS === 'ios' ? 10 : 0,
   },
   actionButtonText: {
     fontSize: 16,

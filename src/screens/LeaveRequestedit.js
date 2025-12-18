@@ -94,7 +94,7 @@ const LeaveRequestDetailsScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      {/* <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" /> */}
       
       {/* Header */}
       <View style={styles.header}>

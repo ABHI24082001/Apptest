@@ -1,6 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ✅ Core permissions -->
+    <!-- ✅ All your existing permissions stay the same -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -18,9 +19,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- ✅ Hardware features -->
-    <uses-feature android:name="android.hardware.camera" android:required="true" />
-    <uses-feature android:name="android.hardware.camera.autofocus" android:required="true" />
-    <uses-feature android:name="android.hardware.camera.front" android:required="true" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <application
         android:name=".MainApplication"
@@ -31,7 +32,8 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
@@ -46,12 +48,25 @@
             </intent-filter>
         </activity>
 
+        <!-- 🔥 FIXED: FileProvider with unique authority and tools:replace -->
+        <!-- <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.cloudtree.hrms.camera.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true"
+            tools:replace="android:authorities">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/camera_file_paths"
+                tools:replace="android:resource" />
+        </provider> -->
+
         <!-- ✅ Your Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBtGmjf_YSaHcAZGwwBGZocQBIOFm47olM" />
 
-        <!-- ✅ Background service (if you’re using your own class) -->
+        <!-- ✅ Background service -->
         <service
             android:name=".RNBackgroundActionsTask"
             android:exported="false"

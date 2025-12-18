@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Camera specific paths -->
+    <cache-path name="camera_cache" path="." />
+    <external-cache-path name="camera_external_cache" path="." />
+    <external-files-path name="camera_external_files" path="Pictures" />
+    <files-path name="camera_files" path="." />
+    <!-- Add root access for camera images -->
+    <root-path name="root" path="." />
+</paths>

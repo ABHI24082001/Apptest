@@ -9,13 +9,38 @@
 -keep class com.facebook.soloader.** { *; }
 -dontwarn com.facebook.react.**
 
+# ===== React Native Image Picker =====
+-keep class com.imagepicker.** { *; }
+-keep class com.reactnativeimagepicker.** { *; }
+-dontwarn com.imagepicker.**
+-dontwarn com.reactnativeimagepicker.**
+
 # ===== Hermes =====
 -keep class com.facebook.hermes.unicode.** { *; }
+
+# ===== React Native Camera Bridge =====
+-keep class com.facebook.react.bridge.** { *; }
+-keep class com.facebook.react.modules.camera.** { *; }
+-keepclassmembers class * {
+    @com.facebook.react.bridge.ReactMethod <methods>;
+}
+
+# ===== Image Processing =====
+-keep class com.facebook.imagepipeline.** { *; }
+-keep class com.facebook.drawee.** { *; }
+-dontwarn com.facebook.imagepipeline.**
+-dontwarn com.facebook.drawee.**
 
 # ===== Reanimated & Gesture Handler =====
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.swmansion.gesturehandler.** { *; }
 -dontwarn com.swmansion.**
+
+# ===== Camera Permissions & Hardware =====
+-keep class android.hardware.camera.** { *; }
+-keep class android.hardware.Camera { *; }
+-keep class android.hardware.Camera$* { *; }
+-dontwarn android.hardware.camera.**
 
 # ===== VisionCamera =====
 -keep class com.mrousavy.camera.** { *; }
@@ -94,6 +119,15 @@
 # ===== Suppress Common Android Warnings =====
 -dontwarn javax.annotation.**
 -dontwarn org.codehaus.mojo.animal_sniffer.*
+
+# ===== JPEG & Image Utilities =====
+-keep class jpeg.** { *; }
+-keep class com.bam.rnimageresizer.** { *; }
+-dontwarn jpeg.**
+
+# ===== Permissions =====
+-keep class com.reactnativecommunity.rnpermissions.** { *; }
+-dontwarn com.reactnativecommunity.rnpermissions.**
 
 ############################################################
 # 🚫 Fix R8 Missing JVM / Test-only Classes (SAFE)

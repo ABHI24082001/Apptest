@@ -43,8 +43,8 @@ const styles = StyleSheet.create({
     padding: 10,
     fontWeight: '700',
     color: '#2563EB',
-    marginTop: 10,
-    marginBottom: 6,
+    // marginTop: 10,
+    // marginBottom: -6,
   },
   headerTitle: {
     fontSize: 18,

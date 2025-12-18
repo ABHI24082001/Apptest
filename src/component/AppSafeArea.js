@@ -1,6 +1,6 @@
 import React from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Platform, StyleSheet, StatusBar} from 'react-native';
+import {Platform, StyleSheet} from 'react-native';
 
 const AppSafeArea = ({children}) => {
   return (

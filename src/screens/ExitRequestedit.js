@@ -95,7 +95,7 @@ const EditRequestedit = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" /> {/* Set the status bar style */}
+  
 
       {/* Header */}
       <View style={styles.header}>

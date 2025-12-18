@@ -64,7 +64,7 @@ const OnboardingScreen = ({navigation}) => {
       start={{x: 0, y: 0}}
       end={{x: 0, y: 1}}
       style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      {/* <StatusBar barStyle="light-content" translucent backgroundColor="transparent" /> */}
 
       {/* Lottie Animation */}
       <View style={styles.animationContainer}>

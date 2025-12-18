@@ -748,77 +748,163 @@ const HomeScreen = () => {
 
   // handle launch camera with timeout and error handling
 
+  // const launchCamera = async callback => {
+  //   try {
+  //     const hasPermission = await requestCameraPermission();
+  //     if (!hasPermission) {
+  //       throw new Error('Camera permission denied');
+  //     }
+
+  //     // Clear any existing timeouts
+  //     if (imageProcessingTimeoutRef.current) {
+  //       clearTimeout(imageProcessingTimeoutRef.current);
+  //       imageProcessingTimeoutRef.current = null;
+  //     }
+
+  //     return new Promise((resolve, reject) => {
+  //       // Set timeout for camera operation
+  //       const timeoutId = setTimeout(() => {
+  //         reject(new Error('Camera operation timed out'));
+  //       }, 30000);
+
+  //       ImagePicker.launchCamera(
+  //         {
+  //           mediaType: 'photo',
+  //           includeBase64: true,
+  //           cameraType: 'front',
+  //           maxWidth: 800,
+  //           maxHeight: 800,
+  //           quality: 0.8,
+  //           saveToPhotos: false, // Important for production
+  //         },
+  //         response => {
+  //           clearTimeout(timeoutId);
+
+  //           try {
+  //             if (response.didCancel) {
+  //               reject(new Error('Camera cancelled by user'));
+  //               return;
+  //             }
+
+  //             if (response.errorCode || response.errorMessage) {
+  //               reject(new Error(response.errorMessage || 'Camera error'));
+  //               return;
+  //             }
+
+  //             if (!response.assets?.[0]?.base64) {
+  //               reject(new Error('No image captured'));
+  //               return;
+  //             }
+
+  //             // Validate image size (prevent memory issues)
+  //             const imageSize = response.assets[0].base64.length;
+  //             if (imageSize > 5000000) {
+  //               // 5MB limit
+  //               reject(new Error('Image too large. Please try again.'));
+  //               return;
+  //             }
+
+  //             const result = callback(response);
+  //             resolve(result);
+  //           } catch (error) {
+  //             console.error('Camera callback error:', error);
+  //             reject(error);
+  //           }
+  //         },
+  //       );
+  //     });
+  //   } catch (error) {
+  //     console.error('Camera launch error:', error);
+  //     throw error;
+  //   }
+  // };
+
+
   const launchCamera = async callback => {
-    try {
-      const hasPermission = await requestCameraPermission();
-      if (!hasPermission) {
-        throw new Error('Camera permission denied');
-      }
-
-      // Clear any existing timeouts
-      if (imageProcessingTimeoutRef.current) {
-        clearTimeout(imageProcessingTimeoutRef.current);
-        imageProcessingTimeoutRef.current = null;
-      }
-
-      return new Promise((resolve, reject) => {
-        // Set timeout for camera operation
-        const timeoutId = setTimeout(() => {
-          reject(new Error('Camera operation timed out'));
-        }, 30000);
-
-        ImagePicker.launchCamera(
-          {
-            mediaType: 'photo',
-            includeBase64: true,
-            cameraType: 'front',
-            maxWidth: 800,
-            maxHeight: 800,
-            quality: 0.8,
-            saveToPhotos: false, // Important for production
-          },
-          response => {
-            clearTimeout(timeoutId);
-
-            try {
-              if (response.didCancel) {
-                reject(new Error('Camera cancelled by user'));
-                return;
-              }
-
-              if (response.errorCode || response.errorMessage) {
-                reject(new Error(response.errorMessage || 'Camera error'));
-                return;
-              }
-
-              if (!response.assets?.[0]?.base64) {
-                reject(new Error('No image captured'));
-                return;
-              }
-
-              // Validate image size (prevent memory issues)
-              const imageSize = response.assets[0].base64.length;
-              if (imageSize > 5000000) {
-                // 5MB limit
-                reject(new Error('Image too large. Please try again.'));
-                return;
-              }
-
-              const result = callback(response);
-              resolve(result);
-            } catch (error) {
-              console.error('Camera callback error:', error);
-              reject(error);
-            }
-          },
-        );
-      });
-    } catch (error) {
-      console.error('Camera launch error:', error);
-      throw error;
+  try {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      throw new Error('Camera permission denied');
     }
-  };
 
+    // Clear any existing timeouts
+    if (imageProcessingTimeoutRef.current) {
+      clearTimeout(imageProcessingTimeoutRef.current);
+      imageProcessingTimeoutRef.current = null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Camera operation timed out'));
+      }, 25000);
+
+      // Enhanced ImagePicker options for release build
+      const options = {
+        mediaType: 'photo',
+        includeBase64: true,
+        cameraType: 'front',
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.8,
+        saveToPhotos: false,
+         includeExtra: false,
+         forceJpg: true,
+          enableRotationFix: false,
+        // Add these for better release build compatibility
+        storageOptions: {
+          skipBackup: true,
+          path: 'images',
+        },
+        // Ensure proper EXIF handling
+        includeExtra: true,
+      };
+
+      ImagePicker.launchCamera(options, response => {
+        clearTimeout(timeoutId);
+
+        try {
+          if (response.didCancel) {
+            reject(new Error('Camera cancelled by user'));
+            return;
+          }
+
+          if (response.errorCode || response.errorMessage) {
+            console.error('Camera error:', response.errorCode, response.errorMessage);
+            reject(new Error(response.errorMessage || 'Camera error occurred'));
+            return;
+          }
+
+          if (!response.assets?.[0]?.base64) {
+            reject(new Error('No image captured or base64 missing'));
+            return;
+          }
+
+          // Validate image size for release build
+          const imageSize = response.assets[0].base64.length;
+          if (imageSize > 5000000) { // 5MB limit
+            reject(new Error('Image too large. Please try again.'));
+            return;
+          }
+
+          // Additional validation for release builds
+          if (response.assets[0].fileSize && response.assets[0].fileSize > 10 * 1024 * 1024) {
+            reject(new Error('Image file size too large'));
+            return;
+          }
+
+          const result = callback(response);
+          resolve(result);
+        } catch (error) {
+          console.error('Camera callback error:', error);
+          reject(error);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Camera launch error:', error);
+    throw error;
+  }
+};
   // Get formatted local date-time strings
 
   const getFormattedLocalDateTime = () => {
@@ -1469,28 +1555,85 @@ const HomeScreen = () => {
   };
 
   // Request camera permission ==============
+  // const requestCameraPermission = async () => {
+  //   try {
+  //     if (Platform.OS === 'android') {
+  //       const granted = await PermissionsAndroid.request(
+  //         PermissionsAndroid.PERMISSIONS.CAMERA,
+  //         {
+  //           title: 'Camera Permission',
+  //           message: 'App needs access to your camera',
+  //           buttonNeutral: 'Ask Me Later',
+  //           buttonNegative: 'Cancel',
+  //           buttonPositive: 'OK',
+  //         },
+  //       );
+  //       return granted === PermissionsAndroid.RESULTS.GRANTED;
+  //     } else {
+  //       return true;
+  //     }
+  //   } catch (err) {
+  //     console.warn(err);
+  //     return false;
+  //   }
+  // };
+
   const requestCameraPermission = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'App needs access to your camera',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+  try {
+    if (Platform.OS === 'android') {
+      // Request multiple camera permissions for release build compatibility
+      const permissions = [
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      ];
+      
+      // For Android 13+, request media permissions
+      if (Platform.Version >= 33) {
+        permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
       } else {
+        permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+      }
+      
+      const results = await PermissionsAndroid.requestMultiple(permissions);
+      
+      // Check if camera permission is granted
+      const cameraGranted = results[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+      
+      if (!cameraGranted) {
+        Alert.alert(
+          'Camera Permission Required',
+          'Please grant camera permission to use face verification.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Open Settings', 
+              onPress: () => {
+                if (Linking.canOpenURL('package:com.cloudtree.hrms')) {
+                  Linking.openURL('package:com.cloudtree.hrms');
+                }
+              }
+            }
+          ]
+        );
+        return false;
+      }
+      
+      return cameraGranted;
+    } else {
+      // iOS camera permission
+      const permission = await check(PERMISSIONS.IOS.CAMERA);
+      if (permission === RESULTS.GRANTED) {
         return true;
       }
-    } catch (err) {
-      console.warn(err);
-      return false;
+      
+      const result = await request(PERMISSIONS.IOS.CAMERA);
+      return result === RESULTS.GRANTED;
     }
-  };
+  } catch (err) {
+    console.warn('Camera permission error:', err);
+    return false;
+  }
+};
 
   // Request location permission ==============
 
@@ -2314,11 +2457,12 @@ const HomeScreen = () => {
   // Main render function
   return (
     <AppSafeArea>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      {/* <StatusBar barStyle="light-content" backgroundColor="#1E40AF" /> */}
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
-        <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
-          <View style={styles.headerContent}>
+        {/* <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}> */}
+         <View style={styles.header}> 
+           <View style={styles.headerContent}>
             <View>
               <Text style={styles.headerGreeting}>Welcome back!</Text>
               <Text style={styles.headerName}>
@@ -2332,6 +2476,7 @@ const HomeScreen = () => {
               </View>
             </View>
           </View>
+        
 
           {/* Status Badge */}
 
@@ -2355,7 +2500,9 @@ const HomeScreen = () => {
               </View>
             </View>
           </View>
-        </LinearGradient>
+
+           </View>
+        {/* </LinearGradient> */}
 
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>

@@ -109,9 +109,9 @@ const StatusCard = ({
   return (
     <Card style={styles.card}>
       <LinearGradient
-        colors={['#6D75FF', '#A7BFE8']}
+        colors={['#5252e0ff', '#A7BFE8']}
         style={styles.headerGradient}
-        start={{x: 0, y: 0}}
+        start={{x: 1, y: 0}}
         end={{x: 1, y: 0}}
       >
         <View style={styles.headerContent}>

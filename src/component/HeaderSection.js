@@ -56,11 +56,11 @@ const HeaderSection = ({
   };
 
   // Calculate safe area heights
-  const getHeaderHeight = () => {
-    const baseHeight = showStatusBadge ? 180 : 140;
-    const statusBarHeight = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 24;
-    return baseHeight + statusBarHeight;
-  };
+  // const getHeaderHeight = () => {
+  //   const baseHeight = showStatusBadge ? 180 : 140;
+  //   const statusBarHeight = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 24;
+  //   return baseHeight + statusBarHeight;
+  // };
 
   // Header container style with absolute positioning option
   const headerContainerStyle = [
@@ -78,15 +78,15 @@ const HeaderSection = ({
 
   return (
     <>
-      <StatusBar 
+      {/* <StatusBar 
         barStyle="light-content" 
         backgroundColor="transparent" 
         translucent={true}
-      />
+      /> */}
       <LinearGradient 
         colors={['#1E40AF', '#2563EB', '#3B82F6']} 
         style={headerContainerStyle}
-        start={{x: 0, y: 0}}
+        start={{x: 1, y: 0}}
         end={{x: 0, y: 1}}
       >
         <View style={styles.headerSafeArea}>
