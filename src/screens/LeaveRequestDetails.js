@@ -977,18 +977,6 @@ const LeaveRequestDetails = ({navigation}) => {
                   {item.leaveDuration || 'Full Day'}
                 </Text>
               </View>
-              <View style={styles.detailItemcardLeave}>
-                <Icon
-                  name="calendar" // 📅 better for "Leave Type"
-                  size={16}
-                  color="#6b7280"
-                  style={styles.durationIcon}
-                />
-                <Text style={styles.durationText}>Leave :</Text>
-                <Text style={styles.durationText}>
-                  {item.leaveName || 'Full Day'}
-                </Text>
-              </View>
             </View>
             <View style={styles.detailItemcardLeave}>
               <Icon
@@ -1009,6 +997,19 @@ const LeaveRequestDetails = ({navigation}) => {
                 style={{marginLeft: 8, position: 'absolute', right: 0, top: 0}}
               />
             </View>
+             <View style={styles.detailItemcardLeave}>
+                <Icon
+                  name="calendar" // 📅 better for "Leave Type"
+                  size={16}
+                  color="#6b7280"
+                  style={styles.durationIcon}
+                />
+                <Text style={styles.durationText}>Leave :</Text>
+                <Text style={styles.durationText}>
+                  {item.leaveName || 'Full Day'}
+                </Text>
+              </View>
+
           </View>
 
           {/* Expanded section */}
@@ -1293,12 +1294,12 @@ const LeaveRequestDetails = ({navigation}) => {
                         console.log('Show help for remarks');
                       }}
                       style={styles.helpIconContainer}>
-                      <Icon
+                      {/* <Icon
                         name="info"
                         size={16}
                         color="#3b82f6"
                         style={styles.helpIcon}
-                      />
+                      /> */}
                     </TouchableOpacity>
                   </View>
 

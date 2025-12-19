@@ -140,22 +140,13 @@ packagingOptions {
         exclude 'META-INF/NOTICE'
         exclude 'META-INF/NOTICE.txt'
     }
-
-
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    implementation project(':react-native-vector-icons')
- 
-    
-   
+    implementation project(':react-native-vector-icons')   
 }
-
-
-
-
 
 afterEvaluate {
     def copyTask = tasks.findByName("copyReactNativeVectorIconFonts")

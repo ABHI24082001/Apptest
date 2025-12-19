@@ -1,6 +1,6 @@
 // components/LeaveStatus.js
 import React from 'react';
-import {View, Text, ScrollView, StyleSheet, Dimensions} from 'react-native';
+import {View, Text, ScrollView, StyleSheet, Dimensions, Platform} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 const {width} = Dimensions.get('window');
@@ -92,15 +92,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   leaveScrollContainer: {
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'ios' ? 5 : 10,
+    paddingLeft: Platform.OS === 'ios' ? 0 : 6,
     paddingRight: 6,
   },
   leaveCard: {
     width: width * 0.35,
     borderRadius: 14,
     marginRight: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 0 : 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 0 : 14,
     borderWidth: 1,
     borderColor: '#e0f2fe',
     shadowColor: '#000',
@@ -112,12 +113,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#0f172a',
-    marginBottom: 10,
+    marginBottom:  Platform.OS === 'ios' ? 20 : 0,
+    // marginTop: 10,
+    marginHorizontal: Platform.OS === 'ios' ? 10 : 0,
+    marginVertical: Platform.OS === 'ios' ? 10 : 0,
   },
   leaveRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    // marginBottom: 7,
+    marginTop: 2,
+    marginHorizontal: Platform.OS === 'ios' ? 10 : 2,
+    marginVertical: Platform.OS === 'ios' ? 10 : 2,
   },
   leaveInfo: {
     fontSize: 13,

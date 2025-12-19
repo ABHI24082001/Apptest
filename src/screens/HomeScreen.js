@@ -36,6 +36,7 @@ import OnLeaveUsers from '../component/OnLeaveUsers';
 import moment from 'moment';
 import LottieView from 'lottie-react-native';
 
+
 // Icons
 const CheckIcon = () => <Text style={styles.icon}>✓</Text>;
 const CameraIcon = () => <Text style={styles.icon}>📷</Text>;
@@ -517,12 +518,13 @@ const HomeScreen = () => {
             await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
           }
         } else {
-          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
+          const rawPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
           if (!(await RNFS.exists(rawPath))) {
-            console.error('Model file not found in bundle');
-            return;
+             await RNFS.copyFileAssets('tiny_model.onnx', rawPath);
+          } else {
+            console.log('❌ iOS model NOT found');
           }
-          modelPath = `file://${rawPath}`;
+          modelPath = rawPath;
         }
 
         const s = await ort.InferenceSession.create(modelPath, {

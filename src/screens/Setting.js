@@ -1,9 +1,8 @@
-// / App.js
+// Setting.js
 import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
-  Button,
   StyleSheet,
   Image,
   TouchableOpacity,
@@ -13,19 +12,25 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
+
 import {InferenceSession, Tensor} from 'onnxruntime-react-native';
 import RNFS from 'react-native-fs';
-import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
-
 import * as ImagePicker from 'react-native-image-picker';
 import {Buffer} from 'buffer';
 import jpeg from 'jpeg-js';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
+import {request, PERMISSIONS} from 'react-native-permissions';
 
-// Constants for face matching
-const INPUT_SIZE = 112;
+/* ================= CONSTANTS ================= */
+
+const INPUT_SIZE = 224;
 const COSINE_THRESHOLD = 0.7;
 const EUCLIDEAN_THRESHOLD = 0.85;
+
+const ANDROID_MODEL = 'mobilefacenet.onnx';
+const IOS_MODEL = 'tiny_model.onnx';
+
+/* ================= COMPONENT ================= */
 
 export default function Setting() {
   const [session, setSession] = useState(null);
@@ -35,567 +40,267 @@ export default function Setting() {
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Load ONNX model
+  /* ================= MODEL LOADER ================= */
+
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        setIsLoading(true);
-        const modelPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
-        const exists = await RNFS.exists(modelPath);
-        if (!exists) {
-          console.log('❌ Model not found at', modelPath);
-          Alert.alert('Error', 'Model file not found in bundle');
-          return;
-        }
-
-        const s = await InferenceSession.create(modelPath);
-        setSession(s);
-        console.log('✅ Model loaded!');
-        console.log('Inputs:', s.inputNames); // e.g., ["input"]
-        console.log('Outputs:', s.outputNames); // e.g., ["output"]
-      } catch (e) {
-        console.log('❌ Failed to create session:', e.message);
-        Alert.alert('Error', `Failed to load model: ${e.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    console.log('🚀 Setting screen mounted');
     loadModel();
   }, []);
 
-  // Normalize embeddings
-  const normalize = vec => {
-    const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
-    if (norm === 0) return vec;
-    const normalized = new Float32Array(vec.length);
-    for (let i = 0; i < vec.length; i++) {
-      normalized[i] = vec[i] / norm;
-    }
-    return normalized;
-  };
-
-  // Preprocess image
-  const preprocessImage = async base64Image => {
+  const loadModel = async () => {
     try {
-      console.log('🔄 Starting image preprocessing...');
-      console.log('📏 Input base64 length:', base64Image.length);
-      
-      const pureBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-      console.log('📏 Pure base64 length:', pureBase64.length);
-      
-      const filePath = `${RNFS.CachesDirectoryPath}/temp_${Date.now()}.jpg`;
-      console.log('📁 Temp file path:', filePath);
-      
-      await RNFS.writeFile(filePath, pureBase64, 'base64');
-      console.log('✅ Temp file written');
+      console.log('📦 Starting ONNX model load...');
+      setIsLoading(true);
 
-      const resized = await ImageResizer.createResizedImage(
-        filePath,
-        INPUT_SIZE,
-        INPUT_SIZE,
-        'JPEG',
-        100,
-        0,
-        null,
-        false,
-        {mode: 'cover', onlyScaleDown: false},
-      );
-      
-      console.log('✅ Image resized:', resized);
+      let modelPath = '';
 
-      const resizedPath = resized.uri.replace('file://', '');
-      const resizedBase64 = await RNFS.readFile(resizedPath, 'base64');
-      console.log('✅ Resized base64 length:', resizedBase64.length);
+      if (Platform.OS === 'android') {
+        console.log('🤖 Platform: ANDROID');
 
-      await RNFS.unlink(filePath);
-      await RNFS.unlink(resizedPath);
-      console.log('✅ Temp files cleaned up');
+        modelPath = `${RNFS.DocumentDirectoryPath}/${ANDROID_MODEL}`;
+        const exists = await RNFS.exists(modelPath);
 
-      return resizedBase64;
-    } catch (err) {
-      console.error('❌ Preprocessing error:', err);
-      return null;
-    }
-  };
+        console.log('🤖 Android model path:', modelPath);
+        console.log('🤖 Exists:', exists);
 
-  // Get embedding
-  const getEmbedding = async base64Image => {
-    try {
-      if (!session) throw new Error('ONNX session not initialized');
-
-      const processedBase64 = await preprocessImage(base64Image);
-      if (!processedBase64) throw new Error('Image preprocessing failed');
-
-      const raw = jpeg.decode(Buffer.from(processedBase64, 'base64'), {
-        useTArray: true,
-        formatAsRGBA: false,
-      });
-
-      if (!raw || !raw.data) throw new Error('JPEG decode failed');
-
-      const mean = [0.5, 0.5, 0.5];
-      const std = [0.5, 0.5, 0.5];
-      const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
-
-      for (let y = 0; y < INPUT_SIZE; y++) {
-        for (let x = 0; x < INPUT_SIZE; x++) {
-          const idx = (y * INPUT_SIZE + x) * 3;
-          const r = (raw.data[idx] / 255.0 - mean[0]) / std[0];
-          const g = (raw.data[idx + 1] / 255.0 - mean[1]) / std[1];
-          const b = (raw.data[idx + 2] / 255.0 - mean[2]) / std[2];
-
-          floatData[y * INPUT_SIZE + x] = r;
-          floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = g;
-          floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = b;
+        if (!exists) {
+          console.log('📥 Copying model from assets...');
+          await RNFS.copyFileAssets(ANDROID_MODEL, modelPath);
+          console.log('✅ Android model copied');
         }
-      }
 
-      const tensor = new Tensor('float32', floatData, [
-        1,
-        3,
-        INPUT_SIZE,
-        INPUT_SIZE,
-      ]);
-      const feeds = {[session.inputNames[0]]: tensor};
-      const results = await session.run(feeds);
+      } else {
+        console.log('🍎 Platform: iOS');
 
-      const embedding = results[session.outputNames[0]].data;
-      return normalize(embedding);
-    } catch (err) {
-      console.error('❌ Embedding error:', err);
-      return null;
-    }
-  };
+        const rawPath = `${RNFS.MainBundlePath}/${IOS_MODEL}`;
 
-  // Cosine similarity
-  const cosineSimilarity = (a, b) => {
-    let dot = 0,
-      normA = 0,
-      normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-    if (normA === 0 || normB === 0) return 0;
-    return Math.max(-1, Math.min(1, dot / (normA * normB)));
-  };
+        console.log('🍎 MainBundlePath:', RNFS.MainBundlePath);
+        console.log('🍎 iOS model path:', rawPath);
 
-  // Euclidean distance
-  const euclideanDistance = (a, b) => {
-    let sum = 0;
-    for (let i = 0; i < a.length; i++) {
-      const diff = a[i] - b[i];
-      sum += diff * diff;
-    }
-    return Math.sqrt(sum);
-  };
+        const exists = await RNFS.exists(rawPath);
+        console.log('🍎 Exists:', exists);
 
-  const pickImage = async setter => {
-    try {
-      console.log('🔄 Starting image picker...');
-      
-      // ✅ iOS: Request photo permission
-      if (Platform.OS === 'ios') {
-        console.log('📱 iOS detected, checking photo permissions...');
-        const result = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
-        console.log('📸 iOS Photo permission result:', result);
-
-        if (result === 'blocked' || result === 'denied') {
-          console.log('❌ Photo permission denied');
+        if (!exists) {
+          console.log('❌ iOS model NOT found');
           Alert.alert(
-            'Permission Required',
-            'Please allow full photo access in Settings → Privacy → Photos to select images.',
+            'iOS Error',
+            'ONNX model not found. Please add it to Copy Bundle Resources.',
           );
           return;
         }
+
+        modelPath = rawPath; // ❗ NO file://
       }
 
-      // ✅ Android: Handle Android 13+ photo permission
-      if (Platform.OS === 'android') {
-        console.log('🤖 Android detected, checking photo permissions...');
-        if (Platform.Version >= 33) {
-          console.log('📱 Android 13+ detected, requesting READ_MEDIA_IMAGES');
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-          );
-
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('❌ READ_MEDIA_IMAGES permission denied');
-            Alert.alert(
-              'Permission Required',
-              'Please allow access to your photos to select an image.',
-            );
-            return;
-          }
-        } else {
-          console.log('📱 Android <13 detected, requesting READ_EXTERNAL_STORAGE');
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-          );
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('❌ READ_EXTERNAL_STORAGE permission denied');
-            Alert.alert(
-              'Permission Required',
-              'Please allow access to your photo library.',
-            );
-            return;
-          }
-        }
-        console.log('✅ Android permissions granted');
-      }
-
-      // ✅ Open image picker with promise-based approach
-      console.log('📂 Opening image library...');
-      
-      const options = {
-        mediaType: 'photo',
-        includeBase64: true,
-        maxWidth: 500,
-        maxHeight: 500,
-        quality: 0.8,
-        selectionLimit: 1,
-      };
-
-      console.log('⚙️ Image picker options:', options);
-
-      // Use promise-based approach instead of callback
-      const result = await new Promise((resolve, reject) => {
-        ImagePicker.launchImageLibrary(options, (response) => {
-          console.log('📷 Image picker response:', {
-            didCancel: response.didCancel,
-            errorCode: response.errorCode,
-            errorMessage: response.errorMessage,
-            assetsLength: response.assets ? response.assets.length : 0
-          });
-
-          if (response.didCancel) {
-            console.log('👤 User cancelled image picker');
-            resolve(null);
-          } else if (response.errorCode) {
-            console.log('❌ ImagePicker Error:', response.errorMessage);
-            reject(new Error(response.errorMessage));
-          } else if (response.assets && response.assets[0]) {
-            console.log('✅ Image selected successfully');
-            console.log('📊 Image details:', {
-              uri: response.assets[0].uri ? 'present' : 'missing',
-              base64: response.assets[0].base64 ? 'present' : 'missing',
-              width: response.assets[0].width,
-              height: response.assets[0].height,
-              fileSize: response.assets[0].fileSize
-            });
-            resolve(response.assets[0]);
-          } else {
-            console.log('❌ No assets in response');
-            reject(new Error('No image data received'));
-          }
-        });
+      console.log('🧠 Creating InferenceSession...');
+      const s = await InferenceSession.create(modelPath, {
+        executionProviders: ['cpu'],
       });
 
-      if (result && result.base64) {
-        const imageUri = `data:image/jpeg;base64,${result.base64}`;
-        console.log('🖼️ Setting image with base64 length:', result.base64.length);
-        setter(imageUri);
-        console.log('✅ Image set successfully');
-      } else if (result) {
-        console.log('❌ No base64 data in result');
-        Alert.alert('Error', 'Failed to get image data');
-      }
-      
-    } catch (err) {
-      console.error('❌ Image picker error:', err);
-      Alert.alert('Error', `Failed to pick image: ${err.message}`);
-    }
-  };
+      console.log('✅ ONNX Model Loaded');
+      console.log('➡️ Input names:', s.inputNames);
+      console.log('➡️ Output names:', s.outputNames);
 
-  // Match faces
-  const matchFaces = async () => {
-    if (!session) {
-      Alert.alert('Error', 'Model not loaded yet');
-      return;
-    }
-    if (!image1 || !image2) {
-      Alert.alert('Error', 'Both images are required for matching');
-      return;
-    }
+      setSession(s);
 
-    setIsProcessing(true);
-    setMatchResult(null);
-
-    try {
-      const [emb1, emb2] = await Promise.all([
-        getEmbedding(image1),
-        getEmbedding(image2),
-      ]);
-
-      if (!emb1 || !emb2) {
-        Alert.alert('Error', 'Failed to generate face embeddings');
-        setIsProcessing(false);
-        return;
-      }
-
-      const similarity = cosineSimilarity(emb1, emb2);
-      const distance = euclideanDistance(emb1, emb2);
-
-      const isMatch =
-        similarity >= COSINE_THRESHOLD && distance <= EUCLIDEAN_THRESHOLD;
-
-      let confidence = 'LOW';
-      if (similarity >= 0.75 && distance <= 0.6) confidence = 'HIGH';
-      else if (similarity >= 0.7 && distance <= 0.7) confidence = 'MEDIUM';
-
-      const result = {isMatch, similarity, distance, confidence};
-      setMatchResult(result);
-
-      console.log('Face matching result:', result);
     } catch (error) {
-      console.error('❌ Matching error:', error);
-      Alert.alert('Error', 'Face matching failed');
+      console.error('❌ Model load failed:', error);
+      Alert.alert('Model Error', error.message);
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
+      console.log('📦 Model load process finished');
     }
   };
 
-  // Run model with sample data (this replaces the missing runModel function)
-  const runImageClassification = async () => {
+  /* ================= IMAGE HELPERS ================= */
+
+  const preprocessImage = async base64 => {
+    console.log('🖼️ Preprocessing image...');
+    const clean = base64.replace(/^data:image\/\w+;base64,/, '');
+    const tempPath = `${RNFS.CachesDirectoryPath}/img_${Date.now()}.jpg`;
+
+    await RNFS.writeFile(tempPath, clean, 'base64');
+
+    const resized = await ImageResizer.createResizedImage(
+      tempPath,
+      INPUT_SIZE,
+      INPUT_SIZE,
+      'JPEG',
+      100,
+    );
+
+    const resizedPath = resized.uri.replace('file://', '');
+    const resizedBase64 = await RNFS.readFile(resizedPath, 'base64');
+
+    await RNFS.unlink(tempPath);
+    await RNFS.unlink(resizedPath);
+
+    console.log('✅ Image resized & normalized');
+    return resizedBase64;
+  };
+
+  const normalize = vec => {
+    const norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
+    return vec.map(v => v / norm);
+  };
+
+  const getEmbedding = async imageBase64 => {
     if (!session) {
-      Alert.alert('Error', 'Model not loaded yet');
+      console.log('❌ Session not ready');
+      return null;
+    }
+
+    console.log('🧬 Generating embedding...');
+    const processed = await preprocessImage(imageBase64);
+
+    const raw = jpeg.decode(Buffer.from(processed, 'base64'), {
+      useTArray: true,
+    });
+
+    const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
+
+    for (let y = 0; y < INPUT_SIZE; y++) {
+      for (let x = 0; x < INPUT_SIZE; x++) {
+        const idx = (y * INPUT_SIZE + x) * 3;
+        floatData[y * INPUT_SIZE + x] = raw.data[idx] / 255;
+        floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
+          raw.data[idx + 1] / 255;
+        floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
+          raw.data[idx + 2] / 255;
+      }
+    }
+
+    const tensor = new Tensor('float32', floatData, [
+      1,
+      3,
+      INPUT_SIZE,
+      INPUT_SIZE,
+    ]);
+
+    console.log('📊 Running inference...');
+    const output = await session.run({
+      [session.inputNames[0]]: tensor,
+    });
+
+    console.log('✅ Inference completed');
+    return normalize(Array.from(output[session.outputNames[0]].data));
+  };
+
+  /* ================= MATCH ================= */
+
+  const cosineSimilarity = (a, b) =>
+    a.reduce((s, v, i) => s + v * b[i], 0);
+
+  const euclideanDistance = (a, b) =>
+    Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
+
+  const matchFaces = async () => {
+    if (!image1 || !image2 || !session) {
+      console.log('❌ Missing images or session');
       return;
     }
 
-    try {
-      // Check your model's input name
-      const inputName = session.inputNames[0];
-      const outputName = session.outputNames[0];
+    console.log('🔍 Matching faces...');
+    setIsProcessing(true);
 
-      // Prepare a dummy input tensor (MobileNetV2 expects [1,3,224,224])
-      const inputShape = [1, 3, 224, 224];
-      const inputData = new Float32Array(
-        inputShape.reduce((a, b) => a * b),
-      ).fill(0.5);
+    const e1 = await getEmbedding(image1);
+    const e2 = await getEmbedding(image2);
 
-      const inputTensor = new Tensor('float32', inputData, inputShape);
-      const feeds = {[inputName]: inputTensor};
+    const similarity = cosineSimilarity(e1, e2);
+    const distance = euclideanDistance(e1, e2);
 
-      console.log('🚀 Running inference...');
-      const results = await session.run(feeds);
-      console.log('🟢 Inference done! Output keys:', Object.keys(results));
+    console.log('📈 Similarity:', similarity);
+    console.log('📏 Distance:', distance);
 
-      const outputTensor = results[outputName];
-      console.log('Output shape:', outputTensor.dims);
-      console.log('Output values (first 10):', outputTensor.data.slice(0, 10));
+    setMatchResult({
+      isMatch:
+        similarity >= COSINE_THRESHOLD &&
+        distance <= EUCLIDEAN_THRESHOLD,
+      similarity,
+      distance,
+    });
 
-      Alert.alert(
-        'Success',
-        'Model ran successfully. Check console for output.',
+    setIsProcessing(false);
+  };
+
+  /* ================= IMAGE PICKER ================= */
+
+  const pickImage = async setter => {
+    console.log('📸 Opening image picker');
+
+    if (Platform.OS === 'ios') {
+      await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+    } else {
+      await PermissionsAndroid.request(
+        Platform.Version >= 33
+          ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+          : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
       );
-    } catch (err) {
-      console.log('❌ Inference error:', err.message);
-      Alert.alert('Error', `Inference failed: ${err.message}`);
+    }
+
+    const result = await ImagePicker.launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+    });
+
+    if (result.assets?.[0]?.base64) {
+      console.log('✅ Image selected');
+      setter(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
+
+  /* ================= UI ================= */
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Face Matching</Text>
 
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <View style={styles.modelStatus}>
-          <Text>Model Status: {session ? '✅ Loaded' : '❌ Not Loaded'}</Text>
-        </View>
-      )}
+      {isLoading && <ActivityIndicator size="large" />}
 
-      <View style={styles.imageContainer}>
-        <View style={styles.imageBox}>
-          <Text style={styles.imageLabel}>Image 1</Text>
-          {image1 ? (
-            <Image source={{uri: image1}} style={styles.image} />
-          ) : (
-            <View style={styles.placeholderImage} />
-          )}
-          <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => pickImage(setImage1)}>
-            <Text style={styles.buttonText}>Select Image 1</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.imageBox}>
-          <Text style={styles.imageLabel}>Image 2</Text>
-          {image2 ? (
-            <Image source={{uri: image2}} style={styles.image} />
-          ) : (
-            <View style={styles.placeholderImage} />
-          )}
-          <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => pickImage(setImage2)}>
-            <Text style={styles.buttonText}>Select Image 2</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.row}>
+        <Image source={{uri: image1}} style={styles.image} />
+        <Image source={{uri: image2}} style={styles.image} />
       </View>
 
+      <TouchableOpacity style={styles.btn} onPress={() => pickImage(setImage1)}>
+        <Text>Select Image 1</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.btn} onPress={() => pickImage(setImage2)}>
+        <Text>Select Image 2</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
-        style={[
-          styles.matchButton,
-          (!image1 || !image2 || isProcessing) && styles.disabledButton,
-        ]}
-        onPress={matchFaces}
-        disabled={!image1 || !image2 || isProcessing}>
-        <Text style={styles.matchButtonText}>
+        style={[styles.btn, styles.matchBtn]}
+        onPress={matchFaces}>
+        <Text style={{color: '#fff'}}>
           {isProcessing ? 'Processing...' : 'Match Faces'}
         </Text>
       </TouchableOpacity>
 
       {matchResult && (
-        <View
-          style={[
-            styles.resultContainer,
-            matchResult.isMatch ? styles.matchSuccess : styles.matchFailure,
-          ]}>
-          <Text style={styles.resultTitle}>
-            {matchResult.isMatch ? '✅ FACE MATCHED' : '❌ FACE NOT MATCHED'}
-          </Text>
-          <Text>Similarity: {matchResult.similarity.toFixed(4)}</Text>
-          <Text>Distance: {matchResult.distance.toFixed(4)}</Text>
-          <Text>Confidence: {matchResult.confidence}</Text>
-        </View>
+        <Text style={styles.result}>
+          {matchResult.isMatch ? '✅ MATCH' : '❌ NO MATCH'}
+        </Text>
       )}
-
-      <View style={styles.divider} />
-
-      <Text style={styles.subtitle}>Run Image Classification</Text>
-      <TouchableOpacity
-        style={styles.classifyButton}
-        onPress={runImageClassification}
-        disabled={!session}>
-        <Text style={styles.buttonText}>Run Classification</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // padding: 30,
-    paddingTop: 70,
-    backgroundColor: '#f5f5f5',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 60,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modelStatus: {
-    backgroundColor: '#e0e0e0',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  imageContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  imageBox: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  imageLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  image: {
-    width: 150,
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  placeholderImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 10,
+  container: {flex: 1, padding: 20},
+  title: {fontSize: 22, textAlign: 'center', marginBottom: 20},
+  row: {flexDirection: 'row', justifyContent: 'space-around'},
+  image: {width: 140, height: 140, backgroundColor: '#ccc'},
+  btn: {
+    marginTop: 15,
+    padding: 12,
     backgroundColor: '#ddd',
-    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 6,
   },
-  selectButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-    width: '80%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  matchButton: {
-    backgroundColor: '#2ecc71',
-    paddingVertical: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  disabledButton: {
-    backgroundColor: '#95a5a6',
-  },
-  matchButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  resultContainer: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  resultTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  matchSuccess: {
-    backgroundColor: '#d4edda',
-    borderColor: '#28a745',
-    borderWidth: 1,
-  },
-  matchFailure: {
-    backgroundColor: '#f8d7da',
-    borderColor: '#dc3545',
-    borderWidth: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#ddd',
-    marginVertical: 20,
-  },
-  classifyButton: {
-    backgroundColor: '#9b59b6',
-    paddingVertical: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+  matchBtn: {backgroundColor: '#2ecc71'},
+  result: {marginTop: 20, fontSize: 18, textAlign: 'center'},
 });

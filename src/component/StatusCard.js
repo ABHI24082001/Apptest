@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, Platform} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Card, Avatar, Button, Chip, Divider } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -109,7 +109,7 @@ const StatusCard = ({
   return (
     <Card style={styles.card}>
       <LinearGradient
-        colors={['#5252e0ff', '#A7BFE8']}
+        colors={['#5f94f0ff', '#5f94f0ff']}
         style={styles.headerGradient}
         start={{x: 1, y: 0}}
         end={{x: 1, y: 0}}
@@ -201,12 +201,13 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderTopLeftRadius: Platform.OS === 'ios' ? 8 : 16,
     borderTopRightRadius: Platform.OS === 'ios' ? 8 : 16,
-    padding: Platform.OS === 'ios' ? 5 : 16,
+    padding: Platform.OS === 'ios' ? 10 : 16,
     // marginBottom: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 15 : 8,
   },
   avatar: {
     marginRight: 12,

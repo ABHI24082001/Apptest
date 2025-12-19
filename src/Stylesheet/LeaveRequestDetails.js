@@ -88,6 +88,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  detailReasonLeave: {
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   detailIcon: {
     marginRight: 6,
   },
