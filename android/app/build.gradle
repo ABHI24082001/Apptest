@@ -106,11 +106,11 @@ android {
         keyPassword 'android'
     }
     release {
-        storeFile file('your-key.keystore')
-        storePassword 'theanantagroup#'
-        keyAlias 'your-key-alias'
-        keyPassword 'theanantagroup#'
-    }
+    storeFile file('hrms-release.keystore')
+    storePassword 'theanantagroup#'
+    keyAlias 'hrms-key'
+    keyPassword 'theanantagroup#'
+}
 }
 
     buildTypes {
