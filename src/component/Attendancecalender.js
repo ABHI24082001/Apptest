@@ -81,19 +81,9 @@ export default function MonthCalendarWithAgenda({
         ToDate: currentMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
       };
 
-      // Check if we need next month data (for +1 logic)
-      const nextMonth = currentMonth.clone().add(1, 'month');
-      const nextMonthRequestData = {
-        ...requestData,
-        Month: nextMonth.month() + 1,
-        Year: nextMonth.year(),
-        FromDate: nextMonth.startOf('month').format('YYYY-MM-DDT00:00:00'),
-        ToDate: nextMonth.endOf('month').format('YYYY-MM-DDT00:00:00'),
-      };
-debugger;
- console.log('Request Data:', requestData, 'Next Month Request Data:', nextMonthRequestData);      
+      console.log('Request Data:', requestData);
 
-      const [response, shiftResponse, nextMonthShiftResponse] = await Promise.all([
+      const [response, shiftResponse] = await Promise.all([
         axiosInstance.post(
           `${BASE_URL}/BiomatricAttendance/GetCalendorForSingleEmployee`,
           requestData,
@@ -102,17 +92,19 @@ debugger;
           `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
           requestData,
         ),
-        axiosInstance.post(
-          `${BASE_URL}/Shift/GetAttendanceDataForSingleEmployeebyshiftwiseForeachDay`,
-          nextMonthRequestData,
-        ),
       ]);
 
-      console.log('📅 Attendance data=============== fetched:', response.data, "sjhdsjsd", shiftResponse,  " jhlacsiubfswdioub;feqwibj;feqwkbjcqwbjkacskabjcs" ,nextMonthShiftResponse);
-      
+      console.log(
+        '📅 Attendance data=============== fetched:',
+        response.data,
+        'shift data',
+        shiftResponse,
+      );
+      console.log('📅 Shift data fetched:', shiftResponse.data);
+
       // Process shift data into a map keyed by date
       const shiftMap = {};
-debugger;   
+
       // Process current month shift data
       shiftResponse.data.forEach(shift => {
         const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
@@ -121,29 +113,11 @@ debugger;
           shiftStartTime: moment(shift.shiftStartTime).format('HH:mm'),
           shiftEndTime: moment(shift.shiftEndTime).format('HH:mm'),
           halfDayStartTime: moment(shift.halfDayStartTime).format('HH:mm'),
-          halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
+          halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),
           loginTime: shift.loginTime,
           logoutTime: shift.logoutTime,
-          isNextMonth: false,
           holidayName: shift.holidayName,
-          leaveName: shift.leaveName
-        };
-      });
-
-      // Process next month shift data
-      nextMonthShiftResponse.data.forEach(shift => {
-        const date = moment(shift.date, 'DD MMM YYYY').format('YYYY-MM-DD');
-        shiftMap[date] = {
-          shiftName: shift.shiftName,
-          shiftStartTime: moment(shift.shiftStartTime).format('HH:mm'),
-          shiftEndTime: moment(shift.shiftEndTime).format('HH:mm'),
-          halfDayStartTime: moment(shift.halfDayStartTime).format('HH:mm'),
-          halfDayEndTime: moment(shift.halfDayEndTime).format('HH:mm'),  
-          loginTime: shift.loginTime,
-          logoutTime: shift.logoutTime,
-          isNextMonth: true,
-          holidayName: shift.holidayName,
-          leaveName: shift.leaveName
+          leaveName: shift.leaveName,
         };
       });
 
@@ -161,6 +135,22 @@ debugger;
   }, [fetchAttendanceData]);
 
   // Recompute daysInMonth when currentMonth changes
+  // useEffect(() => {
+  //   const start = currentMonth.clone().startOf('month');
+  //   const end = currentMonth.clone().endOf('month');
+  //   const days = [];
+  //   for (let m = start.clone(); m.isSameOrBefore(end, 'day'); m.add(1, 'day')) {
+  //     days.push({key: m.format('YYYY-MM-DD'), date: m.clone()});
+  //   }
+  //   setDaysInMonth(days);
+
+  //   // If selectedDate is not in current month, reset it
+  //   if (!moment(selectedDate).isSame(currentMonth, 'month')) {
+  //     const firstOfMonth = currentMonth.format('YYYY-MM-DD');
+  //     setSelectedDate(firstOfMonth);
+  //     onDateChange(firstOfMonth);
+  //   }
+  // }, [currentMonth]);
   useEffect(() => {
     const start = currentMonth.clone().startOf('month');
     const end = currentMonth.clone().endOf('month');
@@ -230,45 +220,190 @@ debugger;
   };
 
   // Compute month events from attendanceData (memoized)
+  // const monthEvents = useMemo(() => {
+  //   const events = {};
+  //   if (
+  //     !attendanceData ||
+  //     !attendanceData.calendarModels ||
+  //     !attendanceData.calendarModels[0]
+  //   )
+  //     return events;
+
+  //   const attendance = attendanceData.calendarModels[0]; // single employee model
+  //   const holidays = attendanceData.holidays || [];
+
+  //   const start = currentMonth.clone().startOf('month');
+  //   const end = currentMonth.clone().endOf('month');
+
+  //   for (
+  //     let date = start.clone();
+  //     date.isSameOrBefore(end);
+  //     date.add(1, 'day')
+  //   ) {
+  //     const dateStr = date.format('YYYY-MM-DD');
+  //     const dayOfMonth = parseInt(date.format('D'), 10);
+  //     const evts = [];
+
+  //     // weekend detection (Sat/Sun) -> mark week-off
+  //     const isWeekend = date.day() === 0 || date.day() === 7;
+  //     if (isWeekend) {
+  //       evts.push({
+  //         id: `week-off-${dateStr}`,
+  //         type: 'week-off',
+  //         name: 'Week Off',
+  //         color: leaveColors['week-off'].color,
+  //         icon: leaveColors['week-off'].icon,
+  //       });
+  //       events[dateStr] = evts;
+  //       continue;
+  //     }
+
+  //     // API holidays array uses 'day' to indicate day-of-month in your example
+  //     const holidayObj = holidays.find(h => Number(h.day) === dayOfMonth);
+  //     if (holidayObj) {
+  //       const normalized = normalizeLeaveName(holidayObj.leaveName);
+  //       const leaveStyle = leaveColors[normalized] || leaveColors['holiday'];
+
+  //       evts.push({
+  //         id: `${normalized}-${dateStr}`,
+  //         type: normalized,
+  //         name: holidayObj.leaveName || leaveStyle.label || 'Holiday',
+  //         color: leaveStyle.color,
+  //         icon: leaveStyle.icon,
+  //       });
+  //       events[dateStr] = evts;
+  //       continue;
+  //     }
+
+  //     // Attendance keys in API use "oneLogIn", "oneLogOut", "twoLogIn", ... so build keys
+  //     const loginKey = `${getDayText(dayOfMonth)}LogIn`;
+  //     const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
+
+  //     // If both login & logout present -> present
+  //     if (attendance[loginKey] && attendance[logoutKey]) {
+  //       evts.push({
+  //         id: `present-${dateStr}`,
+  //         type: 'present',
+  //         name: 'Present',
+  //         time: `${attendance[loginKey]} - ${attendance[logoutKey]}`,
+  //       });
+  //     } else {
+  //       // If not holiday/weekend and no login/logout -> absent
+  //       evts.push({
+  //         id: `absent-${dateStr}`,
+  //         type: 'absent',
+  //         name: 'Absent',
+  //       });
+  //     }
+
+  //     events[dateStr] = evts;
+  //   }
+
+  //   return events;
+  // }, [attendanceData, currentMonth]);
+  // const monthEvents = useMemo(() => {
+  //   const events = {};
+  //    const attendance = attendanceData?.calendarModels?.[0] || {}; // <--- define here
+  //   const start = moment(currentMonth).startOf('month');
+  //   const end = moment(currentMonth).endOf('month');
+
+  //   for (
+  //     let date = start.clone();
+  //     date.isSameOrBefore(end);
+  //     date.add(1, 'day')
+  //   ) {
+  //     const dateStr = date.format('YYYY-MM-DD');
+  //     const evts = [];
+
+  //     const loginKey = `login_${dateStr}`;
+  //     const logoutKey = `logout_${dateStr}`;
+
+  //     const dayShift = shiftData?.[dateStr];
+  //     const isFuture = date.isAfter(moment(), 'day');
+  //     const isPast = date.isBefore(moment(), 'day');
+
+  //     /* ---------------- HOLIDAY ---------------- */
+  //     if (dayShift?.holidayName) {
+  //       evts.push({
+  //         id: `holiday-${dateStr}`,
+  //         type: 'holiday',
+  //         name: dayShift.holidayName,
+  //       });
+  //     }
+
+  //     /* ---------------- LEAVE ---------------- */
+  //     if (dayShift?.leaveName) {
+  //       evts.push({
+  //         id: `leave-${dateStr}`,
+  //         type: 'leave',
+  //         name: dayShift.leaveName,
+  //       });
+  //     }
+
+  //     /* ---------------- PRESENT ---------------- */
+  //     if (attendance?.[loginKey] && attendance?.[logoutKey]) {
+  //       evts.push({
+  //         id: `present-${dateStr}`,
+  //         type: 'present',
+  //         name: 'Present',
+  //         loginTime: attendance[loginKey],
+  //         logoutTime: attendance[logoutKey],
+  //       });
+  //     }
+
+  //     /* ---------------- FUTURE SHIFT ---------------- */
+  //     else if (isFuture && dayShift) {
+  //       evts.push({
+  //         id: `shift-${dateStr}`,
+  //         type: 'shift',
+  //         name: 'Shift Scheduled',
+  //         shiftName: dayShift.shiftName,
+  //         shiftTime: `${dayShift.shiftStartTime} - ${dayShift.shiftEndTime}`,
+  //       });
+  //     }
+
+  //     /* ---------------- ABSENT (PAST ONLY) ---------------- */
+  //     else if (isPast && dayShift) {
+  //       evts.push({
+  //         id: `absent-${dateStr}`,
+  //         type: 'absent',
+  //         name: 'Absent',
+  //       });
+  //     }
+
+  //     if (evts.length > 0) {
+  //       events[dateStr] = evts;
+  //     }
+  //   }
+
+  //   return events;
+  // }, [currentMonth, shiftData, attendanceData]);
+
   const monthEvents = useMemo(() => {
     const events = {};
-    if (
-      !attendanceData ||
-      !attendanceData.calendarModels ||
-      !attendanceData.calendarModels[0]
-    )
-      return events;
+    const attendance = attendanceData?.calendarModels?.[0] || {}; // single employee attendance
+    const holidays = attendanceData?.holidays || []; // holidays from API
 
-    const attendance = attendanceData.calendarModels[0]; // single employee model
-    const holidays = attendanceData.holidays || [];
-
+    console.log(
+      attendance,
+      'attendanceData?.calendarModels?.[0====================================]',
+    );
     const start = currentMonth.clone().startOf('month');
-    const end = currentMonth.clone().endOf('month');
 
-    for (
-      let date = start.clone();
-      date.isSameOrBefore(end);
-      date.add(1, 'day')
-    ) {
+    console.log(start, 'month=======lllllfnfjajjjbjfbdbfobofdbobofbf');
+    const end = currentMonth.clone().endOf('month');
+    console.log(end, 'month=======lllllfnfjajjjbjfbdbfobofdbobofbf');
+
+    for (let date = start.clone(); date.isSameOrBefore(end, 'day'); date.add(1, 'day')) {
       const dateStr = date.format('YYYY-MM-DD');
-      const dayOfMonth = parseInt(date.format('D'), 10);
+      const dayOfMonth = parseInt(date.format('D'), 10); // 1..31
       const evts = [];
 
-      // weekend detection (Sat/Sun) -> mark week-off
-      const isWeekend = date.day() === 0 || date.day() === 7;
-      if (isWeekend) {
-        evts.push({
-          id: `week-off-${dateStr}`,
-          type: 'week-off',
-          name: 'Week Off',
-          color: leaveColors['week-off'].color,
-          icon: leaveColors['week-off'].icon,
-        });
-        events[dateStr] = evts;
-        continue;
-      }
+      // shift info for the day
+      const dayShift = shiftData?.[dateStr];
+      const isFuture = date.isAfter(moment(), 'day');
 
-      // API holidays array uses 'day' to indicate day-of-month in your example
+      // Check for holidays from API
       const holidayObj = holidays.find(h => Number(h.day) === dayOfMonth);
       if (holidayObj) {
         const normalized = normalizeLeaveName(holidayObj.leaveName);
@@ -285,32 +420,89 @@ debugger;
         continue;
       }
 
-      // Attendance keys in API use "oneLogIn", "oneLogOut", "twoLogIn", ... so build keys
+      /* ---------------- LEAVE ---------------- */
+      if (dayShift?.leaveName) {
+        evts.push({
+          id: `leave-${dateStr}`,
+          type: 'leave',
+          name: dayShift.leaveName,
+        });
+        events[dateStr] = evts;
+        continue;
+      }
+
+      /* ---------------- ATTENDANCE (PRESENT/ABSENT) ---------------- */
       const loginKey = `${getDayText(dayOfMonth)}LogIn`;
       const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
+      const loginTime = attendance[loginKey];
+      const logoutTime = attendance[logoutKey];
 
-      // If both login & logout present -> present
-      if (attendance[loginKey] && attendance[logoutKey]) {
+      if (loginTime && logoutTime) {
+        // Calculate working hours
+        const checkIn = moment(loginTime, 'HH:mm:ss');
+        const checkOut = moment(logoutTime, 'HH:mm:ss');
+        const workingHours = moment.duration(checkOut.diff(checkIn)).asHours();
+
+        // Calculate required hours from shift
+        let requiredHours = 8; // default
+        if (dayShift) {
+          const shiftStart = moment(dayShift.shiftStartTime, 'HH:mm');
+          const shiftEnd = moment(dayShift.shiftEndTime, 'HH:mm');
+          requiredHours = moment.duration(shiftEnd.diff(shiftStart)).asHours();
+        }
+
+        // Determine if full day or half day (80% threshold)
+        const completionPercentage = (workingHours / requiredHours) * 100;
+        const isFullDay = completionPercentage >= 80;
+
         evts.push({
           id: `present-${dateStr}`,
           type: 'present',
           name: 'Present',
-          time: `${attendance[loginKey]} - ${attendance[logoutKey]}`,
+          loginTime: loginTime,
+          logoutTime: logoutTime,
+          workingHours: workingHours,
+          requiredHours: requiredHours,
+          workingType: isFullDay ? 'Full Day' : 'Half Day',
+          time: `${loginTime} - ${logoutTime}`, // for backward compatibility
         });
-      } else {
-        // If not holiday/weekend and no login/logout -> absent
+      } else if (loginTime && !logoutTime) {
+        // Only login, no logout - partial attendance
+        evts.push({
+          id: `partial-${dateStr}`,
+          type: 'present',
+          name: 'Partial',
+          loginTime: loginTime,
+          logoutTime: null,
+          workingHours: 0,
+          workingType: 'Incomplete',
+          time: loginTime,
+        });
+      } else if (!isFuture) {
+        // past day with no attendance → absent
         evts.push({
           id: `absent-${dateStr}`,
           type: 'absent',
           name: 'Absent',
         });
+      } else if (isFuture && dayShift) {
+        // future day with shift → upcoming shift
+        evts.push({
+          id: `shift-${dateStr}`,
+          type: 'shift',
+          name: 'Shift Scheduled',
+          shiftName: dayShift.shiftName,
+          shiftTime: `${dayShift.shiftStartTime} - ${dayShift.shiftEndTime}`,
+        });
       }
 
-      events[dateStr] = evts;
+      if (evts.length > 0) {
+        events[dateStr] = evts;
+      }
     }
 
     return events;
-  }, [attendanceData, currentMonth]);
+  }, [currentMonth, attendanceData, shiftData]);
 
   // Derived agenda for the selected date
   const agendaItems = monthEvents[selectedDate] || [];
@@ -321,9 +513,6 @@ debugger;
   const goMonth = dir => {
     setCurrentMonth(cm => cm.clone().add(dir === 'prev' ? -1 : 1, 'month'));
   };
-
-
- 
 
   // When daysInMonth changes, try to scroll FlatList to today's date index safely
   useEffect(() => {
@@ -450,27 +639,16 @@ debugger;
     </View>
   );
 
-  // Helper function to get shift name with +1 logic
-  const getShiftNameDisplay = (dayShift, dateKey) => {
-    if (!dayShift) return "General";
-    
+  // Helper function to get shift name without +1 logic
+  const getShiftNameDisplay = dayShift => {
+    if (!dayShift) return 'General';
+
     // Handle case where shiftName is "--" or empty
     let shiftName = dayShift.shiftName;
-    if (!shiftName || shiftName === "--" || shiftName.trim() === "") {
-      shiftName = "General";
+    if (!shiftName || shiftName === '--' || shiftName.trim() === '') {
+      shiftName = 'General';
     }
-    
-    const selectedMoment = moment(dateKey);
-    const currentMonthStart = currentMonth.startOf('month');
-    
-    // Check if the selected date is in the next month
-    const isNextMonth = selectedMoment.isAfter(currentMonth.endOf('month'));
-    
-    // If shift data indicates it's from next month or date is in next month, show +1
-    if (dayShift.isNextMonth || isNextMonth) {
-      return `${shiftName} +1`;
-    }
-    
+
     return shiftName;
   };
 
@@ -479,19 +657,15 @@ debugger;
     ({item: evt, showDate = false}) => {
       const dateKey = showDate ? evt.date : selectedDate;
       const dayShift = shiftData[dateKey];
-      const times = evt.time ? String(evt.time).split(' - ') : [];
 
-      const requiredHours = dayShift ? (() => {
+      // Use the calculated data from monthEvents
+      const workingHours = evt.workingHours || 0;
+      const requiredHours = evt.requiredHours || (dayShift ? (() => {
         const start = moment(dayShift.shiftStartTime, 'HH:mm');
         const end = moment(dayShift.shiftEndTime, 'HH:mm');
         return moment.duration(end.diff(start)).asHours();
-      })() : 0;
-
-      const workingHours = times.length === 2 ? (() => {
-        const checkIn = moment(times[0], 'HH:mm:ss');
-        const checkOut = moment(times[1], 'HH:mm:ss');
-        return moment.duration(checkOut.diff(checkIn)).asHours();
-      })() : 0;
+      })() : 8);
+      const workingType = evt.workingType || 'N/A';
 
       // Helper function to convert decimal hours to HH:MM format
       const formatHoursToHHMM = (decimalHours) => {
@@ -539,19 +713,6 @@ debugger;
         }
       };
 
-      // Determine working type based on hours worked vs required
-      const getWorkingType = () => {
-        if (!dayShift || times.length < 2 || requiredHours <= 0) {
-          return 'N/A';
-        }
-        
-        const completionPercentage = (workingHours / requiredHours) * 100;
-        const FULL_DAY_THRESHOLD = 80; // 80% threshold for full day
-        
-        return completionPercentage >= FULL_DAY_THRESHOLD ? 'Full Day' : 'Half Day';
-      };
-
-      const workingType = getWorkingType();
       const shiftTimeDisplay = getShiftTimeDisplay();
 
       return (
@@ -563,8 +724,11 @@ debugger;
           )}
 
           <View style={styles.statusRow}>
-            <MaterialIcons name="radio-button-checked" size={16} 
-              color={evt.type === 'present' ? '#4CAF50' : '#FF5252'} />
+            <MaterialIcons
+              name="radio-button-checked"
+              size={16}
+              color={evt.type === 'present' ? '#4CAF50' : '#FF5252'}
+            />
             <Text style={styles.statusText}>
               {evt.name || leaveColors[evt.type]?.label || evt.type}
             </Text>
@@ -572,94 +736,94 @@ debugger;
 
           {dayShift && (
             <View style={styles.infoGrid}>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="schedule" size={16} color="#666" />
-                <Text style={styles.infoLabel}>Shift</Text>
-                <Text style={styles.infoValue}>{getShiftNameDisplay(dayShift, dateKey)}</Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <MaterialIcons name="access-time" size={16} color="#666" />
-                <Text style={styles.infoLabel}>Time</Text>
-                <Text style={styles.infoValue}>
-                  {shiftTimeDisplay.startTime} - {shiftTimeDisplay.endTime}
-                  {shiftTimeDisplay.isHalfDay && (    
-                    <Text style={styles.halfDayIndicator}> (Half Day)</Text>
-                  )}
-                </Text>
-              </View>
-
-              {/* Show holiday or leave info if available */}
+              {/* Note: Holiday or leave info */}
               {(dayShift.holidayName || dayShift.leaveName) && (
                 <View style={styles.infoRow}>
                   <MaterialIcons name="info" size={16} color="#FF9800" />
                   <Text style={styles.infoLabel}>Note</Text>
                   <Text style={styles.infoValue}>
-                    {dayShift.holidayName || dayShift.leaveName || 'N/A'}
+                    {normalizeLeaveName(dayShift.leaveName) || dayShift.holidayName || 'N/A'}
                   </Text>
                 </View>
               )}
 
-              {times.length >= 2 && (
-                <>
-                  <View style={styles.infoRow}>
-                    <MaterialIcons name="login" size={16} color="#666" />
-                    <Text style={styles.infoLabel}>Check In-Out</Text>
-                    <Text style={styles.infoValue}>
-                      {formatTimeToHHMM(times[0])} - {formatTimeToHHMM(times[1])}
-                    </Text>
-                  </View>
+              {/* Shift Name */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="schedule" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Shift</Text>
+                <Text style={styles.infoValue}>
+                  {getShiftNameDisplay(dayShift)}
+                </Text>
+              </View>
 
-                  <View style={styles.infoRow}>
-                    <MaterialIcons name="timer" size={16} color="#666" />
-                    <Text style={styles.infoLabel}>Working </Text>
-                    <Text style={[styles.infoValue]}>
-                      {formatHoursToHHMM(workingHours) || '00:00'} hrs
-                    </Text>
-                  </View>
+              {/* Shift Time */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="access-time" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Time</Text>
+                <Text style={styles.infoValue}>
+                  {shiftTimeDisplay.startTime} - {shiftTimeDisplay.endTime}
+                  {shiftTimeDisplay.isHalfDay && (
+                    <Text style={styles.halfDayIndicator}> (Half Day)</Text>
+                  )}
+                </Text>
+              </View>
 
-                  <View style={styles.infoRow}>
-                    <MaterialIcons name="work" size={16} color="#666" />
-                    <Text style={styles.infoLabel}>Working Type</Text>
-                    <Text style={[
-                      styles.infoValue,
-                      workingType === 'Full Day' ? styles.fullDayText : styles.halfDayText
-                    ]}>
-                      {workingType}
-                    </Text>
-                  </View>
+              {/* Check-In / Check-Out */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="login" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Check In-Out</Text>
+                <Text style={styles.infoValue}>
+                  {evt.loginTime && evt.logoutTime
+                    ? `${formatTimeToHHMM(evt.loginTime)} - ${formatTimeToHHMM(evt.logoutTime)}`
+                    : evt.loginTime 
+                      ? `${formatTimeToHHMM(evt.loginTime)} - Pending`
+                      : 'N/A'}
+                </Text>
+              </View>
 
-                  <View style={styles.infoRow}>
-                    <MaterialIcons name="timer" size={16} color="#666" />
-                    <Text style={styles.infoLabel}>Required</Text>
-                    <Text style={[styles.infoValue]}>
-                      {shiftTimeDisplay.startTime !== 'N/A' ? formatHoursToHHMM(requiredHours) || '00:00' : 'N/A'} hrs
-                    </Text>
-                  </View>
-                </>
-              )}
+              {/* Working Hours */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="timer" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Working</Text>
+                <Text style={styles.infoValue}>
+                  {formatHoursToHHMM(workingHours)} hrs
+                </Text>
+              </View>
 
-              {/* Show message when no attendance data available */}
-              {times.length < 2 && (
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="info-outline" size={16} color="#999" />
-                  <Text style={styles.infoLabel}>Status</Text>
-                  <Text style={[styles.infoValue, {color: '#999'}]}>
-                    No attendance data available
-                  </Text>
-                </View>
-              )}
+              {/* Working Type */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="work" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Working Type</Text>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    workingType === 'Full Day' ? styles.fullDayText : 
+                    workingType === 'Half Day' ? styles.halfDayText : styles.infoValue,
+                  ]}>
+                  {workingType}
+                </Text>
+              </View>
+
+              {/* Required Hours */}
+              <View style={styles.infoRow}>
+                <MaterialIcons name="timer" size={16} color="#666" />
+                <Text style={styles.infoLabel}>Required</Text>
+                <Text style={styles.infoValue}>
+                  {formatHoursToHHMM(requiredHours)} hrs
+                </Text>
+              </View>
             </View>
           )}
         </View>
       );
     },
-    [eventTypes, leaveColors, shiftData, selectedDate, currentMonth, getShiftNameDisplay]
+    [eventTypes, leaveColors, shiftData, selectedDate, getShiftNameDisplay],
   );
 
   // Combined agenda/list view
   const renderEvents = () => {
-    const data = viewMode === 'list' ? getAllMonthEvents : monthEvents[selectedDate] || [];
+    const data =
+      viewMode === 'list' ? getAllMonthEvents : monthEvents[selectedDate] || [];
 
     return (
       <View style={styles.eventsContainer}>
@@ -670,7 +834,9 @@ debugger;
         )}
         <FlatList
           data={data}
-          renderItem={props => renderEvent({ ...props, showDate: viewMode === 'list' })}
+          renderItem={props =>
+            renderEvent({...props, showDate: viewMode === 'list'})
+          }
           keyExtractor={item => item.id}
           contentContainerStyle={styles.eventsListContainer}
           ListEmptyComponent={() => (
@@ -699,6 +865,14 @@ debugger;
     });
     return allEvents.sort((a, b) => moment(a.date).diff(moment(b.date)));
   }, [monthEvents]);
+
+  console.log(
+    'Selected Date:=====================',
+    selectedDate,
+    'Shift Exists:',
+    shiftData[selectedDate],
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
@@ -892,7 +1066,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#E0E0E0',
   },
-  
+
   dateHeader: {
     fontSize: 12,
     color: '#666',
