@@ -25,6 +25,7 @@ import {useAppDispatch, useAppSelector} from '../hooks/redux';
 import {
   fetchPayslips,
   fetchEmployeeData,
+  fetchEmployeePayslipDetail,
   setFromDate,
   setToDate,
   setShowFromPicker,
@@ -45,8 +46,6 @@ import PDFViewer from '../component/Payslipcomponent';
 import {useAuth} from '../constants/AuthContext';
 import CustomHeader from '../component/CustomHeader';
 import ScrollAwareContainer from '../component/ScrollAwareContainer';
-
-const STATIC_LOGO_URL = 'https://hcmv2.anantatek.com/assets/UploadImg/logo.png';
 
 const MyPaySlip = () => {
   const navigation = useNavigation();
@@ -72,7 +71,21 @@ const MyPaySlip = () => {
     pdfError,
     imageUrl,
     refreshing,
+    payslipDetails,
   } = useAppSelector(state => state.payslip);
+
+  // Default fallback logo
+  const DEFAULT_LOGO = 'https://hcmv2.anantatek.com/assets/UploadImg/02012026104100.jpg';
+
+  // Console log the detailed payslip data
+  useEffect(() => {
+    console.log('📦 Payslip Details:', payslipDetails);
+    console.log('📊 Number of payslips with details:', Object.keys(payslipDetails).length);
+    
+    Object.entries(payslipDetails).forEach(([id, data]) => {
+      console.log(`✅ Payslip ID ${id} - Logo Path:`, data?.logoPath);
+    });
+  }, [payslipDetails]);
 
   // Format date for display
   const formatDate = date => {
@@ -89,16 +102,6 @@ const MyPaySlip = () => {
       dispatch(fetchEmployeeData(user.id));
     }
   }, [dispatch, user?.id]);
-
-  // Set image URL when user data changes
-  useEffect(() => {
-    if (user?.empImage) {
-      const staticImageUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${user.empImage}`;
-      dispatch(setImageUrl(staticImageUrl));
-    } else {
-      dispatch(setImageUrl(null));
-    }
-  }, [dispatch, user?.empImage]);
 
   // Fetch payslips when dates or employee details change
   useEffect(() => {
@@ -149,13 +152,61 @@ const MyPaySlip = () => {
     dispatch(setToDate(date));
   };
 
-  // PDF generation function (moved from original component)
+  const getImageBase64FromUrl = async imageUrl => {
+    try {
+      const downloadPath = `${RNFS.CachesDirectoryPath}/logo.jpg`;
+
+      // Step 1: Download image
+      await RNFS.downloadFile({
+        fromUrl: imageUrl,
+        toFile: downloadPath,
+      }).promise;
+
+      // Step 2: Convert to base64
+      const base64 = await RNFS.readFile(downloadPath, 'base64');
+
+      return `data:image/jpeg;base64,${base64}`;
+    } catch (error) {
+      console.log('Image base64 error:', error);
+      return null;
+    }
+  };
+
+  // Helper function to get logo URL for a specific payslip
+  const getLogoUrl = (payslipId) => {
+    const details = payslipDetails[payslipId];
+    if (details?.logoPath) {
+      const logoUrl = `https://hcmv2.anantatek.com/assets/UploadImg/${details.logoPath}`;
+      console.log('🖼️ Generated Logo URL:', logoUrl);
+      return logoUrl;
+    }
+    console.log('⚠️ No logo path found, using default logo');
+    return DEFAULT_LOGO;
+  };
+
+  // PDF generation function
   const generatePayslipPDF = async payslipData => {
     try {
+      console.log('📄 Generating PDF for Payslip ID:', payslipData.id);
+      
+      // Get logo URL for this specific payslip
+      const logoUrl = getLogoUrl(payslipData.id);
+      console.log('🖼️ Using Logo URL:', logoUrl);
+
+      // Convert logo to base64
+      const logoBase64 = await getImageBase64FromUrl(logoUrl);
+      console.log('✅ Logo Base64 conversion:', logoBase64 ? 'Success' : 'Failed');
+
       const formatCurrency = value => {
         if (isNaN(parseFloat(value))) return '₹0.00';
         return `₹${parseFloat(value).toFixed(2)}`;
       };
+
+      // Get company details from payslipDetails
+      const currentPayslipDetails = payslipDetails[payslipData.id];
+      const companyName = currentPayslipDetails?.companyName || 'Honey and Heath Trading';
+      const companyAddress = currentPayslipDetails?.companyAddress || 
+        'Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum, New Delhi, 456123';
 
       const formattedData = {
         empId: payslipData.employeeCodeNo || 'N/A',
@@ -269,48 +320,6 @@ const MyPaySlip = () => {
       const earningsHtml = generateRows(formattedData.earnings);
       const deductionsHtml = generateRows(formattedData.deductions);
 
-      // Get user profile image
-      let userImageBase64 = '';
-      if (imageUrl) {
-        try {
-          const userImageResult = await RNFS.downloadFile({
-            fromUrl: imageUrl,
-            toFile: `${RNFS.TemporaryDirectoryPath}/user_image.png`,
-          }).promise;
-
-          if (userImageResult.statusCode === 200) {
-            const userImageData = await RNFS.readFile(
-              `${RNFS.TemporaryDirectoryPath}/user_image.png`,
-              'base64',
-            );
-            userImageBase64 = `data:image/png;base64,${userImageData}`;
-            await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/user_image.png`);
-          }
-        } catch (userImageError) {
-          console.warn('Could not load user image:', userImageError);
-        }
-      }
-
-      // Get company logo
-      let logoBase64 = '';
-      try {
-        const downloadResult = await RNFS.downloadFile({
-          fromUrl: STATIC_LOGO_URL,
-          toFile: `${RNFS.TemporaryDirectoryPath}/company_logo.png`,
-        }).promise;
-
-        if (downloadResult.statusCode === 200) {
-          const logoBase64Data = await RNFS.readFile(
-            `${RNFS.TemporaryDirectoryPath}/company_logo.png`,
-            'base64',
-          );
-          logoBase64 = `data:image/png;base64,${logoBase64Data}`;
-          await RNFS.unlink(`${RNFS.TemporaryDirectoryPath}/company_logo.png`);
-        }
-      } catch (logoError) {
-        console.warn('Could not load company logo:', logoError);
-      }
-
       const dynamicHtml = `
 <!DOCTYPE html>
 <html>
@@ -335,7 +344,24 @@ const MyPaySlip = () => {
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
     .company-info h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
     .company-info p { color: #666; font-size: 12px; }
-    .logo { width: 80px; height: 80px; object-fit: contain; }
+    .logo { 
+      width: 100px; 
+      height: 100px; 
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .logo-placeholder {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+    }
     .separator { border-top: 2px solid #333; margin: 15px 0; }
     .payslip-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
     .employee-info { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; }
@@ -362,37 +388,49 @@ const MyPaySlip = () => {
     <!-- Header -->
     <div class="header">
       <div class="company-info">
-        <h1>Honey and Heath Trading</h1>
-        <p>Rz 2550, Est nisi veniam ipsum delectus deserunt corporis sapiente impedit voluptas sunt rerum, New Delhi, 456123</p>
+        <h1>${companyName}</h1>
+        <p>${companyAddress}</p>
       </div>
-      ${logoBase64 ? `<img src="${logoBase64}" class="logo" alt="Company Logo" />` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border: 1px solid #ddd;"></div>'}
+      ${logoBase64 
+        ? `<img src="${logoBase64}" class="logo" alt="Company Logo" />` 
+        : '<div class="logo-placeholder">LOGO</div>'
+      }
     </div>
 
     <div class="separator"></div>
 
     <!-- Payslip Title -->
-    <div class="payslip-title">Payslip for the Period: ${formattedData.payPeriod}</div>
+    <div class="payslip-title">Payslip for the Period: ${
+      formattedData.payPeriod
+    }</div>
 
     <!-- Employee Info -->
     <div class="employee-info">
       <div class="employee-details">
         <h2>${formattedData.name} (${formattedData.empId})</h2>
-        <p><strong>${formattedData.designation}, ${formattedData.department}</strong></p>
+        <p><strong>${formattedData.designation}, ${
+        formattedData.department
+      }</strong></p>
         <p>Date of Joining: ${formattedData.doj}</p>
       </div>
-      ${userImageBase64 ? `<img src="${userImageBase64}" class="employee-image" alt="Employee Photo" />` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border: 2px solid #ddd; border-radius: 8px;"></div>'}
     </div>
 
     <!-- Details Row -->
     <div class="details-row">
       <div class="left-details">
         <p><strong>UAN Number:</strong> ${employeeData?.uanno || 'NA'}</p>
-        <p><strong>PF A/C Number:</strong> ${employeeDetails?.pfaccNo || 'NA'}</p>
-        <p><strong>Bank Account Number:</strong> ${employeeDetails?.bankAcNo || 'NA'}</p>
+        <p><strong>PF A/C Number:</strong> ${
+          employeeDetails?.pfaccNo || 'NA'
+        }</p>
+        <p><strong>Bank Account Number:</strong> ${
+          employeeDetails?.bankAcNo || 'NA'
+        }</p>
       </div>
       <div class="right-details">
         <div class="net-pay">Employee Net Pay: ${formattedData.netPay}</div>
-        <p class="text-right"><strong>Paid Days:</strong> ${formattedData.paidDays} | <strong>LOP Days:</strong> ${formattedData.lopDays}</p>
+        <p class="text-right"><strong>Paid Days:</strong> ${
+          formattedData.paidDays
+        } | <strong>LOP Days:</strong> ${formattedData.lopDays}</p>
       </div>
     </div>
 
@@ -411,7 +449,9 @@ const MyPaySlip = () => {
             ${earningsHtml}
             <tr class="total-row">
               <td><strong>Gross Earnings</strong></td>
-              <td class="amount"><strong>${formatCurrency(totalEarnings)}</strong></td>
+              <td class="amount"><strong>${formatCurrency(
+                totalEarnings,
+              )}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -430,7 +470,9 @@ const MyPaySlip = () => {
             ${deductionsHtml}
             <tr class="total-row">
               <td><strong>Total Deductions</strong></td>
-              <td class="amount"><strong>${formatCurrency(totalDeductions)}</strong></td>
+              <td class="amount"><strong>${formatCurrency(
+                totalDeductions,
+              )}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -450,15 +492,17 @@ const MyPaySlip = () => {
 
       const file = await RNHTMLtoPDF.convert(options);
       if (!file.filePath) throw new Error('Failed to generate PDF file');
+      
+      console.log('✅ PDF Generated Successfully:', file.filePath);
       return file.filePath;
     } catch (err) {
-      console.error('PDF generation error:', err);
+      console.error('❌ PDF generation error:', err);
       throw err;
     }
   };
 
-  // Download payslip handler
-  const downloadPayslip = async payslipData => {
+ 
+const downloadPayslip = async payslipData => {
     try {
       dispatch(setDownloadLoading(true));
       dispatch(setPdfError(null));
@@ -503,7 +547,7 @@ const MyPaySlip = () => {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.previewBtn}
-            onPress={() => openPayslipPreview(item)}>
+            onPress={() => downloadPayslip(item)}>
             <Icon name="eye" size={24} color="#6D75FF" />
           </TouchableOpacity>
 
@@ -850,4 +894,3 @@ const styles = StyleSheet.create({
 });
 
 export default MyPaySlip;
-

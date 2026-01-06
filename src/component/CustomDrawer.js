@@ -25,10 +25,10 @@ import axiosInstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 
 // Add theme constants for consistent coloring & small UI tweaks
-const ICON_COLOR = '#2196F3';
-const ACTIVE_BG = 'rgba(33,150,243,0.08)'; // subtle blue highlight
+const ICON_COLOR = '#224F2B';
+const ACTIVE_BG = 'rgba(34,79,43,0.08)'; // subtle green highlight
 const INACTIVE_TEXT = '#5D6D7E';
-const ACTIVE_TEXT = '#0D47A1';
+const ACTIVE_TEXT = '#224F2B';
 
 const CustomDrawer = ({navigation}) => {
   const [selectedScreen, setSelectedScreen] = React.useState('Tabs');
@@ -63,7 +63,7 @@ const CustomDrawer = ({navigation}) => {
 
   const menuItems = [
     {
-      label: 'Dashboard',
+      label: 'Home',
       icon: 'view-dashboard-outline',
       activeIcon: 'view-dashboard',
       screen: 'Tabs',
@@ -230,7 +230,7 @@ const CustomDrawer = ({navigation}) => {
          
 
           <LinearGradient
-            colors={['#1E40AF', '#2563EB', '#3B82F6', '#60A5FA']}
+            colors={['#224F2B', '#224F2B', '#224F2B', '#224F2B']}
             style={[styles.profile]}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}

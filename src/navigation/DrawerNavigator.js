@@ -78,7 +78,7 @@ const NotificationButton = ({navigation}) => {
     <TouchableOpacity
       onPress={() => navigation.navigate('Notifications')}
       style={{marginRight: 10 ,  backgroundColor: 'rgba(255, 255, 255, 1)'  , borderRadius: 15 , padding:2}}>
-      <MaterialIcons name="notifications" size={30} color="rgba(75, 142, 225, 1)" />
+      <MaterialIcons name="notifications" size={30} color="#224F2B" />
       {/* Red Dot + Animated Wave */}
       {hasNotification && (
         <View style={styles.dotContainer}>
@@ -217,7 +217,7 @@ const handleLogout = async () => {
             <MaterialCommunityIcons
               name="account-circle"
               size={30}
-              color="rgba(75, 142, 225, 1)"
+              color="#224F2B"
             />
           )}
         </TouchableOpacity>
@@ -237,14 +237,14 @@ const handleLogout = async () => {
         }}
         leadingIcon={() => (
           <View style={styles.menuIconContainer}>
-            <MaterialIcons name="person" size={24} color="rgba(75, 142, 225, 1)" />
+            <MaterialIcons name="person" size={24} color="#224F2B" />
           </View>
         )}
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="My Profile"
       />
-      
+{/*       
       <Menu.Item
         onPress={() => {
           setVisible(false);
@@ -258,6 +258,21 @@ const handleLogout = async () => {
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="Setting"
+      /> */}
+
+       <Menu.Item
+        onPress={() => {
+          setVisible(false);
+          navigation.navigate('HRScreen');
+        }}
+        leadingIcon={() => (
+          <View style={styles.menuIconContainer}>
+            <MaterialIcons name="user" size={24} color="#4b8ee1ff" />
+          </View>
+        )}
+        style={styles.menuItem}
+        titleStyle={styles.menuItemTitle}
+        title="HR Screen"
       />
       
       <Menu.Item
@@ -267,7 +282,7 @@ const handleLogout = async () => {
         }}
         leadingIcon={() => (
           <View style={styles.menuIconContainer}>
-            <MaterialIcons name="logout" size={24} color="#4b8ee1ff" />
+            <MaterialIcons name="logout" size={24} color="#224F2B" />
           </View>
         )}
         style={styles.menuItem}
@@ -302,7 +317,7 @@ export default function DrawerNavigator() {
             height: Platform.OS === 'ios' ? 100 : 80,
             ...Platform.select({
               ios: {
-                shadowColor: '#1E40AF',
+                shadowColor: '#224F2B',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.2,
                 shadowRadius: 8,
@@ -364,7 +379,7 @@ export default function DrawerNavigator() {
 
             switch (routeName) {
               case 'Home':
-                title = 'Dashboard';
+                title = 'Cloudtree';
                 break;
               case 'Attendance':
                 title = 'Attendance';
@@ -376,7 +391,7 @@ export default function DrawerNavigator() {
                 title = 'Payslip';
                 break;
               default:
-                title = 'Dashboard';
+                title = 'Cloudtree ';
             }
 
             return {

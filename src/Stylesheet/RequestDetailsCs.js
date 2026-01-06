@@ -172,6 +172,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  avatarSection: {
+    marginRight: 17,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  employeeAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f0f0f0',
+  },
+  defaultAvatar: {
+    backgroundColor: '#2196F3',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+    minHeight: 24,
+  },
+  nameSection: {
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  badgeContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  badgeText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  detailsRow: {
+    marginBottom: 8,
+  },
+  employeeDetails: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
 });
 
 

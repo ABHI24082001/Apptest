@@ -51,7 +51,7 @@ const FeedbackModal = ({
         color: '#EF4444',
         backgroundColor: '#FEF2F2',
         borderColor: '#FECACA',
-        title: title || 'Failed!',
+        title: title || 'Reject!',
         iconName: 'close-circle',
       },
       deleted: {

@@ -109,7 +109,7 @@ export default function BottomTabNavigator({navigation}) {
                   style={styles.actionButton}
                   onPress={handleActionPress}>
                   <LinearGradient
-                    colors={['#4361ee', '#4fa2faff']}
+                    colors={['#224F2B', '#224F2B']}
                     start={{x: 0, y: 0}}
                     end={{x: 1, y: 1}}
                     style={styles.actionButtonCircle}>
@@ -188,7 +188,7 @@ export default function BottomTabNavigator({navigation}) {
                 style={styles.actionCard}
                 onPress={() => handleNavigate('ApplyLeave')}>
                 <LinearGradient
-                  colors={['#4361ee', '#4fa2faff']}
+                  colors={['#224F2B', '#224F2B']}
                   style={styles.iconCircle}>
                   <MaterialCommunityIcons
                     name="calendar-plus"
@@ -204,7 +204,7 @@ export default function BottomTabNavigator({navigation}) {
                 style={styles.actionCard}
                 onPress={() => handleNavigate('Exit')}>
                 <LinearGradient
-                  colors={['#4361ee', '#4fa2faff']}
+                   colors={['#224F2B', '#224F2B']}
                   style={styles.iconCircle}>
                   <MaterialCommunityIcons
                     name="door-open"
@@ -220,7 +220,7 @@ export default function BottomTabNavigator({navigation}) {
                 style={styles.actionCard}
                 onPress={() => handleNavigate('PaymentRequest')}>
                 <LinearGradient
-                  colors={['#4361ee', '#4fa2faff']}
+                   colors={['#224F2B', '#224F2B']}
                   style={styles.iconCircle}>
                   <MaterialCommunityIcons
                     name="cash-register"
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#224F2B',
     marginBottom: 2,
     letterSpacing: -0.3,
     textAlign: 'center',

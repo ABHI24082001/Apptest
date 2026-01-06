@@ -6,19 +6,21 @@ import BASE_URL from '../../constants/apiConfig';
 // ये functions हैं जो API call करते हैं और automatic loading states manage करते हैं
 
 export const fetchPayslips = createAsyncThunk(
-  'payslip/fetchPayslips', // Action का नाम
-  async ({ employeeId, childCompanyId, fromDate, toDate }, { rejectWithValue }) => {
+  'payslip/fetchPayslips',
+  async ({ employeeId, childCompanyId, fromDate, toDate }, { rejectWithValue, dispatch }) => {
     try {
-      // Date को .NET format में convert करना
+      console.log('🚀 ========== FETCH PAYSLIPS API START ==========');
+      console.log('📥 Input Params:', { employeeId, childCompanyId, fromDate, toDate });
+      // debugger; // Pause to inspect input
+
       const formatForDotNet = (date) => {
         const d = new Date(date);
-        d.setHours(0, 0, 0, 0); // Time को 00:00:00 set करना
+        d.setHours(0, 0, 0, 0);
         return `${d.getFullYear()}-${(d.getMonth() + 1)
           .toString()
           .padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}T00:00:00`;
       };
 
-      // API के लिए payload बनाना
       const payload = {
         EmployeeId: employeeId || 0,
         Month: 0,
@@ -27,7 +29,6 @@ export const fetchPayslips = createAsyncThunk(
         ChildCompanyId: childCompanyId || 0,
         FromDate: fromDate ? formatForDotNet(fromDate) : null,
         ToDate: toDate ? formatForDotNet(toDate) : null,
-        // ... बाकी सब fields
         BranchName: null,
         BranchId: 0,
         EmployeeTypeId: 0,
@@ -50,27 +51,79 @@ export const fetchPayslips = createAsyncThunk(
         hasAllReportAccess: false,
       };
 
-      console.log('📤 Redux: API को भेज रहे हैं:', payload);
+      console.log('📤 API Payload:', JSON.stringify(payload, null, 2));
+      console.log('🌐 API URL:', `${BASE_URL}/PayRollRun/GetEmployeePaySlipList`);
+    
 
-      // Actual API call
       const response = await axiosinstance.post(
         `${BASE_URL}/PayRollRun/GetEmployeePaySlipList`,
         payload
       );
 
-      console.log('✅ Redux: API से मिला:', response.data);
-      
-      // Success होने पर data return करना
-      return response.data?.payRollDraftViewModels || [];
+      console.log('✅ ========== PAYSLIP LIST RESPONSE ==========');
+      console.log('📊 Full Response:', JSON.stringify(response.data, null, 2));
+      console.log('📋 Payslips Count:', response.data?.payRollDraftViewModels?.length || 0);
+
+
+      const payslipList = response.data?.payRollDraftViewModels || [];
+
+      // Fetch detailed data for each payslip using their IDs
+      if (payslipList.length > 0) {
+        console.log('🔄 Fetching detailed payslip data for each ID...');
+        for (const payslip of payslipList) {
+          console.log(`📤 Fetching details for Payslip ID: ${payslip.id}`);
+          dispatch(fetchEmployeePayslipDetail(payslip.id));
+        }
+      }
+
+      return payslipList;
     } catch (error) {
-      console.error('❌ Redux: API Error:', error);
-      
-      // Error होने पर proper error message return करना
+      console.error('❌ ========== PAYSLIP LIST ERROR ==========');
+      console.error('❌ Error:', error.message);
+      console.error('❌ Full Error:', error);
+
+
       if (error.response) {
-        console.error('❌ Redux: Server Error:', error.response.data);
+        console.error('❌ Server Response:', JSON.stringify(error.response.data, null, 2));
         return rejectWithValue(error.response.data.message || 'Server से data नहीं मिला');
       }
       return rejectWithValue(error.message || 'Network error हुई');
+    }
+  }
+);
+
+// Fetch single payslip detail by ID
+export const fetchEmployeePayslipDetail = createAsyncThunk(
+  'payslip/fetchEmployeePayslipDetail',
+  async (id, { rejectWithValue }) => {
+    try {
+      console.log('🚀 ========== FETCH PAYSLIP DETAIL API START ==========');
+      console.log('📥 Payslip ID:', id);
+      // debugger; // Pause to inspect ID
+
+      if (!id) {
+        throw new Error('Payslip ID चाहिए');
+      }
+
+      const apiUrl = `${BASE_URL}/PayRollRun/GetEmployeePaySlip/${id}`;
+      console.log('🌐 API URL:', apiUrl);
+
+      const response = await axiosinstance.get(apiUrl);
+
+      console.log('✅ ========== PAYSLIP DETAIL RESPONSE ==========');
+      console.log('📊 Response Status:', response.status);
+      console.log('📦 Payslip Detail Data:', JSON.stringify(response.data, null, 2));
+      // debugger; // Pause to inspect detail data
+
+      return { id, data: response.data };
+    } catch (error) {
+      console.error('❌ ========== PAYSLIP DETAIL ERROR ==========');
+      console.error('❌ Payslip ID:', id);
+      console.error('❌ Error:', error.message);
+      console.error('❌ Full Error:', error);
+      // debugger; // Pause on error
+
+      return rejectWithValue(error.response?.data?.message || error.message || 'Payslip detail नहीं मिला');
     }
   }
 );
@@ -101,6 +154,9 @@ export const fetchEmployeeData = createAsyncThunk(
 const initialState = {
   // Payslip related data
   payslips: [],              // सारे payslips का array
+  payslipDetails: {},          // Store detailed payslip data by ID
+  payslipDetailLoading: false, // Loading state for detail fetch
+  payslipDetailError: null,    // Error state for detail fetch
   isLoading: false,          // क्या data load हो रहा है?
   error: null,               // कोई error है?
   
@@ -200,6 +256,7 @@ const payslipSlice = createSlice({
       state.error = null;
       state.pdfError = null;
       state.employeeError = null;
+      state.payslipDetailError = null;
       console.log('🧹 Errors cleared');
     },
     
@@ -212,8 +269,8 @@ const payslipSlice = createSlice({
   // ========== ASYNC REDUCERS ==========
   // ये async thunks के responses handle करते हैं
   extraReducers: (builder) => {
-    // Fetch payslips के तीन states handle करना
     builder
+      // Fetch payslips list
       .addCase(fetchPayslips.pending, (state) => {
         console.log('🔄 Payslips fetch शुरू हुई');
         state.isLoading = true;
@@ -233,7 +290,26 @@ const payslipSlice = createSlice({
         state.error = action.payload;
       })
       
-    // Fetch employee data के states
+      // Fetch payslip detail by ID
+      .addCase(fetchEmployeePayslipDetail.pending, (state) => {
+        console.log('🔄 Payslip detail fetch शुरू हुई');
+        state.payslipDetailLoading = true;
+        state.payslipDetailError = null;
+      })
+      .addCase(fetchEmployeePayslipDetail.fulfilled, (state, action) => {
+        console.log('✅ Payslip detail fetch successful for ID:', action.payload.id);
+        console.log('📦 Detail Data:', JSON.stringify(action.payload.data, null, 2));
+        state.payslipDetailLoading = false;
+        state.payslipDetails[action.payload.id] = action.payload.data;
+        state.payslipDetailError = null;
+      })
+      .addCase(fetchEmployeePayslipDetail.rejected, (state, action) => {
+        console.error('❌ Payslip detail fetch failed:', action.payload);
+        state.payslipDetailLoading = false;
+        state.payslipDetailError = action.payload;
+      })
+      
+      // Fetch employee data
       .addCase(fetchEmployeeData.pending, (state) => {
         console.log('🔄 Employee data fetch शुरू हुई');
         state.employeeLoading = true;

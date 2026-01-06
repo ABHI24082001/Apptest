@@ -23,12 +23,12 @@ import {request, PERMISSIONS} from 'react-native-permissions';
 
 /* ================= CONSTANTS ================= */
 
-const INPUT_SIZE = 224;
-const COSINE_THRESHOLD = 0.7;
-const EUCLIDEAN_THRESHOLD = 0.85;
-
+// Platform-specific constants
 const ANDROID_MODEL = 'mobilefacenet.onnx';
 const IOS_MODEL = 'tiny_model.onnx';
+const INPUT_SIZE = Platform.OS === 'android' ? 112 : 224;
+const COSINE_THRESHOLD = 0.7;
+const EUCLIDEAN_THRESHOLD = 0.85;
 
 /* ================= COMPONENT ================= */
 
@@ -50,14 +50,18 @@ export default function Setting() {
   const loadModel = async () => {
     try {
       console.log('📦 Starting ONNX model load...');
+      console.log(`🎯 Platform: ${Platform.OS.toUpperCase()}`);
+      console.log(`📐 Input size: ${INPUT_SIZE}`);
       setIsLoading(true);
 
       let modelPath = '';
+      const modelName = Platform.OS === 'android' ? ANDROID_MODEL : IOS_MODEL;
 
       if (Platform.OS === 'android') {
         console.log('🤖 Platform: ANDROID');
+        console.log('🤖 Model:', modelName);
 
-        modelPath = `${RNFS.DocumentDirectoryPath}/${ANDROID_MODEL}`;
+        modelPath = `${RNFS.DocumentDirectoryPath}/${modelName}`;
         const exists = await RNFS.exists(modelPath);
 
         console.log('🤖 Android model path:', modelPath);
@@ -65,14 +69,15 @@ export default function Setting() {
 
         if (!exists) {
           console.log('📥 Copying model from assets...');
-          await RNFS.copyFileAssets(ANDROID_MODEL, modelPath);
+          await RNFS.copyFileAssets(modelName, modelPath);
           console.log('✅ Android model copied');
         }
 
       } else {
         console.log('🍎 Platform: iOS');
+        console.log('🍎 Model:', modelName);
 
-        const rawPath = `${RNFS.MainBundlePath}/${IOS_MODEL}`;
+        const rawPath = `${RNFS.MainBundlePath}/${modelName}`;
 
         console.log('🍎 MainBundlePath:', RNFS.MainBundlePath);
         console.log('🍎 iOS model path:', rawPath);
@@ -84,7 +89,7 @@ export default function Setting() {
           console.log('❌ iOS model NOT found');
           Alert.alert(
             'iOS Error',
-            'ONNX model not found. Please add it to Copy Bundle Resources.',
+            `ONNX model "${modelName}" not found. Please add it to Copy Bundle Resources in Xcode.`,
           );
           return;
         }
@@ -92,7 +97,7 @@ export default function Setting() {
         modelPath = rawPath; // ❗ NO file://
       }
 
-      console.log('🧠 Creating InferenceSession...');
+      console.log('🧠 Creating InferenceSession with path:', modelPath);
       const s = await InferenceSession.create(modelPath, {
         executionProviders: ['cpu'],
       });
@@ -115,7 +120,7 @@ export default function Setting() {
   /* ================= IMAGE HELPERS ================= */
 
   const preprocessImage = async base64 => {
-    console.log('🖼️ Preprocessing image...');
+    console.log(`🖼️ Preprocessing image for ${Platform.OS} (${INPUT_SIZE}x${INPUT_SIZE})...`);
     const clean = base64.replace(/^data:image\/\w+;base64,/, '');
     const tempPath = `${RNFS.CachesDirectoryPath}/img_${Date.now()}.jpg`;
 
@@ -150,7 +155,7 @@ export default function Setting() {
       return null;
     }
 
-    console.log('🧬 Generating embedding...');
+    console.log(`🧬 Generating embedding for ${Platform.OS} model...`);
     const processed = await preprocessImage(imageBase64);
 
     const raw = jpeg.decode(Buffer.from(processed, 'base64'), {
@@ -159,14 +164,35 @@ export default function Setting() {
 
     const floatData = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
 
-    for (let y = 0; y < INPUT_SIZE; y++) {
-      for (let x = 0; x < INPUT_SIZE; x++) {
-        const idx = (y * INPUT_SIZE + x) * 3;
-        floatData[y * INPUT_SIZE + x] = raw.data[idx] / 255;
-        floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
-          raw.data[idx + 1] / 255;
-        floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
-          raw.data[idx + 2] / 255;
+    // Enhanced preprocessing for different models
+    if (Platform.OS === 'android') {
+      // MobileFaceNet preprocessing (mean/std normalization)
+      const mean = [0.5, 0.5, 0.5];
+      const std = [0.5, 0.5, 0.5];
+
+      for (let y = 0; y < INPUT_SIZE; y++) {
+        for (let x = 0; x < INPUT_SIZE; x++) {
+          const idx = (y * INPUT_SIZE + x) * 3;
+          const r = (raw.data[idx] / 255.0 - mean[0]) / std[0];
+          const g = (raw.data[idx + 1] / 255.0 - mean[1]) / std[1];
+          const b = (raw.data[idx + 2] / 255.0 - mean[2]) / std[2];
+
+          floatData[y * INPUT_SIZE + x] = r;
+          floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = g;
+          floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] = b;
+        }
+      }
+    } else {
+      // iOS tiny_model preprocessing (simple normalization)
+      for (let y = 0; y < INPUT_SIZE; y++) {
+        for (let x = 0; x < INPUT_SIZE; x++) {
+          const idx = (y * INPUT_SIZE + x) * 3;
+          floatData[y * INPUT_SIZE + x] = raw.data[idx] / 255;
+          floatData[INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
+            raw.data[idx + 1] / 255;
+          floatData[2 * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
+            raw.data[idx + 2] / 255;
+        }
       }
     }
 
@@ -226,36 +252,172 @@ export default function Setting() {
   /* ================= IMAGE PICKER ================= */
 
   const pickImage = async setter => {
-    console.log('📸 Opening image picker');
+  console.log('📸 [Picker] Pick image triggered');
 
+  try {
     if (Platform.OS === 'ios') {
-      await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+      const cam = await request(PERMISSIONS.IOS.CAMERA);
+      const photo = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+
+      console.log('🍎 [Permission] Camera:', cam);
+      console.log('🍎 [Permission] Photo:', photo);
     } else {
-      await PermissionsAndroid.request(
+      const res = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.CAMERA,
         Platform.Version >= 33
           ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
           : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-      );
+      ]);
+
+      console.log('🤖 [Permission] Android:', res);
     }
 
+    Alert.alert(
+      'Select Image',
+      'Choose source',
+      [
+        {
+          text: 'Camera',
+          onPress: () => {
+            console.log('📸 [Picker] Camera option clicked');
+            openCamera(setter);
+          },
+        },
+        {
+          text: 'Gallery',
+          onPress: () => {
+            console.log('🖼️ [Picker] Gallery option clicked');
+            openGallery(setter);
+          },
+        },
+        {text: 'Cancel', style: 'cancel'},
+      ],
+    );
+  } catch (err) {
+    console.log('🔥 [Picker] Error:', err);
+  }
+};
+
+
+const openCamera = async setter => {
+  console.log('🚀 [Camera] launchCamera() called');
+  console.log('ℹ️ [Camera] Platform:', Platform.OS);
+
+  try {
+    const result = await ImagePicker.launchCamera({
+      mediaType: 'photo',
+      includeBase64: true,
+      cameraType: 'front',
+      quality: 0.8,
+      maxWidth: 800,
+      maxHeight: 800,
+      saveToPhotos: false,
+    });
+
+    console.log('📦 [Camera] Raw result:', result);
+
+    if (result.didCancel) {
+      console.log('⚠️ [Camera] User cancelled camera');
+      return;
+    }
+
+    if (result.errorCode) {
+      console.log(
+        '❌ [Camera] Error:',
+        result.errorCode,
+        result.errorMessage,
+      );
+      return;
+    }
+
+    if (!result.assets || result.assets.length === 0) {
+      console.log('⚠️ [Camera] No assets returned');
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    console.log('📷 [Camera] Asset details:', {
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      fileSize: asset.fileSize,
+      type: asset.type,
+      hasBase64: !!asset.base64,
+    });
+
+    if (!asset.base64) {
+      console.log('❌ [Camera] Base64 missing');
+      return;
+    }
+
+    console.log('✅ [Camera] Image captured SUCCESSFULLY');
+
+    setter(`data:image/jpeg;base64,${asset.base64}`);
+  } catch (err) {
+    console.log('🔥 [Camera] Exception:', err);
+  }
+};
+
+
+
+
+  const openGallery = async setter => {
+  console.log('🖼️ [Gallery] launchImageLibrary() called');
+
+  try {
     const result = await ImagePicker.launchImageLibrary({
       mediaType: 'photo',
       includeBase64: true,
+      quality: 0.8,
+      maxWidth: 800,
+      maxHeight: 800,
     });
 
-    if (result.assets?.[0]?.base64) {
-      console.log('✅ Image selected');
-      setter(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    console.log('📦 [Gallery] Raw result:', result);
+
+    if (result.didCancel) {
+      console.log('⚠️ [Gallery] User cancelled');
+      return;
     }
-  };
+
+    if (result.errorCode) {
+      console.log(
+        '❌ [Gallery] Error:',
+        result.errorCode,
+        result.errorMessage,
+      );
+      return;
+    }
+
+    if (result.assets?.[0]?.base64) {
+      console.log('✅ [Gallery] Image selected successfully');
+      setter(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    } else {
+      console.log('⚠️ [Gallery] No base64 returned');
+    }
+  } catch (err) {
+    console.log('🔥 [Gallery] Exception:', err);
+  }
+};
+
 
   /* ================= UI ================= */
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Face Matching</Text>
+      <Text style={styles.title}>Face Matching Test</Text>
+      
+      <Text style={styles.platformInfo}>
+        Platform: {Platform.OS.toUpperCase()} | Model: {Platform.OS === 'android' ? ANDROID_MODEL : IOS_MODEL} | Size: {INPUT_SIZE}x{INPUT_SIZE}
+      </Text>
 
-      {isLoading && <ActivityIndicator size="large" />}
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2ecc71" />
+          <Text>Loading {Platform.OS === 'android' ? 'Android' : 'iOS'} model...</Text>
+        </View>
+      )}
 
       <View style={styles.row}>
         <Image source={{uri: image1}} style={styles.image} />
@@ -303,4 +465,15 @@ const styles = StyleSheet.create({
   },
   matchBtn: {backgroundColor: '#2ecc71'},
   result: {marginTop: 20, fontSize: 18, textAlign: 'center'},
+  platformInfo: {
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 15,
+    fontFamily: 'monospace',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
 });

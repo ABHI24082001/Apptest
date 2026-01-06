@@ -1,167 +1,226 @@
-import {StyleSheet, Platform } from 'react-native';
-const IOS_TOP = Platform.OS === "ios" ? 0 : 0; // Remove negative value for iOS
+import {StyleSheet, Platform} from 'react-native';
 
 const styles = StyleSheet.create({
- 
   container: {
     flex: 1,
-    backgroundColor: '#ffffffff',
-    marginBottom: Platform.OS === 'ios' ? 0 : -10, // Remove negative margin for iOS
+    backgroundColor: '#F9FAFB',
     paddingBottom: Platform.OS === 'ios' ? 0 : 0, // Remove negative padding for iOS
   },
-
-// ui check 
-
   header: {
-  paddingHorizontal: Platform.OS === 'ios' ? 0 : 20,   // fixed — no negative padding!
+    paddingHorizontal: Platform.OS === 'ios' ? 10 : 20, // fixed — no negative padding!
 
-  paddingTop: Platform.OS === 'ios' ? IOS_TOP : 20,
-  paddingBottom: 30,
-  borderBottomLeftRadius: 30,
-  borderBottomRightRadius: 30,
-},
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Platform.OS === 'ios' ? 40 : 20,
-    paddingHorizontal: Platform.OS === 'ios' ? 20 : 0,
-    paddingTop: Platform.OS === 'ios' ? 50 : 0,
+    paddingTop: Platform.OS === 'ios' ? 0 : 20,
+
+    // borderBottomLeftRadius: 30,
+    // borderBottomRightRadius: 30,
   },
-  headerGreeting: {
-    fontSize: 20,
-    color: '#DBEAFE',
-    fontWeight: '500',
-  },
-  headerName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 4,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
-  timeContainer: {
-    alignItems: 'flex-end',
-  },
-  headerTime: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerDate: {
-    fontSize: 11,
-    color: '#DBEAFE',
-    marginTop: 2,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#fff',
-    borderRadius: 50,
-    padding: 3,
+
+  headerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 18,
+    marginHorizontal: Platform.OS === 'ios' ? 4 : 16,
+    marginTop: 14,
+
+    // ultra-soft elevation
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 3,
   },
 
+  /* ---------- TOP ---------- */
 
-statusBadge: {
-  backgroundColor: '#ffffffff',
-  borderRadius: 16,
-  paddingVertical: 10,
-  paddingHorizontal: 14,
-  marginTop: 16,
-  marginBottom: 10,
-  marginLeft: Platform.OS === 'ios' ? 20 : 0,
-  alignSelf: 'flex-start',
-  minWidth: '60%',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.08,
-  shadowRadius: 3,
-  elevation: 2,
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 0.5,
-  borderColor: '#E5E7EB',
-},
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 
-statusContent: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 10,
-  flex: 1,
-},
+  // nameBlock: {
+  //   flexShrink: 1,
+  // },
 
-statusDot: {
-  width: 14,
-  height: 14,
-  borderRadius: 7,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.15,
-  shadowRadius: 1.5,
-},
+  greeting: {
+    fontSize: 20,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
 
-statusActive: {
-  backgroundColor: '#22C55E', // Tailwind Green-500
-},
+  employeeName: {
+    fontSize: 23,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 2,
+  },
 
-statusInactive: {
-  backgroundColor: '#EF4444', // Tailwind Red-500
-},
+  dateChip: {
+    // backgroundColor: '#F9FAFB',
+    paddingVertical: 6,
+    // paddingHorizontal: 12,
+    borderRadius: 14,
+  },
 
-statusTextContainer: {
-  flex: 1,
-},
+  dateText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+  },
 
-statusLabel: {
-  fontSize: 15,
-  fontWeight: '600',
-  color: '#111827',
-  letterSpacing: 0.2,
-},
+  /* ---------- DIVIDER ---------- */
 
-statusTime: {
-  fontSize: 13,
-  fontWeight: '500',
-  color: '#6B7280',
-  marginTop: 2,
-},
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 14,
+  },
 
+  /* ---------- BOTTOM ---------- */
 
-// Hide the old complex status badge styles
-statusBadgeContent: {
-  display: 'none',
-},
-statusIndicatorContainer: {
-  display: 'none',
-},
-modernStatusDot: {
-  display: 'none',
-},
-statusActiveModern: {
-  display: 'none',
-},
-statusInactiveModern: {
-  display: 'none',
-},
-statusDotInner: {
-  display: 'none',
-},
-statusPulse: {
-  display: 'none',
-},
-modernStatusText: {
-  display: 'none',
-},
-statusTimeText: {
-  display: 'none',
-},
+  headerBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  /* ---------- STATUS ---------- */
+
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+
+  activeBg: {
+    backgroundColor: '#ECFDF3',
+  },
+
+  inactiveBg: {
+    backgroundColor: '#FEF2F2',
+  },
+
+  statusDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    marginRight: 8,
+  },
+
+  activeDot: {
+    backgroundColor: '#22C55E',
+  },
+
+  inactiveDot: {
+    backgroundColor: '#F87171',
+  },
+
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
+  statusTime: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+
+  // statusBadge: {
+  //   backgroundColor: '#ffffffff',
+  //   borderRadius: 16,
+  //   paddingVertical: 10,
+  //   paddingHorizontal: 14,
+  //   marginTop: 16,
+  //   marginBottom: 10,
+  //   marginLeft: Platform.OS === 'ios' ? 20 : 0,
+  //   alignSelf: 'flex-start',
+  //   minWidth: '60%',
+  //   shadowColor: '#000',
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.08,
+  //   shadowRadius: 3,
+  //   elevation: 2,
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   borderWidth: 0.5,
+  //   borderColor: '#E5E7EB',
+  // },
+
+  // statusContent: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   gap: 10,
+  //   flex: 1,
+  // },
+
+  // statusDot: {
+  //   width: 14,
+  //   height: 14,
+  //   borderRadius: 7,
+  //   shadowColor: '#000',
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.15,
+  //   shadowRadius: 1.5,
+  // },
+
+  // statusActive: {
+  //   backgroundColor: '#22C55E', // Tailwind Green-500
+  // },
+
+  // statusInactive: {
+  //   backgroundColor: '#EF4444', // Tailwind Red-500
+  // },
+
+  // statusTextContainer: {
+  //   flex: 1,
+  // },
+
+  // statusLabel: {
+  //   fontSize: 15,
+  //   fontWeight: '600',
+  //   color: '#111827',
+  //   letterSpacing: 0.2,
+  // },
+
+  // statusTime: {
+  //   fontSize: 13,
+  //   fontWeight: '500',
+  //   color: '#6B7280',
+  //   marginTop: 2,
+  // },
+
+  // Hide the old complex status badge styles
+  statusBadgeContent: {
+    display: 'none',
+  },
+  statusIndicatorContainer: {
+    display: 'none',
+  },
+  modernStatusDot: {
+    display: 'none',
+  },
+  statusActiveModern: {
+    display: 'none',
+  },
+  statusInactiveModern: {
+    display: 'none',
+  },
+  statusDotInner: {
+    display: 'none',
+  },
+  statusPulse: {
+    display: 'none',
+  },
+  modernStatusText: {
+    display: 'none',
+  },
+  statusTimeText: {
+    display: 'none',
+  },
 
   content: {
     padding: Platform.OS === 'ios' ? 0 : 20,
@@ -173,33 +232,21 @@ statusTimeText: {
     overflow: 'hidden',
     marginTop: Platform.OS === 'ios' ? 6 : 10,
     marginHorizontal: Platform.OS === 'ios' ? 4 : 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 8},
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        marginBottom: 16,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    
   },
   registrationGradient: {
     padding: Platform.OS === 'ios' ? 3 : 30,
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 4 : 30,
-    paddingBottom: Platform.OS === 'ios' ? 4 : 30,
+    borderRadius: Platform.OS === 'ios' ? 14 : 0,
   },
   registrationIconWrapper: {
-    marginBottom: Platform.OS === 'ios' ? 0 : 20,
+    marginBottom: Platform.OS === 'ios' ? 10 : 20,
     alignItems: 'center',
   },
   registrationIconBg: {
     width: Platform.OS === 'ios' ? 0 : 80,
     height: Platform.OS === 'ios' ? 0 : 80,
-    borderRadius: Platform.OS === 'ios' ? 44 : 40,
+    borderRadius: Platform.OS === 'ios' ? 4 : 40,
     backgroundColor: Platform.OS === 'ios' ? '#F0F4FF' : '#FFFFFF',
     justifyContent: Platform.OS === 'ios' ? 'center' : 'center',
     alignItems: 'center',
@@ -218,7 +265,7 @@ statusTimeText: {
     }),
   },
   registrationIconText: {
-    fontSize: Platform.OS === 'ios' ? 38 : 36,
+    fontSize: Platform.OS === 'ios' ? 33 : 36,
     color: Platform.OS === 'ios' ? '#3B82F6' : '#000',
   },
   registrationTitle: {
@@ -235,34 +282,33 @@ statusTimeText: {
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: Platform.OS === 'ios' ? 24 : 20,
-    marginBottom: Platform.OS === 'ios' ? 32 : 24,
-    paddingHorizontal: Platform.OS === 'ios' ? 16 : 10,
+    marginBottom: Platform.OS === 'ios' ? 24 : 24,
     fontWeight: Platform.OS === 'ios' ? '500' : '400',
-    letterSpacing: Platform.OS === 'ios' ? 0.1 : 0,
+
   },
   registerButton: {
-    width: '100%',
-    height: Platform.OS === 'ios' ? 66 : 52,
-    borderRadius: Platform.OS === 'ios' ? 16 : 12,
-    overflow: 'hidden',
-    
-  },
-  registerButtonGradient: {
-    flexDirection: 'row',
+    width: '90%',
+    paddingVertical: Platform.OS === 'ios' ? 16 : 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Platform.OS === 'ios' ? 20 : 16,
-    paddingHorizontal: Platform.OS === 'ios' ? 24 : 16,
-    gap: Platform.OS === 'ios' ? 12 : 8,
-  },
-  registerButtonText: {
-    fontSize: Platform.OS === 'ios' ? 18 : 16,
-    fontWeight: Platform.OS === 'ios' ? '700' : '600',
-    color: '#fff',
-    letterSpacing: Platform.OS === 'ios' ? 0.2 : 0,
+    marginBottom: Platform.OS === 'ios' ? 20 : 0,
   },
 
-  // Progress card 
+  registerButtonText: {
+    fontSize: Platform.OS === 'ios' ? 17 : 16,
+    fontWeight: Platform.OS === 'ios' ? '600' : '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  disabledButton: {
+    opacity: 0.6,
+  },
+
+  // Progress card
 
   progressCard: {
     backgroundColor: '#fff',
@@ -306,7 +352,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -374,7 +420,7 @@ statusTimeText: {
     color: '#3B82F6',
   },
   progressBarWrapper: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   progressBarBg: {
     height: 16,
@@ -385,7 +431,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: {width: 0, height: 1},
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -417,7 +463,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.3,
         shadowRadius: 4,
       },
@@ -430,7 +476,7 @@ statusTimeText: {
     flexDirection: 'row',
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
   },
   progressStatItem: {
@@ -479,11 +525,11 @@ statusTimeText: {
 
   // Remove old styles that are no longer needed
   // progressRow: { ... } - removed
-  // missesPercentageText: { ... } - removed  
+  // missesPercentageText: { ... } - removed
   // progressPercentageText: { ... } - removed
 
   contentContainer: {
-    paddingBottom: 30, // Add extra padding at the bottom of scrollable content
+    paddingBottom: 20, // Add extra padding at the bottom of scrollable content
   },
   safeAreaBottom: {
     height: 20,
@@ -493,7 +539,7 @@ statusTimeText: {
   progressDetailsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   progressDetailCard: {
     flex: 1,
@@ -508,7 +554,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
@@ -527,7 +573,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: {width: 0, height: 1},
         shadowOpacity: 0.1,
         shadowRadius: 2,
       },
@@ -550,14 +596,13 @@ statusTimeText: {
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  shiftDetailsLebal:{
+  shiftDetailsLebal: {
     fontSize: 14,
     color: '#64748B',
     fontWeight: '700',
     marginBottom: 8,
     fontFamily: 'Poppins-Bold',
     textTransform: 'uppercase',
-
   },
   progressDetailValue: {
     fontSize: 12,
@@ -565,12 +610,11 @@ statusTimeText: {
     color: '#0F172A',
     lineHeight: 18,
   },
-   shiftDetailValue: {
+  shiftDetailValue: {
     fontSize: 17,
     fontWeight: '700',
     color: '#739bf9ff',
     lineHeight: 38,
-    
   },
   timeDisplayRow: {
     flexDirection: 'row',
@@ -604,18 +648,7 @@ statusTimeText: {
   shiftInfoCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    // marginBottom: Platform.OS === 'ios' ? 16 : 24,
   },
   shiftInfoGradient: {
     padding: Platform.OS === 'ios' ? 0 : 16, // Use consistent padding for both platforms
@@ -624,6 +657,7 @@ statusTimeText: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    margin: Platform.OS === 'ios' ? 16 : 0,
   },
   shiftIconContainer: {
     backgroundColor: '#3B82F6',
@@ -635,7 +669,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.3,
         shadowRadius: 4,
       },
@@ -677,7 +711,7 @@ statusTimeText: {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: {width: 0, height: 6},
         shadowOpacity: 0.15,
         shadowRadius: 12,
       },
@@ -687,18 +721,18 @@ statusTimeText: {
     }),
   },
   checkInButtonActive: {
-    transform: [{ scale: 1 }],
+    transform: [{scale: 1}],
   },
   checkOutButtonActive: {
-    transform: [{ scale: 1 }],
+    transform: [{scale: 1}],
   },
   actionButtonDisabled: {
     opacity: 0.6,
-    transform: [{ scale: 0.98 }],
+    transform: [{scale: 0.98}],
   },
   actionButtonGradient: {
     paddingVertical: Platform.OS === 'ios' ? 0 : 20, // Use consistent padding for both platforms
-    paddingHorizontal:Platform.OS === 'ios' ? 0 : 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 0 : 16,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -716,6 +750,7 @@ statusTimeText: {
   },
   buttonTextContainer: {
     alignItems: 'center',
+    margin: Platform.OS === 'ios' ? 10 : 0,
   },
   actionButtonText: {
     fontSize: 16,
@@ -771,19 +806,20 @@ statusTimeText: {
   // Location Processing Modal Styles
   locationModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(62, 61, 61, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: Platform.OS === 'ios' ? 30 : 20,
   },
   locationModalContainer: {
     width: '100%',
-    backgroundColor: '#000',
-    maxWidth: 350,
+    // backgroundColor: '#000',
+    // maxWidth: 350,
+
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 10,
-    shadowColor: '#000',
+    // shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 10,
@@ -792,7 +828,7 @@ statusTimeText: {
     shadowRadius: 20,
   },
   locationModalContent: {
-    padding: 30,
+    padding: Platform.OS === 'ios' ? 0 : 30,
     alignItems: 'center',
   },
   lottieContainer: {
@@ -803,8 +839,8 @@ statusTimeText: {
     marginBottom: 20,
   },
   lottieAnimation: {
-    width: '300%',
-    height: '300%',
+    width: '190%',
+    height: '190%',
   },
   locationProcessingTextContainer: {
     alignItems: 'center',
@@ -836,6 +872,7 @@ statusTimeText: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    marginBottom: Platform.OS === 'ios' ? 20 : 0,
   },
   locationCancelButtonText: {
     fontSize: 14,

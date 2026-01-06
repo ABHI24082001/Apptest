@@ -189,6 +189,29 @@ const ApplyLeaveScreen = ({navigation, route}) => {
 
   // Handle form submission
   const onSubmit = async data => {
+    // Check if user has valid leave assignments before submitting
+    const hasValidLeaves = leaveData && leaveData.length > 0 && 
+      leaveData.some(item => item.label !== "No Leave Assigned" && (item.used > 0 || item.available > 0));
+
+    if (!hasValidLeaves) {
+      setFeedback({
+        visible: true,
+        type: 'fail',
+        message: 'No Leave Assigned. Please contact HR to get leave policies assigned.',
+      });
+      return;
+    }
+
+    // Check if selected leave policy is valid
+    if (!data.LeaveId || data.LeaveId === '') {
+      setFeedback({
+        visible: true,
+        type: 'fail',
+        message: 'Please select a valid leave type.',
+      });
+      return;
+    }
+
     const payload = {
       Id: data.ApplyLeaveId,
       EmployeeId: employeeDetails?.id ?? 0,
@@ -288,11 +311,22 @@ const ApplyLeaveScreen = ({navigation, route}) => {
             `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${employeeDetails.childCompanyId}/${employeeDetails.id}`,
           );
 
-          const transformed = response.data.leaveBalances.map(item => ({
-            label: item.leavename,
-            used: item.usedLeaveNo,
-            available: item.availbleLeaveNo,
-          }));
+          // Filter and transform leave data
+          const validLeaves = response.data.leaveBalances.filter(item => 
+            item.usedLeaveNo > 0 || item.availbleLeaveNo > 0
+          );
+
+          const transformed = validLeaves.length > 0 
+            ? validLeaves.map(item => ({
+                label: item.leavename,
+                used: item.usedLeaveNo,
+                available: item.availbleLeaveNo,
+              }))
+            : [{
+                label: "No Leave Assigned",
+                used: 0,
+                available: 0,
+              }];
 
           setLeaveData(transformed);
           console.log('Leave data fetched:', transformed); // Debug leaveData

@@ -17,7 +17,7 @@ const CustomHeader = ({
   backButtonStyle,
   homeButtonStyle,
   rightComponent, // Add rightComponent prop
-  gradientColors = ['#427cf8ff', '#5292faff'],
+  gradientColors = ['#224F2B', '#224F2B'],
 }) => {
   const handleBackPress = () => {
     if (onBackPress) {

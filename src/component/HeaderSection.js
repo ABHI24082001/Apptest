@@ -137,7 +137,7 @@ const HeaderSection = ({
 // Export a simplified version for navigation headerBackground
 export const GradientHeader = ({style = {}}) => (
   <LinearGradient 
-    colors={['#1E40AF', '#2563EB', '#3B82F6']} 
+    colors={['#224F2B', '#224F2B', '#224F2B']} 
     style={[
       {
         flex: 1,

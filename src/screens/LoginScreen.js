@@ -20,7 +20,7 @@ import axiosInstance from '../utils/axiosInstance';
 const ERROR_COLOR = '#f44336';
 
 import { useAuth } from '../constants/AuthContext';
-
+// debugger;
 const LoginScreen = () => {
   const {
     control,
@@ -36,7 +36,7 @@ const LoginScreen = () => {
   const navigation = useNavigation();
 
   const {login} = useAuth();
-
+// debugger;
   const onSubmit = async (data) => {
     const { username, password } = data;
     setLoading(true);
@@ -66,6 +66,9 @@ const LoginScreen = () => {
 
       const fetchedUserId = fetchUserIdResponse?.data;
 
+
+      console.log(fetchedUserId , 'jodubiooibdvsobidvsbiodfsbio')
+
       if (!fetchedUserId) {
         throw new Error('User ID not found. Please check your username/password.');
       }
@@ -73,7 +76,7 @@ const LoginScreen = () => {
       // ✅ Set token and userId globally for all axiosInstance calls
       setAuthToken(token);
       setUserIdHeader(fetchedUserId);
-
+// debugger;
       // 🔐 Step 2: Authenticate User
       console.log(`🔄 Sending GetAuthUser request with UserId: ${fetchedUserId}`);
 
@@ -85,7 +88,7 @@ const LoginScreen = () => {
           UserType: 0,
         }
       );
-
+// debugger;
       console.log('✅ GetAuthUser Response:', getAuthUserResponse.data);
 
       if (getAuthUserResponse.data) {

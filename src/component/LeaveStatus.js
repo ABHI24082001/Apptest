@@ -1,12 +1,18 @@
 // components/LeaveStatus.js
 import React from 'react';
-import {View, Text, ScrollView, StyleSheet, Dimensions, Platform} from 'react-native';
+import {View, Text, ScrollView, StyleSheet, Dimensions, Platform, TouchableOpacity} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 const {width} = Dimensions.get('window');
 
 const LeaveStatus = ({leaveData = []}) => {
   const hasData = leaveData && leaveData.length > 0;
+  const hasNoLeaveAssigned = hasData && leaveData.some(item => item.label === "No Leave Assigned");
+
+  const handleContactHR = () => {
+    // You can implement navigation to HR contact or open email/phone
+    console.log('Contact HR pressed');
+  };
 
   return (
     <View style={styles.card}>
@@ -16,7 +22,7 @@ const LeaveStatus = ({leaveData = []}) => {
           <Text style={styles.sectionSub}>Summary of available leaves</Text>
         </View>
 
-        {hasData ? (
+        {hasData && !hasNoLeaveAssigned ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -46,13 +52,15 @@ const LeaveStatus = ({leaveData = []}) => {
           </ScrollView>
         ) : (
           <View style={styles.noDataContainer}>
-            <LinearGradient
-              colors={['#f0f9ff', '#ffffff']}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 1}}
-              style={styles.noDataCard}>
-              <Text style={styles.noDataText}>No Leave Data Available</Text>
-            </LinearGradient>
+            <Text style={styles.noLeaveTitle}>No Leave Balance</Text>
+            <Text style={styles.noLeaveDescription}>
+              You don't have any leave policies assigned
+            </Text>
+            <TouchableOpacity 
+              style={styles.contactHRButton}
+              onPress={handleContactHR}>
+              <Text style={styles.contactHRText}>Contact HR</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -138,22 +146,34 @@ const styles = StyleSheet.create({
   noDataContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  noDataCard: {
-    width: width * 0.6,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e0f2fe',
+    marginTop: 10,
   },
-  noDataText: {
+  noLeaveTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noLeaveDescription: {
     fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  contactHRButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  contactHRText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

@@ -1,6 +1,8 @@
 // components/LeaveBalanceCards.js
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, TouchableOpacity, Dimensions } from 'react-native';
+
+const {width} = Dimensions.get('window');
 
 const LeaveBalanceCards = ({ leaveData = [] }) => {
   const cardColors = [
@@ -11,6 +13,35 @@ const LeaveBalanceCards = ({ leaveData = [] }) => {
     '#F39C12', // Orange
     '#1ABC9C', // Teal
   ];
+
+  // Check if data has valid leaves (not "No Leave Assigned" and has positive values)
+  const hasValidLeaves = leaveData && leaveData.length > 0 && 
+    leaveData.some(item => item.label !== "No Leave Assigned" && (item.used > 0 || item.available > 0));
+
+  const hasNoLeaveAssigned = leaveData && leaveData.length > 0 && 
+    leaveData.some(item => item.label === "No Leave Assigned");
+
+  const handleContactHR = () => {
+    // You can implement navigation to HR contact or open email/phone
+    console.log('Contact HR pressed from LeaveBalanceCards');
+  };
+
+  // If no valid leaves, show contact HR card
+  if (!hasValidLeaves || hasNoLeaveAssigned) {
+    return (
+      <View style={styles.noLeaveContainer}>
+        <Text style={styles.noLeaveTitle}>No Leave Balance</Text>
+        <Text style={styles.noLeaveDescription}>
+          You don't have any leave policies assigned
+        </Text>
+        <TouchableOpacity 
+          style={styles.contactHRButton}
+          onPress={handleContactHR}>
+          <Text style={styles.contactHRText}>Contact HR</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -56,7 +87,6 @@ const LeaveBalanceCards = ({ leaveData = [] }) => {
 };
 
 export default LeaveBalanceCards;
-
 
 const styles = StyleSheet.create({
   leaveScrollContainer: {
@@ -136,6 +166,43 @@ const styles = StyleSheet.create({
   tableValue: {
     fontSize: 16,
     fontWeight: '700',
+    color: '#fff',
+  },
+
+  // Styles for no leave card
+  noLeaveContainer: {
+    padding: 20,
+    margin: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+
+  noLeaveTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  noLeaveDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+
+  contactHRButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+
+  contactHRText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#fff',
   },
 });

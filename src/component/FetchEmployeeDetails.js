@@ -4,18 +4,24 @@ import {useAuth} from '../constants/AuthContext';
 import axiosinstance from '../utils/axiosInstance';
 import BASE_URL from '../constants/apiConfig';
 const useFetchEmployeeDetails = () => {
+// debugger
   const {user} = useAuth();
+
+// console.log(user , 'ijasvdbjkdvabjlvdbjklvdlbkabdklvlbjkdvabkvadsboadsvbodvbdvbkdsvbkdsvb===============')
+
+
   const [employeeDetails, setEmployeeDetails] = useState(null);
   useEffect(() => {
     const fetchEmployeeDetails = async () => {
       try {
+        // debugger;
         if (user?.id) {
           // console.log('Fetching employee details for user ID:', user.id); // Debug user ID
           const response = await axiosinstance.get(
             // `https://hcmapiv2.anantatek.com/api/EmpRegistration/GetEmpRegistrationById/${user.id}`,
-           `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user.id}`,
+           `${BASE_URL}/EmpRegistration/GetEmpRegistrationById/${user?.id}`,
           );
-          console.log('API response:', response.data); // Debug API response
+          console.log('================API jkbvasjbds;vs;vdskdkuds kusdsdivdsvsisvsnvisdvndksidsresponse:==================================', response.data); // Debug API response
           setEmployeeDetails(response.data);
         } else {
           console.log('User ID is null or undefined'); // Debug null user ID

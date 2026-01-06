@@ -36,7 +36,6 @@ import OnLeaveUsers from '../component/OnLeaveUsers';
 import moment from 'moment';
 import LottieView from 'lottie-react-native';
 
-
 // Icons
 const CheckIcon = () => <Text style={styles.icon}>✓</Text>;
 const CameraIcon = () => <Text style={styles.icon}>📷</Text>;
@@ -80,8 +79,6 @@ const HomeScreen = () => {
   const [isLocationProcessing, setIsLocationProcessing] = useState(false);
 
   const employeeDetails = useFetchEmployeeDetails();
-
-  
   const progressIntervalRef = useRef(null);
   const imageProcessingTimeoutRef = useRef(null);
   const sleep = t => new Promise(resolve => setTimeout(resolve, t));
@@ -98,7 +95,7 @@ const HomeScreen = () => {
     parameters: {delay: 1000},
   };
 
-  // Replace background service functions:
+  // Replace background service functions: (remove midnight service logic)
 
   const backgroundTask = async taskData => {
     const delay = taskData?.delay ?? 1000;
@@ -518,13 +515,12 @@ const HomeScreen = () => {
             await RNFS.copyFileAssets('mobilefacenet.onnx', modelPath);
           }
         } else {
-          const rawPath = `${RNFS.MainBundlePath}/tiny_model.onnx`;
+          const rawPath = `${RNFS.MainBundlePath}/mobilefacenet.onnx`;
           if (!(await RNFS.exists(rawPath))) {
-             await RNFS.copyFileAssets('tiny_model.onnx', rawPath);
-          } else {
-            console.log('❌ iOS model NOT found');
+            console.error('Model file not found in bundle');
+            return;
           }
-          modelPath = rawPath;
+          modelPath = `file://${rawPath}`;
         }
 
         const s = await ort.InferenceSession.create(modelPath, {
@@ -750,163 +746,77 @@ const HomeScreen = () => {
 
   // handle launch camera with timeout and error handling
 
-  // const launchCamera = async callback => {
-  //   try {
-  //     const hasPermission = await requestCameraPermission();
-  //     if (!hasPermission) {
-  //       throw new Error('Camera permission denied');
-  //     }
-
-  //     // Clear any existing timeouts
-  //     if (imageProcessingTimeoutRef.current) {
-  //       clearTimeout(imageProcessingTimeoutRef.current);
-  //       imageProcessingTimeoutRef.current = null;
-  //     }
-
-  //     return new Promise((resolve, reject) => {
-  //       // Set timeout for camera operation
-  //       const timeoutId = setTimeout(() => {
-  //         reject(new Error('Camera operation timed out'));
-  //       }, 30000);
-
-  //       ImagePicker.launchCamera(
-  //         {
-  //           mediaType: 'photo',
-  //           includeBase64: true,
-  //           cameraType: 'front',
-  //           maxWidth: 800,
-  //           maxHeight: 800,
-  //           quality: 0.8,
-  //           saveToPhotos: false, // Important for production
-  //         },
-  //         response => {
-  //           clearTimeout(timeoutId);
-
-  //           try {
-  //             if (response.didCancel) {
-  //               reject(new Error('Camera cancelled by user'));
-  //               return;
-  //             }
-
-  //             if (response.errorCode || response.errorMessage) {
-  //               reject(new Error(response.errorMessage || 'Camera error'));
-  //               return;
-  //             }
-
-  //             if (!response.assets?.[0]?.base64) {
-  //               reject(new Error('No image captured'));
-  //               return;
-  //             }
-
-  //             // Validate image size (prevent memory issues)
-  //             const imageSize = response.assets[0].base64.length;
-  //             if (imageSize > 5000000) {
-  //               // 5MB limit
-  //               reject(new Error('Image too large. Please try again.'));
-  //               return;
-  //             }
-
-  //             const result = callback(response);
-  //             resolve(result);
-  //           } catch (error) {
-  //             console.error('Camera callback error:', error);
-  //             reject(error);
-  //           }
-  //         },
-  //       );
-  //     });
-  //   } catch (error) {
-  //     console.error('Camera launch error:', error);
-  //     throw error;
-  //   }
-  // };
-
-
   const launchCamera = async callback => {
-  try {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      throw new Error('Camera permission denied');
-    }
+    try {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        throw new Error('Camera permission denied');
+      }
 
-    // Clear any existing timeouts
-    if (imageProcessingTimeoutRef.current) {
-      clearTimeout(imageProcessingTimeoutRef.current);
-      imageProcessingTimeoutRef.current = null;
-    }
+      // Clear any existing timeouts
+      if (imageProcessingTimeoutRef.current) {
+        clearTimeout(imageProcessingTimeoutRef.current);
+        imageProcessingTimeoutRef.current = null;
+      }
 
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Camera operation timed out'));
-      }, 25000);
+      return new Promise((resolve, reject) => {
+        // Set timeout for camera operation
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Camera operation timed out'));
+        }, 30000);
 
-      // Enhanced ImagePicker options for release build
-      const options = {
-        mediaType: 'photo',
-        includeBase64: true,
-        cameraType: 'front',
-        maxWidth: 800,
-        maxHeight: 800,
-        quality: 0.8,
-        saveToPhotos: false,
-         includeExtra: false,
-         forceJpg: true,
-          enableRotationFix: false,
-        // Add these for better release build compatibility
-        storageOptions: {
-          skipBackup: true,
-          path: 'images',
-        },
-        // Ensure proper EXIF handling
-        includeExtra: true,
-      };
+        ImagePicker.launchCamera(
+          {
+            mediaType: 'photo',
+            includeBase64: true,
+            cameraType: 'front',
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 0.8,
+            saveToPhotos: true, // Important for production
+          },
+          response => {
+            clearTimeout(timeoutId);
 
-      ImagePicker.launchCamera(options, response => {
-        clearTimeout(timeoutId);
+            try {
+              if (response.didCancel) {
+                reject(new Error('Camera cancelled by user'));
+                return;
+              }
 
-        try {
-          if (response.didCancel) {
-            reject(new Error('Camera cancelled by user'));
-            return;
-          }
+              if (response.errorCode || response.errorMessage) {
+                reject(new Error(response.errorMessage || 'Camera error'));
+                return;
+              }
 
-          if (response.errorCode || response.errorMessage) {
-            console.error('Camera error:', response.errorCode, response.errorMessage);
-            reject(new Error(response.errorMessage || 'Camera error occurred'));
-            return;
-          }
+              if (!response.assets?.[0]?.base64) {
+                reject(new Error('No image captured'));
+                return;
+              }
 
-          if (!response.assets?.[0]?.base64) {
-            reject(new Error('No image captured or base64 missing'));
-            return;
-          }
+              // Validate image size (prevent memory issues)
+              const imageSize = response.assets[0].base64.length;
+              if (imageSize > 5000000) {
+                // 5MB limit
+                reject(new Error('Image too large. Please try again.'));
+                return;
+              }
 
-          // Validate image size for release build
-          const imageSize = response.assets[0].base64.length;
-          if (imageSize > 5000000) { // 5MB limit
-            reject(new Error('Image too large. Please try again.'));
-            return;
-          }
-
-          // Additional validation for release builds
-          if (response.assets[0].fileSize && response.assets[0].fileSize > 10 * 1024 * 1024) {
-            reject(new Error('Image file size too large'));
-            return;
-          }
-
-          const result = callback(response);
-          resolve(result);
-        } catch (error) {
-          console.error('Camera callback error:', error);
-          reject(error);
-        }
+              const result = callback(response);
+              resolve(result);
+            } catch (error) {
+              console.error('Camera callback error:', error);
+              reject(error);
+            }
+          },
+        );
       });
-    });
-  } catch (error) {
-    console.error('Camera launch error:', error);
-    throw error;
-  }
-};
+    } catch (error) {
+      console.error('Camera launch error:', error);
+      throw error;
+    }
+  };
+
   // Get formatted local date-time strings
 
   const getFormattedLocalDateTime = () => {
@@ -927,100 +837,6 @@ const HomeScreen = () => {
     return {logDate, logTime, logDateTime};
   };
 
-  // Midnight background task for auto checkout
-
-  const midnightBackgroundTask = async ({handleCheckOut}) => {
-    console.log('🌙 Midnight service started...');
-
-    while (BackgroundService.isRunning()) {
-      try {
-        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-
-        if (checkInData) {
-          const parsedData = JSON.parse(checkInData);
-          const checkInDate = await AsyncStorage.getItem('CHECK_IN_DATE');
-          const today = moment().format('YYYY-MM-DD');
-
-          // Check if user is still checked in but date has changed (midnight passed)
-          if (parsedData.checkedIn && checkInDate && checkInDate !== today) {
-            console.log('⏳ MIDNIGHT PASSED →  CHECKOUT TRIGGERED');
-
-            try {
-              await handleCheckOut(true); // true = from background
-            } catch (e) {
-              console.log('Auto checkout failed:', e);
-            }
-
-            // Stop the background service after auto checkout
-            await BackgroundService.stop();
-            break;
-          }
-        }
-      } catch (e) {
-        console.log('Background loop error:', e);
-      }
-
-      await sleep(30 * 1000); // check every 30 seconds
-    }
-  };
-
-  const startMidnightService = async () => {
-    const options = {
-      taskName: 'AutoCheckout',
-      taskTitle: 'Shift Active',
-      taskDesc: 'Monitoring midnight auto-checkout',
-      taskIcon: {name: 'ic_launcher', type: 'mipmap'},
-      color: '#007bff',
-      parameters: {handleCheckOut},
-    };
-
-    try {
-      // Stop existing service if running
-      if (BackgroundService.isRunning()) {
-        await BackgroundService.stop();
-        await sleep(1000);
-      }
-
-      await BackgroundService.start(midnightBackgroundTask, options);
-      console.log('▶ Midnight service STARTED');
-    } catch (e) {
-      console.log('Error starting midnight service:', e);
-    }
-  };
-
-  // Stop midnight background service
-  const stopMidnightService = async () => {
-    try {
-      if (BackgroundService.isRunning()) {
-        await BackgroundService.stop();
-        console.log('⏹ Midnight service STOPPED');
-      }
-    } catch (e) {
-      console.log('Error stopping midnight service:', e);
-    }
-  };
-
-  // On mount: check and restart midnight service if needed
-
-  useEffect(() => {
-    const checkAndRestartMidnightService = async () => {
-      try {
-        const checkInData = await AsyncStorage.getItem(CHECK_IN_STORAGE_KEY);
-        if (checkInData) {
-          const parsedData = JSON.parse(checkInData);
-          if (parsedData.checkedIn) {
-            console.log('User is checked in, starting midnight service...');
-            await startMidnightService();
-          }
-        }
-      } catch (error) {
-        console.error('Error checking midnight service:', error);
-      }
-    };
-
-    checkAndRestartMidnightService();
-  }, []);
-
   // Handle check-in process with Lottie animation
   const handleCheckIn = async () => {
     if (!registeredFace) {
@@ -1037,7 +853,7 @@ const HomeScreen = () => {
     try {
       // Step 1: Check location with Lottie animation
       setIsLocationProcessing(true);
-      
+
       const locationPromise = checkLocation();
       const locationTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Location check timeout')), 20000),
@@ -1156,7 +972,7 @@ const HomeScreen = () => {
         );
       }
 
-      // Step 4: Update state and start services
+      // Step 4: Update state and start services (removed midnight service)
       const checkInMs = new Date().getTime();
       setCheckedIn(true);
       setCheckInTime(checkInMs);
@@ -1164,7 +980,6 @@ const HomeScreen = () => {
       await Promise.all([
         saveCheckInState(true, checkInMs, faceVerificationResult.capturedImage),
         startBackgroundService(),
-        startMidnightService(), // Add midnight service
       ]);
 
       Alert.alert(
@@ -1205,9 +1020,7 @@ const HomeScreen = () => {
       const employeeId = String(employeeDetails?.id);
       const current = moment();
 
-      // ----------------------------------------------------
       // 1️⃣ SIMPLE OT CALCULATION (Only for manual checkout)
-      // ----------------------------------------------------
       if (!fromBackground) {
         let minOtMinutes = 30;
 
@@ -1235,16 +1048,11 @@ const HomeScreen = () => {
         }
 
         if (shiftEndTime) {
-          // Early logout → allow
           if (current.isBefore(shiftEndTime)) {
             console.log('Early Logout → Allowed');
-          }
-          // Exact time → allow
-          else if (current.isSame(shiftEndTime, 'minute')) {
+          } else if (current.isSame(shiftEndTime, 'minute')) {
             console.log('Exact shift end → Allowed');
-          }
-          // After shift → OT calculation
-          else {
+          } else {
             const diffMinutes = current.diff(shiftEndTime, 'minutes');
 
             if (diffMinutes < minOtMinutes) {
@@ -1255,7 +1063,7 @@ const HomeScreen = () => {
                   {text: 'Cancel', style: 'cancel'},
                   {
                     text: 'Checkout Anyway',
-                    onPress: () => handleCheckOut(true), // bypass OT for second call
+                    onPress: () => handleCheckOut(true),
                   },
                 ],
               );
@@ -1264,13 +1072,10 @@ const HomeScreen = () => {
         }
       }
 
-      // ----------------------------------------------------
-      // 2️⃣ SHOW CHECKOUT CONFIRMATION (Before API call)
-      // ----------------------------------------------------
+      // 2️⃣ SHOW CHECKOUT CONFIRMATION
       const confirmMessage = fromBackground
         ? `Are you sure you want to check out?`
-        : `Checkout Successful`
-       
+        : `Checkout Successful`;
 
       const confirmTitle = fromBackground
         ? 'Checkout'
@@ -1291,9 +1096,7 @@ const HomeScreen = () => {
             style: fromBackground ? 'destructive' : 'default',
             onPress: async () => {
               try {
-                // ----------------------------------------------------
                 // 3️⃣ PERFORM ACTUAL CHECKOUT API CALL
-                // ----------------------------------------------------
                 const attendancePayload = {
                   EmployeeId: String(employeeDetails?.id || '9'),
                   EmployeeCode: String(employeeDetails?.id || '9'),
@@ -1320,13 +1123,10 @@ const HomeScreen = () => {
                   throw new Error(response.data?.message || 'API Failed');
                 }
 
-                // ----------------------------------------------------
-                // 4️⃣ RESET STATES AFTER SUCCESSFUL API CALL
-                // ----------------------------------------------------
+                // 4️⃣ RESET STATES AFTER SUCCESSFUL API CALL (removed midnight service)
                 await Promise.all([
                   saveCheckInState(false),
                   stopBackgroundService(),
-                  stopMidnightService(),
                   AsyncStorage.multiRemove([
                     BG_LAST_ELAPSED_KEY,
                     CAPTURED_FACE_STORAGE_KEY,
@@ -1347,9 +1147,7 @@ const HomeScreen = () => {
                   progressIntervalRef.current = null;
                 }
 
-                // ----------------------------------------------------
                 // 5️⃣ SHOW SUCCESS ALERT AFTER CHECKOUT
-                // ----------------------------------------------------
                 const successTitle = fromBackground
                   ? '✔  Checkout Successful'
                   : '✔ Checkout Successful';
@@ -1557,85 +1355,28 @@ const HomeScreen = () => {
   };
 
   // Request camera permission ==============
-  // const requestCameraPermission = async () => {
-  //   try {
-  //     if (Platform.OS === 'android') {
-  //       const granted = await PermissionsAndroid.request(
-  //         PermissionsAndroid.PERMISSIONS.CAMERA,
-  //         {
-  //           title: 'Camera Permission',
-  //           message: 'App needs access to your camera',
-  //           buttonNeutral: 'Ask Me Later',
-  //           buttonNegative: 'Cancel',
-  //           buttonPositive: 'OK',
-  //         },
-  //       );
-  //       return granted === PermissionsAndroid.RESULTS.GRANTED;
-  //     } else {
-  //       return true;
-  //     }
-  //   } catch (err) {
-  //     console.warn(err);
-  //     return false;
-  //   }
-  // };
-
   const requestCameraPermission = async () => {
-  try {
-    if (Platform.OS === 'android') {
-      // Request multiple camera permissions for release build compatibility
-      const permissions = [
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      ];
-      
-      // For Android 13+, request media permissions
-      if (Platform.Version >= 33) {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
-      } else {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
-      }
-      
-      const results = await PermissionsAndroid.requestMultiple(permissions);
-      
-      // Check if camera permission is granted
-      const cameraGranted = results[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
-      
-      if (!cameraGranted) {
-        Alert.alert(
-          'Camera Permission Required',
-          'Please grant camera permission to use face verification.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Open Settings', 
-              onPress: () => {
-                if (Linking.canOpenURL('package:com.cloudtree.hrms')) {
-                  Linking.openURL('package:com.cloudtree.hrms');
-                }
-              }
-            }
-          ]
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App needs access to your camera',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
         );
-        return false;
-      }
-      
-      return cameraGranted;
-    } else {
-      // iOS camera permission
-      const permission = await check(PERMISSIONS.IOS.CAMERA);
-      if (permission === RESULTS.GRANTED) {
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } else {
         return true;
       }
-      
-      const result = await request(PERMISSIONS.IOS.CAMERA);
-      return result === RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
     }
-  } catch (err) {
-    console.warn('Camera permission error:', err);
-    return false;
-  }
-};
+  };
 
   // Request location permission ==============
 
@@ -1770,6 +1511,8 @@ const HomeScreen = () => {
 
         const response = await axiosInstance.get(url);
 
+        console.log(response , 'leave===========================================================')
+
         // Transform the API data to match the expected format for OnLeaveUsers
         const transformedData = response.data.map(employee => ({
           id: employee.employeeId.toString(),
@@ -1805,11 +1548,26 @@ const HomeScreen = () => {
           `${BASE_URL}/CommonDashboard/GetEmployeeLeaveDetails/${companyId}/${employeeId}`,
         );
 
-        const transformed = response.data.leaveBalances.map(item => ({
-          label: item.leavename,
-          used: item.usedLeaveNo,
-          available: item.availbleLeaveNo,
-        }));
+
+        console.log(response.data , 'leveevveehejebejjejkbjdfjds')
+
+        // Filter and transform leave data
+        const validLeaves = response.data.leaveBalances.filter(item => 
+          item.usedLeaveNo > 0 || item.availbleLeaveNo > 0
+        );
+
+        const transformed = validLeaves.length > 0 
+          ? validLeaves.map(item => ({
+              label: item.leavename,
+              used: item.usedLeaveNo,
+              available: item.availbleLeaveNo,
+            }))
+          : [{
+              label: "No Leave Assigned",
+              used: 0,
+              available: 0,
+            }];
+
         setLeaveData(transformed);
       } catch (error) {
         console.error('Error fetching leave data:', error.message);
@@ -2080,24 +1838,16 @@ const HomeScreen = () => {
             </Text>
 
             <TouchableOpacity
-              style={styles.registerButton}
+              style={[
+                styles.registerButton,
+                (isRegistering || isProcessing) && styles.disabledButton,
+              ]}
               onPress={handleReregisterFace}
               disabled={isRegistering || isProcessing}
-              activeOpacity={0.8}>
-              <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
-                style={styles.registerButtonGradient}>
-                {isRegistering ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <CameraIcon />
-                    <Text style={styles.registerButtonText}>
-                      Register Face Now
-                    </Text>
-                  </>
-                )}
-              </LinearGradient>
+              activeOpacity={0.85}>
+              <Text style={styles.registerButtonText} allowFontScaling={false}>
+                Register Face Now
+              </Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -2419,7 +2169,6 @@ const HomeScreen = () => {
           <LinearGradient
             colors={['#FFFFFF', '#F8FAFC']}
             style={styles.locationModalContent}>
-            
             {/* Lottie Animation */}
             <View style={styles.lottieContainer}>
               <LottieView
@@ -2442,14 +2191,14 @@ const HomeScreen = () => {
             </View>
 
             {/* Cancel Button */}
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.locationCancelButton}
               onPress={() => {
                 setIsLocationProcessing(false);
                 setIsLoading(false);
               }}>
               <Text style={styles.locationCancelButtonText}>Cancel</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </LinearGradient>
         </View>
       </View>
@@ -2459,57 +2208,58 @@ const HomeScreen = () => {
   // Main render function
   return (
     <AppSafeArea>
-      {/* <StatusBar barStyle="light-content" backgroundColor="#1E40AF" /> */}
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
-        <LinearGradient colors={['#2563EB', '#3B82F6']} style={styles.header}>
-         <View style={styles.header}> 
-           <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.headerGreeting}>Welcome back!</Text>
-              <Text style={styles.headerName}>
-                {employeeDetails?.employeeName || 'Employee'}
+
+        <View style={styles.headerCard}>
+          {/* Top Row */}
+          <View style={styles.headerTop}>
+            <View style={styles.nameBlock}>
+              <Text style={styles.greeting}>Welcome back!</Text>
+              <Text style={styles.employeeName}>
+                {employeeDetails?.employeeName}
               </Text>
-            </View>
-            <View style={styles.headerRight}>
-              <View style={styles.timeContainer}>
-                <Text style={styles.headerTime}>{currentTime}</Text>
-                <Text style={styles.headerDate}>{currentDate}</Text>
+
+              <View style={styles.dateChip}>
+                <Text style={styles.dateText}>{currentDate}</Text>
               </View>
             </View>
           </View>
-        
 
-          {/* Status Badge */}
+          {/* Divider */}
+          <View style={styles.divider} />
 
-          <View style={styles.statusBadge}>
-            <View style={styles.statusContent}>
+          {/* Bottom Row */}
+          <View style={styles.headerBottom}>
+            <View
+              style={[
+                styles.statusChip,
+                checkedIn ? styles.activeBg : styles.inactiveBg,
+              ]}>
               <View
                 style={[
                   styles.statusDot,
-                  checkedIn ? styles.statusActive : styles.statusInactive,
+                  checkedIn ? styles.activeDot : styles.inactiveDot,
                 ]}
               />
-              <View style={styles.statusTextContainer}>
-                <Text style={styles.statusLabel}>
-                  {checkedIn ? 'Checked In' : 'Not Checked In'}
+              <Text style={styles.statusText}>
+                {checkedIn ? 'Checked In' : 'Not Checked In'}
+              </Text>
+
+              {checkedIn && checkInTime && (
+                <Text style={styles.statusTime}>
+                  · {formatLoginTime(checkInTime)}
                 </Text>
-                {checkedIn && checkInTime && (
-                  <Text style={styles.statusTime}>
-                    {formatLoginTime(checkInTime)}
-                  </Text>
-                )}
-              </View>
+              )}
             </View>
           </View>
-
-           </View>
-        </LinearGradient>
+        </View>
 
         {/* Main Content */}
         <View style={styles.content}>{renderContent()}</View>
       </ScrollView>
-      
+
       {/* Location Processing Modal */}
       {renderLocationModal()}
     </AppSafeArea>

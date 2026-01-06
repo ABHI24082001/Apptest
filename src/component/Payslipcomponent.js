@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import Pdf from 'react-native-pdf';
@@ -15,10 +16,11 @@ import RNPrint from 'react-native-print';
 import LottieView from 'lottie-react-native';
 
 
-const PDFViewer = ({payslipData, visible, onClose , employeeDetails }) => {
+const PDFViewer = ({payslipData, visible, onClose , employeeDetails, logoUrl }) => {
   const [pdfPath, setPdfPath] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [companyLogo, setCompanyLogo] = useState(null);
   const isCancelled = useRef(false);
 
 
@@ -32,6 +34,13 @@ const PDFViewer = ({payslipData, visible, onClose , employeeDetails }) => {
     // Cleanup: set cancel flag if component unmounts or modal closes
     return () => { isCancelled.current = true; };
   }, [payslipData, visible]);
+
+  useEffect(() => {
+    if (logoUrl) {
+      console.log('🖼️ Loading company logo:', logoUrl);
+      setCompanyLogo(logoUrl);
+    }
+  }, [logoUrl]);
 
 const generatePDF = async () => {
   setIsLoading(true);
@@ -471,6 +480,12 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#721c24',
     textAlign: 'center',
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
+    borderRadius: 8,
   },
 });
 

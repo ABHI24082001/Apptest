@@ -292,7 +292,7 @@ const ExpenseRequestDetails = ({navigation}) => {
       const expenceDetails = await fetchExpenseById(id);
       if (!expenceDetails) {
         Alert.alert(
-          'Error',
+          'Warning',
           'Failed to fetch expense details. Please try again.',
         );
         return;
@@ -302,7 +302,7 @@ const ExpenseRequestDetails = ({navigation}) => {
         item => (item.id || item.requestId) === id,
       );
       if (!expenceItem) {
-        Alert.alert('Error', 'Expense item not found. Please try again.');
+        Alert.alert('Warning', 'Expense item not found. Please try again.');
         return;
       }
 
@@ -336,7 +336,7 @@ const ExpenseRequestDetails = ({navigation}) => {
 
       // Additional check to ensure we don't proceed with zero amount
       if (approvedAmountValue <= 0) {
-        Alert.alert('Error', 'Cannot approve an expense with zero amount.');
+        Alert.alert('Warning', 'Cannot approve an expense with zero amount.');
         return;
       }
 
@@ -366,7 +366,7 @@ const ExpenseRequestDetails = ({navigation}) => {
 
       // Check if expense amount is zero - modified to use approvedAmountValue directly
       if (approvedAmountValue <= 0) {
-        Alert.alert('Error', 'Cannot approve an expense with zero amount.');
+        Alert.alert('Warning', 'Cannot approve an expense with zero amount.');
         return;
       }
 

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  ScrollView,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import moment from 'moment';
@@ -134,23 +133,6 @@ export default function MonthCalendarWithAgenda({
     if (employeeDetails || employeeId) fetchAttendanceData();
   }, [fetchAttendanceData]);
 
-  // Recompute daysInMonth when currentMonth changes
-  // useEffect(() => {
-  //   const start = currentMonth.clone().startOf('month');
-  //   const end = currentMonth.clone().endOf('month');
-  //   const days = [];
-  //   for (let m = start.clone(); m.isSameOrBefore(end, 'day'); m.add(1, 'day')) {
-  //     days.push({key: m.format('YYYY-MM-DD'), date: m.clone()});
-  //   }
-  //   setDaysInMonth(days);
-
-  //   // If selectedDate is not in current month, reset it
-  //   if (!moment(selectedDate).isSame(currentMonth, 'month')) {
-  //     const firstOfMonth = currentMonth.format('YYYY-MM-DD');
-  //     setSelectedDate(firstOfMonth);
-  //     onDateChange(firstOfMonth);
-  //   }
-  // }, [currentMonth]);
   useEffect(() => {
     const start = currentMonth.clone().startOf('month');
     const end = currentMonth.clone().endOf('month');
@@ -185,7 +167,7 @@ export default function MonthCalendarWithAgenda({
       'eleven',
       'twelve',
       'thirteen',
-      'fourteen',
+      'forteen', // Changed from 'fourteen' to match API
       'fifteen',
       'sixteen',
       'seventeen',
@@ -218,166 +200,6 @@ export default function MonthCalendarWithAgenda({
     // fallback to lowercased name
     return r.replace(/\s+/g, ' ');
   };
-
-  // Compute month events from attendanceData (memoized)
-  // const monthEvents = useMemo(() => {
-  //   const events = {};
-  //   if (
-  //     !attendanceData ||
-  //     !attendanceData.calendarModels ||
-  //     !attendanceData.calendarModels[0]
-  //   )
-  //     return events;
-
-  //   const attendance = attendanceData.calendarModels[0]; // single employee model
-  //   const holidays = attendanceData.holidays || [];
-
-  //   const start = currentMonth.clone().startOf('month');
-  //   const end = currentMonth.clone().endOf('month');
-
-  //   for (
-  //     let date = start.clone();
-  //     date.isSameOrBefore(end);
-  //     date.add(1, 'day')
-  //   ) {
-  //     const dateStr = date.format('YYYY-MM-DD');
-  //     const dayOfMonth = parseInt(date.format('D'), 10);
-  //     const evts = [];
-
-  //     // weekend detection (Sat/Sun) -> mark week-off
-  //     const isWeekend = date.day() === 0 || date.day() === 7;
-  //     if (isWeekend) {
-  //       evts.push({
-  //         id: `week-off-${dateStr}`,
-  //         type: 'week-off',
-  //         name: 'Week Off',
-  //         color: leaveColors['week-off'].color,
-  //         icon: leaveColors['week-off'].icon,
-  //       });
-  //       events[dateStr] = evts;
-  //       continue;
-  //     }
-
-  //     // API holidays array uses 'day' to indicate day-of-month in your example
-  //     const holidayObj = holidays.find(h => Number(h.day) === dayOfMonth);
-  //     if (holidayObj) {
-  //       const normalized = normalizeLeaveName(holidayObj.leaveName);
-  //       const leaveStyle = leaveColors[normalized] || leaveColors['holiday'];
-
-  //       evts.push({
-  //         id: `${normalized}-${dateStr}`,
-  //         type: normalized,
-  //         name: holidayObj.leaveName || leaveStyle.label || 'Holiday',
-  //         color: leaveStyle.color,
-  //         icon: leaveStyle.icon,
-  //       });
-  //       events[dateStr] = evts;
-  //       continue;
-  //     }
-
-  //     // Attendance keys in API use "oneLogIn", "oneLogOut", "twoLogIn", ... so build keys
-  //     const loginKey = `${getDayText(dayOfMonth)}LogIn`;
-  //     const logoutKey = `${getDayText(dayOfMonth)}LogOut`;
-
-  //     // If both login & logout present -> present
-  //     if (attendance[loginKey] && attendance[logoutKey]) {
-  //       evts.push({
-  //         id: `present-${dateStr}`,
-  //         type: 'present',
-  //         name: 'Present',
-  //         time: `${attendance[loginKey]} - ${attendance[logoutKey]}`,
-  //       });
-  //     } else {
-  //       // If not holiday/weekend and no login/logout -> absent
-  //       evts.push({
-  //         id: `absent-${dateStr}`,
-  //         type: 'absent',
-  //         name: 'Absent',
-  //       });
-  //     }
-
-  //     events[dateStr] = evts;
-  //   }
-
-  //   return events;
-  // }, [attendanceData, currentMonth]);
-  // const monthEvents = useMemo(() => {
-  //   const events = {};
-  //    const attendance = attendanceData?.calendarModels?.[0] || {}; // <--- define here
-  //   const start = moment(currentMonth).startOf('month');
-  //   const end = moment(currentMonth).endOf('month');
-
-  //   for (
-  //     let date = start.clone();
-  //     date.isSameOrBefore(end);
-  //     date.add(1, 'day')
-  //   ) {
-  //     const dateStr = date.format('YYYY-MM-DD');
-  //     const evts = [];
-
-  //     const loginKey = `login_${dateStr}`;
-  //     const logoutKey = `logout_${dateStr}`;
-
-  //     const dayShift = shiftData?.[dateStr];
-  //     const isFuture = date.isAfter(moment(), 'day');
-  //     const isPast = date.isBefore(moment(), 'day');
-
-  //     /* ---------------- HOLIDAY ---------------- */
-  //     if (dayShift?.holidayName) {
-  //       evts.push({
-  //         id: `holiday-${dateStr}`,
-  //         type: 'holiday',
-  //         name: dayShift.holidayName,
-  //       });
-  //     }
-
-  //     /* ---------------- LEAVE ---------------- */
-  //     if (dayShift?.leaveName) {
-  //       evts.push({
-  //         id: `leave-${dateStr}`,
-  //         type: 'leave',
-  //         name: dayShift.leaveName,
-  //       });
-  //     }
-
-  //     /* ---------------- PRESENT ---------------- */
-  //     if (attendance?.[loginKey] && attendance?.[logoutKey]) {
-  //       evts.push({
-  //         id: `present-${dateStr}`,
-  //         type: 'present',
-  //         name: 'Present',
-  //         loginTime: attendance[loginKey],
-  //         logoutTime: attendance[logoutKey],
-  //       });
-  //     }
-
-  //     /* ---------------- FUTURE SHIFT ---------------- */
-  //     else if (isFuture && dayShift) {
-  //       evts.push({
-  //         id: `shift-${dateStr}`,
-  //         type: 'shift',
-  //         name: 'Shift Scheduled',
-  //         shiftName: dayShift.shiftName,
-  //         shiftTime: `${dayShift.shiftStartTime} - ${dayShift.shiftEndTime}`,
-  //       });
-  //     }
-
-  //     /* ---------------- ABSENT (PAST ONLY) ---------------- */
-  //     else if (isPast && dayShift) {
-  //       evts.push({
-  //         id: `absent-${dateStr}`,
-  //         type: 'absent',
-  //         name: 'Absent',
-  //       });
-  //     }
-
-  //     if (evts.length > 0) {
-  //       events[dateStr] = evts;
-  //     }
-  //   }
-
-  //   return events;
-  // }, [currentMonth, shiftData, attendanceData]);
 
   const monthEvents = useMemo(() => {
     const events = {};

@@ -122,13 +122,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB',
   },
+
+  //  {/* Date and amount info */}
   dateOuterContainer: {
-    marginVertical: 8,
+    marginVertical: 8,   
   },
   dateCard: {
     marginBottom: 8,
     borderRadius: 8,
     elevation: 1,
+    backgroundColor: '#FFFFFF',
   },
   dateCardContent: {
     padding: 8,
@@ -150,7 +153,7 @@ const styles = StyleSheet.create({
   dateValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    // color: '#111827',
   },
   dateArrow: {
     marginHorizontal: 8,

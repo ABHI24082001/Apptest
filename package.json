@@ -39,6 +39,7 @@
     "react-native": "0.79.0",
     "react-native-aes-crypto": "^3.2.1",
     "react-native-background-actions": "^4.0.1",
+    "react-native-background-fetch": "^4.2.8",
     "react-native-base64": "^0.2.1",
     "react-native-blob-util": "^0.21.2",
     "react-native-calendars": "^1.1312.0",
