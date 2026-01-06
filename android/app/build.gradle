@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
+
 
 project.ext.vectoricons = [
     iconFontNames: [ 'MaterialIcons.ttf', 'EvilIcons.ttf' ,'Ionicons.ttf',  'Feather.ttf','MaterialCommunityIcons.ttf' ] // Specify font files
@@ -145,7 +147,11 @@ packagingOptions {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    implementation project(':react-native-vector-icons')  
+    implementation project(':react-native-vector-icons') 
+    implementation platform("com.google.firebase:firebase-bom:34.7.0")
+    implementation "com.google.firebase:firebase-messaging"
+    implementation "com.google.firebase:firebase-analytics"
+ 
      
 }
 

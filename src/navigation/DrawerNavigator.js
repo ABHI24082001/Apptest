@@ -244,7 +244,7 @@ const handleLogout = async () => {
         titleStyle={styles.menuItemTitle}
         title="My Profile"
       />
-{/*       
+      
       <Menu.Item
         onPress={() => {
           setVisible(false);
@@ -258,7 +258,7 @@ const handleLogout = async () => {
         style={styles.menuItem}
         titleStyle={styles.menuItemTitle}
         title="Setting"
-      /> */}
+      />
 
        <Menu.Item
         onPress={() => {

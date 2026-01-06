@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "368690878512",
+    "project_id": "cloudtreehcm",
+    "storage_bucket": "cloudtreehcm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368690878512:android:08ffc63c907e697383f5f5",
+        "android_client_info": {
+          "package_name": "com.cloudtree.hrms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkeRlAuGWoUrYg-2wcuNd3XHhg7P-ZSjs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
